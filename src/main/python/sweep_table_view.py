@@ -107,7 +107,7 @@ class SweepTableView(QTableView):
             index_rect.top()
         )
 
-    def popup_plot(self, graph: QWidget, left: int = 0, top: int = 0):
+    def popup_plot(self, graph: QWidget, left: int = 0, top: int = 0):  # might be static
         """ Make a popup with a single widget, which ought to be a plotter for 
         the full experiment or test pulse plots.
 

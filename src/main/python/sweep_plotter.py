@@ -72,11 +72,8 @@ class ExperimentPopupPlotter:
         plot.setLabel("left", "membrane potential (mV)")
         plot.setLabel("bottom", "time (s)")
 
-        plot.plot(self.time, self.voltage, 
-            pen=mkPen(color=EXP_PULSE_CURRENT_COLOR, width=2))
-        plot.addLine(y=self.baseline, 
-            pen=mkPen(color=EXP_PULSE_BASELINE_COLOR, width=2), 
-            label="baseline")
+        plot.plot(self.time, self.voltage, pen=mkPen(color=EXP_PULSE_CURRENT_COLOR, width=2))
+        plot.addLine(y=self.baseline, pen=mkPen(color=EXP_PULSE_BASELINE_COLOR, width=2), label="baseline")
 
         return graph
 
@@ -128,18 +125,13 @@ class PulsePopupPlotter:
         plot.addLegend()
 
         if self.initial is not None:
-            plot.plot(self.time, self.initial,
-             pen=mkPen(color=TEST_PULSE_INIT_COLOR, width=2), 
-                name="initial")
+            plot.plot(self.time, self.initial, pen=mkPen(color=TEST_PULSE_INIT_COLOR, width=2), name="initial")
 
         if self.previous is not None:
-            plot.plot(self.time, self.previous, 
-            pen=mkPen(color=TEST_PULSE_PREV_COLOR, width=2), 
-                name="previous")
+            plot.plot(self.time, self.previous, pen=mkPen(color=TEST_PULSE_PREV_COLOR, width=2), name="previous")
 
-        plot.plot(self.time, self.voltage, 
-            pen=mkPen(color=TEST_PULSE_CURRENT_COLOR, width=2), 
-            name=f"sweep {self.sweep_number}")
+        plot.plot(self.time, self.voltage,
+                  pen=mkPen(color=TEST_PULSE_CURRENT_COLOR, width=2), name=f"sweep {self.sweep_number}")
 
         return graph
 
@@ -172,7 +164,6 @@ class SweepPlotter:
         self.previous_test_voltage = None
         self.initial_test_voltage = None
 
-
     def make_test_pulse_plots(
         self, 
         sweep_number: int, 
@@ -197,11 +188,8 @@ class SweepPlotter:
             self.config.test_pulse_baseline_samples
         )
 
-        thumbnail = make_test_pulse_plot(sweep_number, 
-            time, voltage, 
-            self.previous_test_voltage, self.initial_test_voltage, 
-            step=self.config.thumbnail_step, labels=False
-        )
+        thumbnail = make_test_pulse_plot(sweep_number, time, voltage, self.previous_test_voltage,
+                                         self.initial_test_voltage, step=self.config.thumbnail_step, labels=False)
 
         previous = self.previous_test_voltage
         initial = self.initial_test_voltage
@@ -222,7 +210,6 @@ class SweepPlotter:
                 sweep_number=sweep_number
             )
         )
-
 
     def make_experiment_plots(
         self, 
@@ -258,7 +245,6 @@ class SweepPlotter:
                 baseline=exp_baseline
             )
         )
-
 
     def advance(self, sweep_number):
         sweep_data = self.data_set.sweep(sweep_number)
@@ -350,15 +336,12 @@ def make_test_pulse_plot(
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
     if initial is not None:
-        ax.plot(time[::step], initial[::step], linewidth=1, label=f"initial", 
-            color=TEST_PULSE_INIT_COLOR)
+        ax.plot(time[::step], initial[::step], linewidth=1, label=f"initial", color=TEST_PULSE_INIT_COLOR)
         
     if previous is not None:
-        ax.plot(time[::step], previous[::step], linewidth=1, label=f"previous", 
-            color=TEST_PULSE_PREV_COLOR)
+        ax.plot(time[::step], previous[::step], linewidth=1, label=f"previous", color=TEST_PULSE_PREV_COLOR)
     
-    ax.plot(time[::step], voltage[::step], linewidth=1, 
-        label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
+    ax.plot(time[::step], voltage[::step], linewidth=1, label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
 
     ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
     ax.set_ylabel("membrane potential (mV)", fontsize=PLOT_FONTSIZE)
@@ -399,8 +382,7 @@ def experiment_plot_data(
     """
 
     experiment_start_index, experiment_end_index = \
-        get_experiment_epoch(sweep.i, sweep.sampling_rate) \
-            or (backup_start_index, len(sweep.i))
+        get_experiment_epoch(sweep.i, sweep.sampling_rate) or (backup_start_index, len(sweep.i))
 
     if experiment_start_index <= 0:
         experiment_start_index = backup_start_index
@@ -445,14 +427,13 @@ def make_experiment_plot(
 
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
-    ax.plot(exp_time[::step], exp_voltage[::step], linewidth=1, 
-        color=EXP_PULSE_CURRENT_COLOR,
-        label=f"sweep {sweep_number}")
-    ax.hlines(exp_baseline, *time_lim, linewidth=1, 
-        color=EXP_PULSE_BASELINE_COLOR,
-        label="baseline")
-    ax.set_xlim(time_lim)
+    ax.plot(exp_time[::step], exp_voltage[::step], linewidth=1,
+            color=EXP_PULSE_CURRENT_COLOR, label=f"sweep {sweep_number}")
 
+    ax.hlines(exp_baseline, *time_lim, linewidth=1,
+              color=EXP_PULSE_BASELINE_COLOR, label="baseline")
+
+    ax.set_xlim(time_lim)
     ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
     ax.set_ylabel("membrane potential (mV)", fontsize=PLOT_FONTSIZE)
 
@@ -463,5 +444,3 @@ def make_experiment_plot(
         ax.yaxis.set_major_locator(plt.NullLocator())
 
     return fig
-
-

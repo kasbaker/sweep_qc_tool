@@ -45,7 +45,6 @@ class SweepTableModel(QAbstractTableModel):
         data.end_commit_calculated.connect(self.on_new_data)
         self.qc_state_updated.connect(data.on_manual_qc_state_updated)
 
-
     def on_new_data(
         self, 
         sweep_features: List[Dict], 
@@ -88,9 +87,9 @@ class SweepTableModel(QAbstractTableModel):
                 sweep_number,
                 sweep["stimulus_code"],
                 sweep["stimulus_name"],
-                "passed" if state["passed"] and sweep["passed"] else "failed", # auto qc
+                "passed" if state["passed"] and sweep["passed"] else "failed",  # auto qc
                 manual_qc_states[sweep_number],
-                format_fail_tags(sweep["tags"] + state["reasons"]), # fail tags
+                format_fail_tags(sweep["tags"] + state["reasons"]),    # fail tags
                 test_pulse_plots,
                 experiment_plots
             ])
@@ -102,7 +101,7 @@ class SweepTableModel(QAbstractTableModel):
         """
         return len(self._data)
 
-    def columnCount(self, *args, **kwargs) -> int :
+    def columnCount(self, *args, **kwargs) -> int:
         """ The number of sweep characteristics
         """
         return len(self.colnames)
@@ -141,7 +140,6 @@ class SweepTableModel(QAbstractTableModel):
             if self._data[index.row()][3] == "failed":
                 return self.FAIL_BGCOLOR
 
-
     def headerData(
         self,
         section: int,
@@ -177,7 +175,7 @@ class SweepTableModel(QAbstractTableModel):
         """ Updates the data at the supplied index.
         """
 
-        current: str = self._data[index.row()][index.column()]
+        current: str = self._data[index.row()][index.column()]      # not a str?
 
         if index.isValid() \
                 and isinstance(value, str) \
@@ -192,7 +190,6 @@ class SweepTableModel(QAbstractTableModel):
 
         return False
 
+
 def format_fail_tags(tags: List[str]) -> str:
     return "\n\n".join(tags)
-
-

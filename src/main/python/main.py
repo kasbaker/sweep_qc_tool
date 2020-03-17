@@ -22,6 +22,7 @@ from fx_data import FxData
 from pre_fx_controller import PreFxController
 from cell_feature_page import CellFeaturePage
 
+
 class SweepPage(QWidget):
 
     colnames: tuple = (
@@ -40,7 +41,7 @@ class SweepPage(QWidget):
         information about individual sweeps. 
         """
 
-        super().__init__()
+        super().__init__()      # parameter flags unfilled
 
         self.sweep_view = SweepTableView(self.colnames)
         self.sweep_model = SweepTableModel(self.colnames, sweep_plot_config)
@@ -97,6 +98,10 @@ class MainWindow(QMainWindow):
         tab_widget = QTabWidget()
         self.setCentralWidget(tab_widget)
 
+        self.main_menu_bar = None
+        self.file_menu = None
+        self.edit_menu = None
+        self.settings_menu = None
 
     def insert_tabs(
         self, 
@@ -158,7 +163,6 @@ class MainWindow(QMainWindow):
 
         self.edit_menu.addAction(pre_fx_controller.run_feature_extraction_action)
 
-
     def setup_status_bar(self, pre_fx_data: PreFxData, fx_data: FxData):
         """ Sets up a status bar, which reports the current state of the app. 
         Connects this status bar to the underlying models
@@ -178,6 +182,7 @@ class MainWindow(QMainWindow):
         fx_data.status_message.connect(status_bar.repaint)
         fx_data.state_outdated.connect(fx_status.show)
         fx_data.new_state_set.connect(fx_status.hide)
+
 
 class Application(object):
 
@@ -241,49 +246,51 @@ class Application(object):
         if initial_nwb_path is not None:
             self.pre_fx_controller.selected_data_set_path.emit(initial_nwb_path)
 
-
     def run(self):
         self.main_window.show()
         return self.app_cntxt.app.exec_()
 
 
 if __name__ == '__main__':
-    import logging; logging.getLogger().setLevel(logging.INFO)
+    import logging
+
+    logging.getLogger().setLevel(logging.INFO)
 
     setConfigOption("background", "w")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_dir", default=os.getcwd(), type=str, help="output path for manual states")
+
     parser.add_argument("--backup_experiment_start_index", type=int, default=5000,
-        help="when plotting experiment pulses, where to set the start index if it is erroneously stored as <= 0"
-    )
+                        help="when plotting experiment pulses, where to set the "
+                             "start index if it is erroneously stored as <= 0")
+
     parser.add_argument("--experiment_baseline_start_index", type=int, default=5000,
-        help="when plotting experiment pulses, where to start the baseline assessment epoch"
-    )
+                        help="when plotting experiment pulses, where to start the baseline assessment epoch")
+
     parser.add_argument("--experiment_baseline_end_index", type=int, default=9000,
-        help="when plotting experiment pulses, where to end the baseline assessment epoch"
-    )
+                        help="when plotting experiment pulses, where to end the baseline assessment epoch")
+
     parser.add_argument("--test_pulse_plot_start", type=float, default=0.04,
-        help="where in time (s) to start the test pulse plot"
-    )
+                        help="where in time (s) to start the test pulse plot")
+
     parser.add_argument("--test_pulse_plot_end", type=float, default=0.1,
-        help="in seconds, the end time of the test pulse plot's domain"
-    )
+                        help="in seconds, the end time of the test pulse plot's domain")
+
     parser.add_argument("--test_pulse_baseline_samples", type=int, default=100,
-        help="when plotting test pulses, how many samples to use for baseline assessment"
-    )
-    parser.add_argument("--thumbnail_step", type=float, default=20, 
-        help="step size for generating decimated thumbnail images for individual sweeps."
-    )
-    parser.add_argument("--initial_nwb_path", type=str, default=None, 
-        help="upon start, immediately load an nwb file from here"
-    )
+                        help="when plotting test pulses, how many samples to use for baseline assessment")
+
+    parser.add_argument("--thumbnail_step", type=float, default=20,
+                        help="step size for generating decimated thumbnail images for individual sweeps.")
+
+    parser.add_argument("--initial_nwb_path", type=str, default=None,
+                        help="upon start, immediately load an nwb file from here")
+
     parser.add_argument("--initial_stimulus_ontology_path", type=str, default=None,
-        help="upon start, immediately load a stimulus ontology from here"
-    )
+                        help="upon start, immediately load a stimulus ontology from here")
+
     parser.add_argument("--initial_qc_criteria_path", type=str, default=None,
-        help="upon start, immediately load qc criteria from here"
-    )
+                        help="upon start, immediately load qc criteria from here")
 
     args = parser.parse_args()
 
@@ -291,7 +298,3 @@ if __name__ == '__main__':
 
     exit_code = app.run()
     sys.exit(exit_code)
-
-
-
-
