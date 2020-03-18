@@ -256,3 +256,5 @@ class FeatureExtractionOutput(Schema):
     cell_record = Nested(CellRecord)
     sweep_records = List(Nested(SweepRecord))
     cell_state = Nested(CellState)
+
+

@@ -51,13 +51,6 @@ class PreFxData(QObject):
         self.nwb_path: Optional[str] = None
         self.manual_qc_states: Dict[int, str] = {}
 
-        self.ontology_file = None
-        self.cell_features = None
-        self.cell_tags = None
-        self.cell_state = None
-        self.sweep_features = None
-        self.sweep_states = None
-
     def _notifying_setter(
         self, 
         attr_name: str, 
@@ -253,10 +246,17 @@ class PreFxData(QObject):
 
         except ValidationError as valerr:
             exception_message("Unable to save manual states to JSON",
-                              f"Manual states data failed schema validation", valerr)
+                              f"Manual states data failed schema validation",
+                              valerr
+            )
         except IOError as ioerr:
             exception_message("Unable to write file",
-                              f'Unable to write to file {filepath}', ioerr)
+                              f'Unable to write to file {filepath}',
+                              ioerr
+            )
+
+
+
 
     def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
 
@@ -292,10 +292,16 @@ class PreFxData(QObject):
             self.sweep_states = sweep_states
             self.manual_qc_states = {sweep["sweep_number"]: "default" for sweep in self.sweep_features}
 
-            self.end_commit_calculated.emit(self.sweep_features, self.sweep_states,
-                                            self.manual_qc_states, self.data_set)
+            self.end_commit_calculated.emit(
+                self.sweep_features, self.sweep_states, self.manual_qc_states, self.data_set
+            )
 
-        self.data_changed.emit(self.nwb_path, self.stimulus_ontology, self.sweep_features, self.cell_features)
+        self.data_changed.emit(self.nwb_path,
+                               self.stimulus_ontology,
+                               self.sweep_features,
+                               self.cell_features)
+
+
 
     def on_manual_qc_state_updated(self, sweep_number: int, new_state: str):
         self.manual_qc_states[sweep_number] = new_state

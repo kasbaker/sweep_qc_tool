@@ -82,6 +82,7 @@ def default_keys() -> KeysType:
 
 class CellFeaturePage(QWidget):
 
+
     def __init__(
         self, 
         vertical_spacing: int = 22, 

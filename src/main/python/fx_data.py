@@ -5,7 +5,6 @@ from ipfx.error import FeatureError
 from ipfx.data_set_features import extract_data_set_features
 from error_handling import exception_message
 
-
 class FxData(QObject):
 
     state_outdated = pyqtSignal(name="state_outdated")
@@ -16,19 +15,16 @@ class FxData(QObject):
     def __init__(self):
         super().__init__()
         self._state_out_of_date: bool = False
-        self.input_nwb_file = None
-        self.ontology = None
-        self.sweep_info = None
-        self.cell_info = None
-        self.feature_data = None
 
     def out_of_date(self):
         self.state_outdated.emit()
         self._state_out_of_date = True
 
+    
     def new_state(self):
         self.new_state_set.emit(self.feature_data)
         self._state_out_of_date = False
+
 
     def set_fx_parameters(self,
                           nwb_path,
@@ -63,7 +59,7 @@ class FxData(QObject):
                                  'cell_record': cell_record,
                                  'sweep_records': sweep_records,
                                  'cell_state': cell_state
-                                 }
+                                }
 
             self.new_state()
             self.status_message.emit("Done computing features!")
@@ -73,3 +69,6 @@ class FxData(QObject):
                               f"failed feature extraction",
                               ferr
                               )
+
+
+

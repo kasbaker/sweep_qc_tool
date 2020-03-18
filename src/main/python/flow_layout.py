@@ -11,6 +11,7 @@ from PyQt5.QtCore import Qt, QRect, QSize, QMargins, QPoint
 
 class FlowLayout(QLayout):
 
+
     def __init__(
         self, 
         margin: int = 11, 
@@ -39,6 +40,7 @@ class FlowLayout(QLayout):
         self.horizontal_spacing = horizontal_spacing
 
         self.setContentsMargins(margin, margin, margin, margin)
+
 
     def horizontalSpacing(self):
         return self.horizontal_spacing
