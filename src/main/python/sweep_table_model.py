@@ -36,15 +36,13 @@ class SweepTableModel(QAbstractTableModel):
         Parameters
         ----------
         data : 
-            Will be used as the underlying data store. Will emit notifications when 
-            data has been updated. Will recieve notifications when users update 
-            QC states for individual sweeps.
-
+            Will be used as the underlying data store. Will emit notifications
+            when data has been updated. Will recieve notifications when users
+            update QC states for individual sweeps.
         """
 
         data.end_commit_calculated.connect(self.on_new_data)
         self.qc_state_updated.connect(data.on_manual_qc_state_updated)
-
 
     def on_new_data(
         self, 
@@ -60,37 +58,42 @@ class SweepTableModel(QAbstractTableModel):
         sweep_features : 
             A list of dictionaries. Each element describes a sweep.
         sweep_states : 
-            A list of dictionaries. Each element contains ancillary information about
-            automatic QC results for that sweep.
+            A list of dictionaries. Each element contains ancillary information
+             about automatic QC results for that sweep.
         manual_qc_states : 
-            For each sweep, whether the user has manually passed or failed it (or left it untouched).
+            For each sweep, whether the user has manually passed or failed it
+            (or left it untouched).
         dataset : 
             The underlying data. Used to extract sweepwise voltage traces
-
         """
 
+        # clears previous data and makes an empty list
         self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
         self._data = []
         self.endRemoveRows()
 
+        # Initializes a dictionary of sweep states
         state_lookup = {state["sweep_number"]: state for state in sweep_states}
         plotter = SweepPlotter(dataset, self.plot_config)
 
         self.beginInsertRows(QModelIndex(), 1, len(sweep_features))
+        # this is the step where only sweeps that are in the sweep_features list get plotted
         for sweep in sorted(sweep_features, key=lambda swp: swp["sweep_number"]):
 
             sweep_number = sweep["sweep_number"]
             state = state_lookup[sweep_number]
 
+            # where the makes the actual plot thumbnails one sweep at a time
             test_pulse_plots, experiment_plots = plotter.advance(sweep_number)
 
+            # builds the sweep table
             self._data.append([
                 sweep_number,
                 sweep["stimulus_code"],
                 sweep["stimulus_name"],
-                "passed" if state["passed"] and sweep["passed"] else "failed", # auto qc
+                "passed" if state["passed"] and sweep["passed"] else "failed",  # auto qc
                 manual_qc_states[sweep_number],
-                format_fail_tags(sweep["tags"] + state["reasons"]), # fail tags
+                format_fail_tags(sweep["tags"] + state["reasons"]),     # fail tags
                 test_pulse_plots,
                 experiment_plots
             ])
@@ -119,8 +122,8 @@ class SweepTableModel(QAbstractTableModel):
         index :
             Which table cell to read.
         role : 
-            How the data is being accessed. Currently DisplayRole and EditRole are 
-            supported.
+            How the data is being accessed.
+            Currently DisplayRole and EditRole are supported.
 
         Returns
         -------
@@ -140,7 +143,6 @@ class SweepTableModel(QAbstractTableModel):
         if role == QtCore.Qt.BackgroundRole and index.column() == 3:
             if self._data[index.row()][3] == "failed":
                 return self.FAIL_BGCOLOR
-
 
     def headerData(
         self,
@@ -191,6 +193,7 @@ class SweepTableModel(QAbstractTableModel):
             return True
 
         return False
+
 
 def format_fail_tags(tags: List[str]) -> str:
     return "\n\n".join(tags)

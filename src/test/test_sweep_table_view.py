@@ -43,9 +43,9 @@ def test_plot_popup_click(qtbot, row, col):
             ii,
             f"code_{ii}",
             f"name_{ii}",
-            "passed" if ii % 2 == 0 else "failed", # auto qc
+            "passed" if ii % 2 == 0 else "failed",  # auto qc
             "default",
-            "", # fail tags
+            "",     # fail tags
             MockPlotter(f"test_{ii}"),
             MockPlotter(f"exp_{ii}")
         ])

@@ -25,7 +25,7 @@ class SingleArgTarget:
         if self.expected is None:
             assert self.obtained is None
         else:
-            assert self.expected  == self.obtained
+            assert self.expected == self.obtained
 
 
 @pytest.fixture

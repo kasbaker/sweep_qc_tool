@@ -207,7 +207,9 @@ class PreFxData(QObject):
                 raise ValueError("must set qc criteria before loading a data set!")
 
             self.status_message.emit("Running extraction and auto qc...")
-            self.run_extraction_and_auto_qc(path, self.stimulus_ontology, self.qc_criteria, commit=True)
+            self.run_extraction_and_auto_qc(
+                path, self.stimulus_ontology, self.qc_criteria, commit=True
+            )
             self.status_message.emit("Done running extraction and auto qc")
         except Exception as err:
             exception_message(
@@ -255,9 +257,6 @@ class PreFxData(QObject):
                               ioerr
             )
 
-
-
-
     def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
 
         data_set = create_data_set(
@@ -290,18 +289,21 @@ class PreFxData(QObject):
 
             self.sweep_features = sweep_features
             self.sweep_states = sweep_states
-            self.manual_qc_states = {sweep["sweep_number"]: "default" for sweep in self.sweep_features}
+            self.manual_qc_states = {
+                sweep["sweep_number"]: "default"
+                for sweep in self.sweep_features
+            }
 
+            # Calls on_new_data() in sweep_table_model.py
             self.end_commit_calculated.emit(
-                self.sweep_features, self.sweep_states, self.manual_qc_states, self.data_set
+                self.sweep_features, self.sweep_states,
+                self.manual_qc_states, self.data_set
             )
 
         self.data_changed.emit(self.nwb_path,
                                self.stimulus_ontology,
                                self.sweep_features,
                                self.cell_features)
-
-
 
     def on_manual_qc_state_updated(self, sweep_number: int, new_state: str):
         self.manual_qc_states[sweep_number] = new_state
@@ -335,7 +337,7 @@ def extract_qc_features(data_set):
         data_set,
         # manual_values=cell_qc_manual_values
     )
-    sweep_features = sweep_qc_features(data_set)
+    sweep_features = sweep_qc_features(data_set)    # gets features from ipfx
     drop_tagged_sweeps(sweep_features)
     return cell_features, cell_tags, sweep_features
 

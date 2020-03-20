@@ -22,6 +22,7 @@ from fx_data import FxData
 from pre_fx_controller import PreFxController
 from cell_feature_page import CellFeaturePage
 
+
 class SweepPage(QWidget):
 
     colnames: tuple = (
@@ -97,7 +98,6 @@ class MainWindow(QMainWindow):
         tab_widget = QTabWidget()
         self.setCentralWidget(tab_widget)
 
-
     def insert_tabs(
         self, 
         sweep_page: SweepPage, 
@@ -137,27 +137,23 @@ class MainWindow(QMainWindow):
         self.settings_menu = self.main_menu_bar.addMenu("Settings")
         self.main_menu_bar.addMenu("Help")
 
-        self.file_menu.addAction(
-            pre_fx_controller.load_data_set_action
-        )
+        self.file_menu.addAction(pre_fx_controller.load_data_set_action)
         self.file_menu.addAction(pre_fx_controller.load_data_set_lims_action)
         self.file_menu.addSeparator()
+
         self.file_menu.addAction(pre_fx_controller.export_manual_states_to_json_action)
         self.file_menu.addAction(pre_fx_controller.export_manual_states_to_lims_action)
         self.file_menu.addSeparator()
-        self.file_menu.addAction(
-            pre_fx_controller.load_stimulus_ontology_action
-        )
+
+        self.file_menu.addAction(pre_fx_controller.load_stimulus_ontology_action)
         self.file_menu.addSeparator()
-        self.file_menu.addAction(
-            pre_fx_controller.load_qc_criteria_action
-        )
+
+        self.file_menu.addAction(pre_fx_controller.load_qc_criteria_action)
 
         self.settings_menu.addAction(pre_fx_controller.show_stimulus_ontology_action)
         self.settings_menu.addAction(pre_fx_controller.show_qc_criteria_action)
 
         self.edit_menu.addAction(pre_fx_controller.run_feature_extraction_action)
-
 
     def setup_status_bar(self, pre_fx_data: PreFxData, fx_data: FxData):
         """ Sets up a status bar, which reports the current state of the app. 
@@ -178,6 +174,7 @@ class MainWindow(QMainWindow):
         fx_data.status_message.connect(status_bar.repaint)
         fx_data.state_outdated.connect(fx_status.show)
         fx_data.new_state_set.connect(fx_status.hide)
+
 
 class Application(object):
 
@@ -241,7 +238,6 @@ class Application(object):
         if initial_nwb_path is not None:
             self.pre_fx_controller.selected_data_set_path.emit(initial_nwb_path)
 
-
     def run(self):
         self.main_window.show()
         return self.app_cntxt.app.exec_()
@@ -291,7 +287,3 @@ if __name__ == '__main__':
 
     exit_code = app.run()
     sys.exit(exit_code)
-
-
-
-
