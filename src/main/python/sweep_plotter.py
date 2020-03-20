@@ -196,8 +196,6 @@ class SweepPlotter:
         sweep_number : used to generate meaningful labels
         sweep_data : holds timestamps and voltage values for this sweep
         advance : if True, store this sweep's voltage for use in later plots
-
-
         """
 
         time, voltage = test_response_plot_data(

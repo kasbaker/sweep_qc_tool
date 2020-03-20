@@ -232,11 +232,17 @@ class Application(object):
 
         # The user can request that specific data be loaded on start
         if initial_stimulus_ontology_path is not None:
-            self.pre_fx_controller.selected_stimulus_ontology_path.emit(initial_stimulus_ontology_path)
+            self.pre_fx_controller.selected_stimulus_ontology_path.emit(
+                initial_stimulus_ontology_path
+            )
         if initial_qc_criteria_path is not None:
-            self.pre_fx_controller.selected_qc_criteria_path.emit(initial_qc_criteria_path)
+            self.pre_fx_controller.selected_qc_criteria_path.emit(
+                initial_qc_criteria_path
+            )
         if initial_nwb_path is not None:
-            self.pre_fx_controller.selected_data_set_path.emit(initial_nwb_path)
+            self.pre_fx_controller.selected_data_set_path.emit(
+                initial_nwb_path
+            )
 
     def run(self):
         self.main_window.show()
@@ -244,40 +250,59 @@ class Application(object):
 
 
 if __name__ == '__main__':
-    import logging; logging.getLogger().setLevel(logging.INFO)
+    import logging
+    logging.getLogger().setLevel(logging.INFO)
 
     setConfigOption("background", "w")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output_dir", default=os.getcwd(), type=str, help="output path for manual states")
-    parser.add_argument("--backup_experiment_start_index", type=int, default=5000,
-        help="when plotting experiment pulses, where to set the start index if it is erroneously stored as <= 0"
+    parser.add_argument(
+        "--output_dir", default=os.getcwd(), type=str,
+        help="output path for manual states"
     )
-    parser.add_argument("--experiment_baseline_start_index", type=int, default=5000,
-        help="when plotting experiment pulses, where to start the baseline assessment epoch"
+    parser.add_argument(
+        "--backup_experiment_start_index", type=int, default=5000,
+        help="when plotting experiment pulses, "
+             "where to set the start index if it is erroneously stored as <= 0"
     )
-    parser.add_argument("--experiment_baseline_end_index", type=int, default=9000,
-        help="when plotting experiment pulses, where to end the baseline assessment epoch"
+    parser.add_argument(
+        "--experiment_baseline_start_index", type=int, default=5000,
+        help="when plotting experiment pulses, "
+             "where to start the baseline assessment epoch"
     )
-    parser.add_argument("--test_pulse_plot_start", type=float, default=0.04,
+    parser.add_argument(
+        "--experiment_baseline_end_index", type=int, default=9000,
+        help="when plotting experiment pulses, "
+             "where to end the baseline assessment epoch"
+    )
+    parser.add_argument(
+        "--test_pulse_plot_start", type=float, default=0.04,
         help="where in time (s) to start the test pulse plot"
     )
-    parser.add_argument("--test_pulse_plot_end", type=float, default=0.1,
+    parser.add_argument(
+        "--test_pulse_plot_end", type=float, default=0.1,
         help="in seconds, the end time of the test pulse plot's domain"
     )
-    parser.add_argument("--test_pulse_baseline_samples", type=int, default=100,
-        help="when plotting test pulses, how many samples to use for baseline assessment"
+    parser.add_argument(
+        "--test_pulse_baseline_samples", type=int, default=100,
+        help="when plotting test pulses, "
+             "how many samples to use for baseline assessment"
     )
-    parser.add_argument("--thumbnail_step", type=float, default=20, 
-        help="step size for generating decimated thumbnail images for individual sweeps."
+    parser.add_argument(
+        "--thumbnail_step", type=float, default=20,
+        help="step size for generating "
+             "decimated thumbnail images for individual sweeps."
     )
-    parser.add_argument("--initial_nwb_path", type=str, default=None, 
+    parser.add_argument(
+        "--initial_nwb_path", type=str, default=None,
         help="upon start, immediately load an nwb file from here"
     )
-    parser.add_argument("--initial_stimulus_ontology_path", type=str, default=None,
+    parser.add_argument(
+        "--initial_stimulus_ontology_path", type=str, default=None,
         help="upon start, immediately load a stimulus ontology from here"
     )
-    parser.add_argument("--initial_qc_criteria_path", type=str, default=None,
+    parser.add_argument(
+        "--initial_qc_criteria_path", type=str, default=None,
         help="upon start, immediately load qc criteria from here"
     )
 

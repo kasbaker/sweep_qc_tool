@@ -5,6 +5,7 @@ from ipfx.error import FeatureError
 from ipfx.data_set_features import extract_data_set_features
 from error_handling import exception_message
 
+
 class FxData(QObject):
 
     state_outdated = pyqtSignal(name="state_outdated")
@@ -20,19 +21,11 @@ class FxData(QObject):
         self.state_outdated.emit()
         self._state_out_of_date = True
 
-    
     def new_state(self):
         self.new_state_set.emit(self.feature_data)
         self._state_out_of_date = False
 
-
-    def set_fx_parameters(self,
-                          nwb_path,
-                          ontology,
-                          sweep_info,
-                          cell_info,
-                          ):
-
+    def set_fx_parameters(self, nwb_path, ontology, sweep_info, cell_info):
         self.out_of_date()
         self.input_nwb_file = nwb_path
         self.ontology = ontology

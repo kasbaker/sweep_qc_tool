@@ -51,6 +51,14 @@ class PreFxData(QObject):
         self.nwb_path: Optional[str] = None
         self.manual_qc_states: Dict[int, str] = {}
 
+        # cell attributes
+        self.cell_features: dict = {}
+        self.cell_tags: list = []
+        self.cell_state: dict = {}
+        # sweep attributes
+        self.sweep_features: list = []
+        self.sweep_states: list = []
+
     def _notifying_setter(
         self, 
         attr_name: str, 
@@ -247,18 +255,26 @@ class PreFxData(QObject):
                 json.dump(json_data, f, indent=4)
 
         except ValidationError as valerr:
-            exception_message("Unable to save manual states to JSON",
-                              f"Manual states data failed schema validation",
-                              valerr
+            exception_message(
+                "Unable to save manual states to JSON",
+                f"Manual states data failed schema validation",
+                valerr
             )
+
         except IOError as ioerr:
-            exception_message("Unable to write file",
-                              f'Unable to write to file {filepath}',
-                              ioerr
+            exception_message(
+                "Unable to write file",
+                f'Unable to write to file {filepath}',
+                ioerr
             )
 
     def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
+        """Creates a data set from the nwb path;
+        calculates cell features, tags, and sweep features using ipfx;
+        runs auto qc on the experiment;
+        creates a dictionary of manual qc states that are all 'default'
 
+        runs auto qc, """
         data_set = create_data_set(
             sweep_info=None,
             nwb_file=nwb_path,
@@ -267,10 +283,14 @@ class PreFxData(QObject):
             h5_file=None,
             validate_stim=True
         )
-
+        # cell_features: overall features for the cell
+        # cell_tags: details about the cell (e.g. 'Blowout is not available'
+        # sweep_features: list of dictionaries containing sweep features for
+        #   sweeps that have been filtered and have passed auto-qc
         cell_features, cell_tags, sweep_features = extract_qc_features(data_set)
 
         sweep_props.drop_tagged_sweeps(sweep_features)
+        # cell_state: list of dictionaries containing sweep pass/fail states
         cell_state, cell_features, sweep_states, sweep_features = run_qc(
             stimulus_ontology, cell_features, sweep_features, qc_criteria
         )
@@ -281,14 +301,15 @@ class PreFxData(QObject):
             self.stimulus_ontology = stimulus_ontology
             self.qc_criteria = qc_criteria
             self.nwb_path = nwb_path
-
             self.data_set = data_set
+            # cell attributes
             self.cell_features = cell_features
             self.cell_tags = cell_tags
             self.cell_state = cell_state
-
+            # sweep attributes
             self.sweep_features = sweep_features
             self.sweep_states = sweep_states
+            # creates dictionary of manual qc states from sweep features
             self.manual_qc_states = {
                 sweep["sweep_number"]: "default"
                 for sweep in self.sweep_features
@@ -300,6 +321,7 @@ class PreFxData(QObject):
                 self.manual_qc_states, self.data_set
             )
 
+        # calls FxData.set_fx_parameters()
         self.data_changed.emit(self.nwb_path,
                                self.stimulus_ontology,
                                self.sweep_features,
