@@ -204,8 +204,8 @@ class PreFxData(QObject):
 
         Parameters
         ----------
-        path : 
-            load dataset from here
+        path: str
+            Load the dataset from this location
 
         """
         try:
@@ -269,12 +269,24 @@ class PreFxData(QObject):
             )
 
     def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
-        """Creates a data set from the nwb path;
+        """ Creates a data set from the nwb path;
         calculates cell features, tags, and sweep features using ipfx;
-        runs auto qc on the experiment;
-        creates a dictionary of manual qc states that are all 'default'
+        and runs auto qc on the experiment. If commit=True (default setting),
+        it creates a dictionary of default manual qc states and calls
+        SweepTableModel.on_new_data(), which builds the sweep table and
+        generates all the thumbnail plots.
 
-        runs auto qc, """
+        Parameters
+        ----------
+        nwb_path : str
+            location of the .nwb file
+        stimulus_ontology : StimulusOntology object
+            ipfx stimulus ontology object to be passed to create_data_set()
+        qc_criteria : dict
+            a dictionary of qc criteria e.g. - {'vm_delta_max': 1.0, ...}
+        commit : bool
+            indicates whether or not to build new sweep table model
+        """
         data_set = create_data_set(
             sweep_info=None,
             nwb_file=nwb_path,
@@ -283,6 +295,7 @@ class PreFxData(QObject):
             h5_file=None,
             validate_stim=True
         )
+
         # cell_features: overall features for the cell
         # cell_tags: details about the cell (e.g. 'Blowout is not available'
         # sweep_features: list of dictionaries containing sweep features for
@@ -302,10 +315,12 @@ class PreFxData(QObject):
             self.qc_criteria = qc_criteria
             self.nwb_path = nwb_path
             self.data_set = data_set
+
             # cell attributes
             self.cell_features = cell_features
             self.cell_tags = cell_tags
             self.cell_state = cell_state
+
             # sweep attributes
             self.sweep_features = sweep_features
             self.sweep_states = sweep_states
@@ -315,7 +330,7 @@ class PreFxData(QObject):
                 for sweep in self.sweep_features
             }
 
-            # Calls on_new_data() in sweep_table_model.py
+            # Calls SweepTableModel.on_new_data(), which builds the sweep table
             self.end_commit_calculated.emit(
                 self.sweep_features, self.sweep_states,
                 self.manual_qc_states, self.data_set
