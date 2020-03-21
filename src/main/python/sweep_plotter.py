@@ -193,9 +193,17 @@ class SweepPlotter:
 
         Parameters
         ----------
-        sweep_number : used to generate meaningful labels
-        sweep_data : holds timestamps and voltage values for this sweep
-        advance : if True, store this sweep's voltage for use in later plots
+        sweep_number : int
+            used to generate meaningful labels
+        sweep_data : Sweep object
+            holds timestamps and voltage values for this sweep
+        advance : bool
+            if True, store this sweep's voltage for use in later plots
+
+        Returns
+        -------
+        FixedPlots : NamedTuple
+            contains thumbnail-full plot pair
         """
 
         time, voltage = test_response_plot_data(
@@ -240,9 +248,15 @@ class SweepPlotter:
 
         Parameters
         ----------
-        sweep_number : used to generate meaningful labels
-        sweep_data : holds timestamps and voltage values for this sweep
+        sweep_number : int
+            used to generate meaningful labels
+        sweep_data : Sweep object
+            holds timestamps and voltage values for this sweep
 
+        Returns
+        -------
+        FixedPlots : NamedTuple
+            contains thumbnail-full plot pair
         """
 
         exp_time, exp_voltage, exp_baseline = experiment_plot_data(
@@ -267,6 +281,7 @@ class SweepPlotter:
         )
 
     def advance(self, sweep_number):
+        """" ... """
         sweep_data = self.data_set.sweep(sweep_number)
         return (
             self.make_test_pulse_plots(sweep_number, sweep_data), 

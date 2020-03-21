@@ -55,15 +55,15 @@ class SweepTableModel(QAbstractTableModel):
 
         Parameters
         ----------
-        sweep_features : 
+        sweep_features : list
             A list of dictionaries. Each element describes a sweep.
-        sweep_states : 
+        sweep_states : list
             A list of dictionaries. Each element contains ancillary information
              about automatic QC results for that sweep.
-        manual_qc_states : 
+        manual_qc_states : dict
             For each sweep, whether the user has manually passed or failed it
             (or left it untouched).
-        dataset : 
+        dataset : EphysDataSet object
             The underlying data. Used to extract sweepwise voltage traces
         """
 

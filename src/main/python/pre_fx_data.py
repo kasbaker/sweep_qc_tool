@@ -206,7 +206,6 @@ class PreFxData(QObject):
         ----------
         path: str
             Load the dataset from this location
-
         """
         try:
             if self.stimulus_ontology is None:
