@@ -50,6 +50,7 @@ class PreFxData(QObject):
         self.data_set: Optional[EphysDataSet] = None
         self.nwb_path: Optional[str] = None
         self.manual_qc_states: Dict[int, str] = {}
+        self.ontology_file = None
 
         # cell attributes
         self.cell_features: dict = {}
@@ -137,7 +138,7 @@ class PreFxData(QObject):
 
         Parameters
         ----------
-        path : 
+        path : str
             load ontology from here
 
         """
@@ -171,7 +172,7 @@ class PreFxData(QObject):
 
         Parameters
         ----------
-        path : 
+        path : str
             load criteria from here
 
         """

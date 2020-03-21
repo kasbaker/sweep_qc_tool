@@ -35,7 +35,7 @@ class SweepTableModel(QAbstractTableModel):
 
         Parameters
         ----------
-        data : 
+        data : PreFxData object
             Will be used as the underlying data store. Will emit notifications
             when data has been updated. Will recieve notifications when users
             update QC states for individual sweeps.
