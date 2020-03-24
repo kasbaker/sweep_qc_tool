@@ -72,16 +72,41 @@ class SweepTableModel(QAbstractTableModel):
         self._data = []
         self.endRemoveRows()
 
-        # Initializes a dictionary of sweep states
-        state_lookup = {state["sweep_number"]: state for state in sweep_states}
+        self.build_sweep_table(dataset)
+
+        # # Initializes a dictionary of sweep states
+        # state_lookup = {state["sweep_number"]: state for state in sweep_states}
+        # plotter = SweepPlotter(dataset, self.plot_config)
+        #
+        # self.beginInsertRows(QModelIndex(), 1, len(sweep_features))
+        # # this is the step where only sweeps that are in the sweep_features list get plotted
+        # for sweep in sorted(sweep_features, key=lambda swp: swp["sweep_number"]):
+        #
+        #     sweep_number = sweep["sweep_number"]
+        #     state = state_lookup[sweep_number]
+        #
+        #     # where the makes the actual plot thumbnails one sweep at a time
+        #     test_pulse_plots, experiment_plots = plotter.advance(sweep_number)
+        #
+        #     # builds the sweep table
+        #     self._data.append([
+        #         sweep_number,
+        #         sweep["stimulus_code"],
+        #         sweep["stimulus_name"],
+        #         "passed" if state["passed"] and sweep["passed"] else "failed",  # auto qc
+        #         manual_qc_states[sweep_number],
+        #         format_fail_tags(sweep["tags"] + state["reasons"]),     # fail tags
+        #         test_pulse_plots,
+        #         experiment_plots
+        #     ])
+        #
+        # self.endInsertRows()
+
+    def build_sweep_table(self, dataset: EphysDataSet):
         plotter = SweepPlotter(dataset, self.plot_config)
-
-        self.beginInsertRows(QModelIndex(), 1, len(sweep_features))
+        self.beginInsertRows(QModelIndex(), 1, len(dataset.sweep_table))
         # this is the step where only sweeps that are in the sweep_features list get plotted
-        for sweep in sorted(sweep_features, key=lambda swp: swp["sweep_number"]):
-
-            sweep_number = sweep["sweep_number"]
-            state = state_lookup[sweep_number]
+        for sweep_number in range(len(dataset.sweep_table)):
 
             # where the makes the actual plot thumbnails one sweep at a time
             test_pulse_plots, experiment_plots = plotter.advance(sweep_number)
@@ -89,15 +114,14 @@ class SweepTableModel(QAbstractTableModel):
             # builds the sweep table
             self._data.append([
                 sweep_number,
-                sweep["stimulus_code"],
-                sweep["stimulus_name"],
-                "passed" if state["passed"] and sweep["passed"] else "failed",  # auto qc
-                manual_qc_states[sweep_number],
-                format_fail_tags(sweep["tags"] + state["reasons"]),     # fail tags
+                dataset.sweep_table["stimulus_code"][sweep_number],
+                dataset.sweep_table["stimulus_name"][sweep_number],
+                "n/a",
+                "default",
+                "",     # fail tags
                 test_pulse_plots,
                 experiment_plots
             ])
-
         self.endInsertRows()
 
     def rowCount(self, *args, **kwargs):
