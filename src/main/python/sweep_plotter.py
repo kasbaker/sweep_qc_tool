@@ -131,20 +131,20 @@ class PulsePopupPlotter:
         plot.setLabel("bottom", "time (s)")
 
         plot.addLegend()
-
-        if self.initial is not None:
-            plot.plot(
-                self.time, self.initial,
-                pen=mkPen(color=TEST_PULSE_INIT_COLOR, width=2),
-                name="initial"
-            )
-
-        if self.previous is not None:
-            plot.plot(
-                self.time, self.previous,
-                pen=mkPen(color=TEST_PULSE_PREV_COLOR, width=2),
-                name="previous"
-            )
+        ###############################################################
+        # if self.initial is not None:
+        #     plot.plot(
+        #         self.time, self.initial,
+        #         pen=mkPen(color=TEST_PULSE_INIT_COLOR, width=2),
+        #         name="initial"
+        #     )
+        #
+        # if self.previous is not None:
+        #     plot.plot(
+        #         self.time, self.previous,
+        #         pen=mkPen(color=TEST_PULSE_PREV_COLOR, width=2),
+        #         name="previous"
+        #     )
 
         plot.plot(
             self.time, self.voltage,
@@ -302,8 +302,8 @@ def svg_from_mpl_axes(fig: mpl.figure.Figure) -> QByteArray:
 
 def test_response_plot_data(
     sweep: Sweep, 
-    test_pulse_plot_start: float = 0.0,
-    test_pulse_plot_end: float = 0.1, 
+    test_pulse_plot_start: float = 0.0,     # should use epochs here
+    test_pulse_plot_end: float = 0.1,       # should use epochs here
     num_baseline_samples: int = 100
 ) -> Tuple[np.ndarray, np.ndarray]:
     """ Generate time and voltage arrays for the test pulse plots.
@@ -367,7 +367,7 @@ def make_test_pulse_plot(
     a matplotlib figure containing the plot
 
     """
-    
+    ###########################################################
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
     # if initial is not None:
@@ -396,8 +396,8 @@ def make_test_pulse_plot(
 def experiment_plot_data(
     sweep: Sweep, 
     backup_start_index: int = 5000, 
-    baseline_start_index: int = 5000, 
-    baseline_end_index: int = 9000
+    baseline_start_index: int = 5000,   # should not be hard-coded
+    baseline_end_index: int = 9000      # should not be hard-coded
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """ Extract the data required for plotting a single sweep's experiment 
     epoch.
