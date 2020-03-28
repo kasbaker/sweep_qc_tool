@@ -30,6 +30,7 @@ class PreFxData(QObject):
     begin_commit_calculated = pyqtSignal(name="begin_commit_calculated")
     end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
 
+    new_data = pyqtSignal(EphysDataSet, name="new_data")
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
 
     status_message = pyqtSignal(str, name="status_message")
@@ -146,18 +147,11 @@ class PreFxData(QObject):
         try:
             with open(path, "r") as ontology_file:
                 ontology_data = json.load(ontology_file)
-            ontology = StimulusOntology(ontology_data)
+            self.stimulus_ontology = StimulusOntology(ontology_data)
             self.ontology_file = path
 
             if self.nwb_path is not None and self.qc_criteria is not None:
-                self.run_extraction_and_auto_qc(
-                    self.nwb_path, 
-                    ontology, 
-                    self.qc_criteria, 
-                    commit=True
-                )
-            else:
-                self.stimulus_ontology = ontology
+                self.run_extraction_and_auto_qc(commit=True)
 
         except Exception as err:
             exception_message(
@@ -179,17 +173,10 @@ class PreFxData(QObject):
 
         try:
             with open(path, "r") as criteria_file:
-                criteria = json.load(criteria_file)
+                self.qc_criteria = json.load(criteria_file)
             
             if self.nwb_path is not None and self.stimulus_ontology is not None:
-                self.run_extraction_and_auto_qc(
-                    self.nwb_path, 
-                    self.stimulus_ontology, 
-                    criteria, 
-                    commit=True
-                )
-            else:
-                self.qc_criteria = criteria
+                self.run_extraction_and_auto_qc(commit=True)
 
         except Exception as err:
             exception_message(
@@ -224,11 +211,14 @@ class PreFxData(QObject):
                 h5_file=None,
                 validate_stim=True
             )
-
-            self.status_message.emit("Running extraction and auto qc...")
-            self.run_extraction_and_auto_qc(commit=True)
-
-            self.status_message.emit("Done running extraction and auto qc")
+            # Builds an abstract sweep table model with the new data
+            self.status_message.emit("Building new sweep table...")
+            self.new_data.emit(self.data_set)
+            self.status_message.emit("Done building sweep table...")
+            # self.status_message.emit("Running extraction and auto qc...")
+            # self.run_extraction_and_auto_qc(commit=True)
+            #
+            # self.status_message.emit("Done running extraction and auto qc")
 
         except Exception as err:
             exception_message(
@@ -289,12 +279,6 @@ class PreFxData(QObject):
 
         Parameters
         ----------
-        nwb_path : str
-            location of the .nwb file
-        stimulus_ontology : StimulusOntology object
-            ipfx stimulus ontology object to be passed to create_data_set()
-        qc_criteria : dict
-            a dictionary of qc criteria e.g. - {'vm_delta_max': 1.0, ...}
         commit : bool
             indicates whether or not to build new sweep table model
         """
@@ -316,14 +300,6 @@ class PreFxData(QObject):
         if commit:
             self.begin_commit_calculated.emit()
 
-            # cell attributes
-            self.cell_features = cell_features
-            self.cell_tags = cell_tags
-            self.cell_state = cell_state
-
-            # sweep attributes
-            self.sweep_features = sweep_features
-            self.sweep_states = sweep_states
             # creates dictionary of manual qc states from sweep features
             self.manual_qc_states = {
                 sweep["sweep_number"]: "default"
@@ -331,16 +307,17 @@ class PreFxData(QObject):
             }
 
             # Calls SweepTableModel.on_new_data(), which builds the sweep table
+            # and PreFxController.on_data_set_set()
             self.end_commit_calculated.emit(
                 self.sweep_features, self.sweep_states,
                 self.manual_qc_states, self.data_set
             )
 
         # calls FxData.set_fx_parameters()
-        self.data_changed.emit(self.nwb_path,
-                               self.stimulus_ontology,
-                               self.sweep_features,
-                               self.cell_features)
+        self.data_changed.emit(
+            self.nwb_path, self.stimulus_ontology,
+            self.sweep_features, self.cell_features
+        )
 
     def on_manual_qc_state_updated(self, sweep_number: int, new_state: str):
         self.manual_qc_states[sweep_number] = new_state
@@ -386,12 +363,14 @@ def run_qc(stimulus_ontology, cell_features, sweep_features, qc_criteria):
     cell_features = copy.deepcopy(cell_features)
     sweep_features = copy.deepcopy(sweep_features)
 
+    # runs auto QC on the data set
     cell_state, sweep_states = qc_experiment(
         ontology=stimulus_ontology,
         cell_features=cell_features,
         sweep_features=sweep_features,
         qc_criteria=qc_criteria
     )
+    # Outputs a QC Summary log to the terminal
     qc_summary(
         sweep_features=sweep_features, 
         sweep_states=sweep_states, 

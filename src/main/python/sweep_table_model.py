@@ -41,7 +41,9 @@ class SweepTableModel(QAbstractTableModel):
             update QC states for individual sweeps.
         """
 
-        data.end_commit_calculated.connect(self.on_new_data)
+        # data.end_commit_calculated.connect(self.on_new_data)
+        data.end_commit_calculated.connect(self.build_sweep_table)
+        data.new_data.connect(self.build_sweep_table)
         self.qc_state_updated.connect(data.on_manual_qc_state_updated)
 
     def on_new_data(
@@ -73,46 +75,45 @@ class SweepTableModel(QAbstractTableModel):
         self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
         self._data = []
         self.endRemoveRows()
-
         self.build_sweep_table(dataset)
 
-        # # Initializes a dictionary of sweep states
-        # state_lookup = {state["sweep_number"]: state for state in sweep_states}
-        # plotter = SweepPlotter(dataset, self.plot_config)
-        #
-        # self.beginInsertRows(QModelIndex(), 1, len(sweep_features))
-        # # this is the step where only sweeps that are in the sweep_features list get plotted
-        # for sweep in sorted(sweep_features, key=lambda swp: swp["sweep_number"]):
-        #
-        #     sweep_number = sweep["sweep_number"]
-        #     state = state_lookup[sweep_number]
-        #
-        #     # where the makes the actual plot thumbnails one sweep at a time
-        #     test_pulse_plots, experiment_plots = plotter.advance(sweep_number)
-        #
-        #     # builds the sweep table
-        #     self._data.append([
-        #         sweep_number,
-        #         sweep["stimulus_code"],
-        #         sweep["stimulus_name"],
-        #         "passed" if state["passed"] and sweep["passed"] else "failed",  # auto qc
-        #         manual_qc_states[sweep_number],
-        #         format_fail_tags(sweep["tags"] + state["reasons"]),     # fail tags
-        #         test_pulse_plots,
-        #         experiment_plots
-        #     ])
-        #
-        # self.endInsertRows()
-
-    def build_sweep_table(self, dataset: EphysDataSet):
+        # Initializes a dictionary of sweep states
+        state_lookup = {state["sweep_number"]: state for state in sweep_states}
         plotter = SweepPlotter(dataset, self.plot_config)
-        self.beginInsertRows(QModelIndex(), 1, len(dataset.sweep_table))
 
-        for sweep_number in range(len(dataset.sweep_table)):
+        self.beginInsertRows(QModelIndex(), 1, len(sweep_features))
+        # this is the step where only sweeps that are in the sweep_features list get plotted
+        for sweep in sorted(sweep_features, key=lambda swp: swp["sweep_number"]):
+
+            sweep_number = sweep["sweep_number"]
+            state = state_lookup[sweep_number]
 
             # where the makes the actual plot thumbnails one sweep at a time
             test_pulse_plots, experiment_plots = plotter.advance(sweep_number)
 
+            # builds the sweep table
+            self._data.append([
+                sweep_number,
+                sweep["stimulus_code"],
+                sweep["stimulus_name"],
+                "passed" if state["passed"] and sweep["passed"] else "failed",  # auto qc
+                manual_qc_states[sweep_number],
+                format_fail_tags(sweep["tags"] + state["reasons"]),     # fail tags
+                test_pulse_plots,
+                experiment_plots
+            ])
+
+        self.endInsertRows()
+
+    def build_sweep_table(self, dataset: EphysDataSet):
+        self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
+        self._data = []
+        self.endRemoveRows()
+        plotter = SweepPlotter(dataset, self.plot_config)
+        self.beginInsertRows(QModelIndex(), 1, len(dataset.sweep_table))
+        for sweep_number in range(len(dataset.sweep_table)):
+            # where the makes the actual plot thumbnails one sweep at a time
+            test_pulse_plots, experiment_plots = plotter.advance(sweep_number)
             # builds the sweep table
             self._data.append([
                 sweep_number,
@@ -125,6 +126,18 @@ class SweepTableModel(QAbstractTableModel):
                 experiment_plots
             ])
         self.endInsertRows()
+
+    # def insertRow(self):
+    #     ...
+    #
+    # def insertRows(self, p_int, p_int_1, parent=None, *args, **kwargs):
+    #     self._data = [[sweep_num]
+    #
+    # def removeRows(self):
+    #     """ Removes all the rows from the sweep table model"""
+    #     self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
+    #     self._data = []
+    #     self.endRemoveRows()
 
     def rowCount(self, *args, **kwargs):
         """ The number of sweeps
