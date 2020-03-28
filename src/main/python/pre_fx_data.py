@@ -208,17 +208,28 @@ class PreFxData(QObject):
         path: str
             Load the dataset from this location
         """
+        self.nwb_path = path
         try:
             if self.stimulus_ontology is None:
                 raise ValueError("must set stimulus ontology before loading a data set!")
             elif self.qc_criteria is None:
                 raise ValueError("must set qc criteria before loading a data set!")
 
-            self.status_message.emit("Running extraction and auto qc...")
-            self.run_extraction_and_auto_qc(
-                path, self.stimulus_ontology, self.qc_criteria, commit=True
+            self.status_message.emit("Creating data set from .nwb...")
+            self.data_set = create_data_set(
+                sweep_info=None,
+                nwb_file=self.nwb_path,
+                ontology=self.stimulus_ontology,
+                api_sweeps=True,
+                h5_file=None,
+                validate_stim=True
             )
+
+            self.status_message.emit("Running extraction and auto qc...")
+            self.run_extraction_and_auto_qc(commit=True)
+
             self.status_message.emit("Done running extraction and auto qc")
+
         except Exception as err:
             exception_message(
                 "Unable to load NWB",
@@ -268,7 +279,7 @@ class PreFxData(QObject):
                 ioerr
             )
 
-    def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
+    def run_extraction_and_auto_qc(self, commit=True):
         """ Creates a data set from the nwb path;
         calculates cell features, tags, and sweep features using ipfx;
         and runs auto qc on the experiment. If commit=True (default setting),
@@ -287,34 +298,23 @@ class PreFxData(QObject):
         commit : bool
             indicates whether or not to build new sweep table model
         """
-        data_set = create_data_set(
-            sweep_info=None,
-            nwb_file=nwb_path,
-            ontology=stimulus_ontology,
-            api_sweeps=True,
-            h5_file=None,
-            validate_stim=True
-        )
 
         # cell_features: overall features for the cell
         # cell_tags: details about the cell (e.g. 'Blowout is not available'
         # sweep_features: list of dictionaries containing sweep features for
         #   sweeps that have been filtered and have passed auto-qc
-        cell_features, cell_tags, sweep_features = extract_qc_features(data_set)
+        self.cell_features, self.cell_tags, self.sweep_features = \
+            extract_qc_features(self.data_set)
 
-        sweep_props.drop_tagged_sweeps(sweep_features)
+        sweep_props.drop_tagged_sweeps(self.sweep_features)
         # cell_state: list of dictionaries containing sweep pass/fail states
-        cell_state, cell_features, sweep_states, sweep_features = run_qc(
-            stimulus_ontology, cell_features, sweep_features, qc_criteria
-        )
+        self.cell_state, self.cell_features, \
+            self.sweep_states, self.sweep_features = \
+            run_qc(self.stimulus_ontology, self.cell_features,
+                   self.sweep_features, self.qc_criteria)
 
         if commit:
             self.begin_commit_calculated.emit()
-
-            self.stimulus_ontology = stimulus_ontology
-            self.qc_criteria = qc_criteria
-            self.nwb_path = nwb_path
-            self.data_set = data_set
 
             # cell attributes
             self.cell_features = cell_features

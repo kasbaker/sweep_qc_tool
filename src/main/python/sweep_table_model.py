@@ -68,6 +68,8 @@ class SweepTableModel(QAbstractTableModel):
         """
 
         # clears previous data and makes an empty list
+        # BUG if you load another dataset with less sweeps it doesn't remove
+        # all the rows because of this
         self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
         self._data = []
         self.endRemoveRows()
@@ -105,7 +107,7 @@ class SweepTableModel(QAbstractTableModel):
     def build_sweep_table(self, dataset: EphysDataSet):
         plotter = SweepPlotter(dataset, self.plot_config)
         self.beginInsertRows(QModelIndex(), 1, len(dataset.sweep_table))
-        # this is the step where only sweeps that are in the sweep_features list get plotted
+
         for sweep_number in range(len(dataset.sweep_table)):
 
             # where the makes the actual plot thumbnails one sweep at a time
@@ -202,7 +204,7 @@ class SweepTableModel(QAbstractTableModel):
     ) -> bool:
         """ Updates the data at the supplied index.
         """
-
+        # this isn't necessarily a str for some columns
         current: str = self._data[index.row()][index.column()]
 
         if index.isValid() \
