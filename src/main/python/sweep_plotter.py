@@ -206,6 +206,7 @@ class SweepPlotter:
             contains thumbnail-full plot pair
         """
 
+        # time and voltage are just being grabbed from test pulse epoch?
         time, voltage = test_response_plot_data(
             sweep_data, 
             self.config.test_pulse_plot_start,
@@ -213,16 +214,19 @@ class SweepPlotter:
             self.config.test_pulse_baseline_samples
         )
 
+        # creates a thumbnail figure of test pulse
         thumbnail = make_test_pulse_plot(
             sweep_number, time, voltage,
             self.previous_test_voltage, self.initial_test_voltage,
             step=self.config.thumbnail_step, labels=False
         )
 
+        # redundant?
         previous = self.previous_test_voltage
         initial = self.initial_test_voltage
 
         if advance:
+            # checks initial test pulse and sets it if it's None
             if self.initial_test_voltage is None:
                 self.initial_test_voltage = voltage
                 
@@ -335,7 +339,7 @@ def test_response_plot_data(
 
     return (
         sweep.t[start_index: end_index], 
-        sweep.v[start_index: end_index] - np.mean(sweep.v[0: num_baseline_samples])
+        sweep.response[start_index: end_index] - np.mean(sweep.response[0: num_baseline_samples])
     )
 
 
@@ -427,11 +431,13 @@ def experiment_plot_data(
         experiment_start_index = backup_start_index
     
     time = sweep.t[experiment_start_index:experiment_end_index]
-    voltage = sweep.v[experiment_start_index:experiment_end_index]
+    voltage = sweep.response[experiment_start_index:experiment_end_index]
 
     voltage[np.isnan(voltage)] = 0.0
 
+    # turn baseline mean off if 'experiment' or 'stim' epoch is None
     baseline_mean = np.nanmean(voltage[baseline_start_index: baseline_end_index])
+
     return time, voltage, baseline_mean
 
 

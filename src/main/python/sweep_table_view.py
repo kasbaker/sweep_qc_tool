@@ -121,7 +121,8 @@ class SweepTableView(QTableView):
 
         popup = QDialog()
         layout = QGridLayout()
-        
+
+        # might want to set the geometry here for convenient location
         layout.addWidget(graph)
         popup.setLayout(layout)
         popup.move(left, top)
