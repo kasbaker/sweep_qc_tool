@@ -55,6 +55,10 @@ class SweepPage(QWidget):
         self.sweep_view.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.sweep_view.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
+        # Hiding auto-qc column and fail tags column
+        self.sweep_view.setColumnHidden(3, True)
+        self.sweep_view.setColumnHidden(5, True)
+
     def connect(self, data: PreFxData):
         """ Attach this component to others via signals and slots
 
