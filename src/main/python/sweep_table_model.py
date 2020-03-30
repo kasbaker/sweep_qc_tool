@@ -1,15 +1,16 @@
 from typing import Dict, List, Any, Sequence
 
-from PyQt5.QtCore import (
-    QAbstractTableModel, QModelIndex, pyqtSignal
-)
+from PyQt5.QtCore import QAbstractTableModel, QModelIndex, pyqtSignal
 from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import QProgressDialog
 from PyQt5 import QtCore
 
 from ipfx.ephys_data_set import EphysDataSet
 
 from pre_fx_data import PreFxData
 from sweep_plotter import SweepPlotter, SweepPlotConfig
+
+
 
 
 class SweepTableModel(QAbstractTableModel):
@@ -44,6 +45,7 @@ class SweepTableModel(QAbstractTableModel):
         # data.end_commit_calculated.connect(self.on_new_data)
         data.end_commit_calculated.connect(self.build_sweep_table)
         data.new_data.connect(self.build_sweep_table)
+        # connect to progress bar
         self.qc_state_updated.connect(data.on_manual_qc_state_updated)
 
     def on_new_data(
@@ -106,26 +108,57 @@ class SweepTableModel(QAbstractTableModel):
         self.endInsertRows()
 
     def build_sweep_table(self, dataset: EphysDataSet):
-        self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
-        self._data = []
-        self.endRemoveRows()
+        num_sweeps = len(dataset.sweep_table)
+
+        # start progress bar here
+        progress_dialog = QProgressDialog()
+        progress_dialog.setModal(True)
+        progress_dialog.setMinimum(1)
+        progress_dialog.setMaximum(num_sweeps-1)
+        progress_dialog.setWindowTitle("Building sweep table...")
+        progress_dialog.show()
+
+        # temporary variable for storing data in case loading gets canceled
+        data = []
+
+        # plotter class that makes sweep plots
         plotter = SweepPlotter(dataset, self.plot_config)
-        self.beginInsertRows(QModelIndex(), 1, len(dataset.sweep_table))
-        for sweep_number in range(len(dataset.sweep_table)):
-            # where the makes the actual plot thumbnails one sweep at a time
-            test_pulse_plots, experiment_plots = plotter.advance(sweep_number)
+
+        for sweep_index in range(num_sweeps):
+            # update progress dialog
+            progress_dialog.setValue(sweep_index)
+            progress_dialog.setLabelText(f"Loading sweep: {sweep_index}/{num_sweeps-1}")
+
+            # make the plots for given sweep number
+            test_pulse_plots, experiment_plots = plotter.advance(sweep_index)
+
             # builds the sweep table
-            self._data.append([
-                sweep_number,
-                dataset.sweep_table["stimulus_code"][sweep_number],
-                dataset.sweep_table["stimulus_name"][sweep_number],
+            data.append([
+                sweep_index,
+                dataset.sweep_table["stimulus_code"][sweep_index],
+                dataset.sweep_table["stimulus_name"][sweep_index],
                 "n/a",
                 "default",
                 "",     # fail tags
                 test_pulse_plots,
                 experiment_plots
             ])
-        self.endInsertRows()
+
+            # check to see if progress dialog was canceled and breaks if so
+            if progress_dialog.wasCanceled():
+                break
+
+        if not progress_dialog.wasCanceled():
+            # remove old rows
+            self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
+            # TODO Fix bug where rows aren't removed when loading new dataset
+            self._data = []
+            self.endRemoveRows()
+
+            # insert new rows
+            self.beginInsertRows(QModelIndex(), 1, num_sweeps)
+            self._data = data
+            self.endInsertRows()
 
     # def insertRow(self):
     #     ...
@@ -133,10 +166,10 @@ class SweepTableModel(QAbstractTableModel):
     # def insertRows(self, p_int, p_int_1, parent=None, *args, **kwargs):
     #     self._data = [[sweep_num]
     #
-    # def removeRows(self):
+    # def removeRows(self, row, count, parent=None, *args, **kwargs):
     #     """ Removes all the rows from the sweep table model"""
     #     self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
-    #     self._data = []
+    #     self._data[row]
     #     self.endRemoveRows()
 
     def rowCount(self, *args, **kwargs):

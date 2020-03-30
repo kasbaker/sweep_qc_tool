@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QGraphicsView,
     QHeaderView,
     QVBoxLayout,
-    QLabel
+    QLabel,
 )
 from pyqtgraph import setConfigOption
 
@@ -87,6 +87,12 @@ class PlotPage(QWidget):
 class CellPlotsView(QGraphicsView):
     def __init__(self):
         super().__init__()
+
+
+# class SweepLoadBar(QWidget):
+#     def __init__(self):
+#         super().__init__()
+#         self.pro
 
 
 class MainWindow(QMainWindow):
@@ -191,6 +197,7 @@ class Application(object):
         test_pulse_plot_start: float,
         test_pulse_plot_end: float, 
         test_pulse_baseline_samples: int,
+
         thumbnail_step: int,
         initial_nwb_path: Optional[str],
         initial_stimulus_ontology_path: Optional[str],
