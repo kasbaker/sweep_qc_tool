@@ -108,13 +108,15 @@ class SweepTableModel(QAbstractTableModel):
         self.endInsertRows()
 
     def build_sweep_table(self, dataset: EphysDataSet):
-        num_sweeps = len(dataset.sweep_table)
+        # filtering out search sweeps
+        sweeps_to_plot = dataset.sweep_table[dataset.sweep_table['stimulus_name'] != 'Search']
+        num_sweeps = len(sweeps_to_plot)
 
         # start progress bar here
         progress_dialog = QProgressDialog()
         progress_dialog.setModal(True)
         progress_dialog.setMinimum(1)
-        progress_dialog.setMaximum(num_sweeps-1)
+        progress_dialog.setMaximum(num_sweeps)
         progress_dialog.setWindowTitle("Building sweep table...")
         progress_dialog.show()
 
@@ -124,19 +126,19 @@ class SweepTableModel(QAbstractTableModel):
         # plotter class that makes sweep plots
         plotter = SweepPlotter(dataset, self.plot_config)
 
-        for sweep_index in range(num_sweeps):
+        for idx, swp_num in enumerate(sweeps_to_plot['sweep_number']):
             # update progress dialog
-            progress_dialog.setValue(sweep_index)
-            progress_dialog.setLabelText(f"Loading sweep: {sweep_index}/{num_sweeps-1}")
+            progress_dialog.setValue(idx+1)
+            progress_dialog.setLabelText(f"Loading sweeps {idx+1}/{num_sweeps}")
 
             # make the plots for given sweep number
-            test_pulse_plots, experiment_plots = plotter.advance(sweep_index)
+            test_pulse_plots, experiment_plots = plotter.advance(swp_num)
 
             # builds the sweep table
             data.append([
-                sweep_index,
-                dataset.sweep_table["stimulus_code"][sweep_index],
-                dataset.sweep_table["stimulus_name"][sweep_index],
+                swp_num,
+                sweeps_to_plot["stimulus_code"][swp_num],
+                sweeps_to_plot["stimulus_name"][swp_num],
                 "n/a",
                 "default",
                 "",     # fail tags
