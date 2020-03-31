@@ -35,7 +35,55 @@ class FxData(QObject):
     def connect(self, pre_fx_data):
         pre_fx_data.data_changed.connect(self.set_fx_parameters)
 
-    def run_feature_extraction(self):
+    # this does the same thing as the
+    def run_auto_qc(self, dataset):
+        ...
+        # """ Creates a data set from the nwb path;
+        #     calculates cell features, tags, and sweep features using ipfx;
+        #     and runs auto qc on the experiment. If commit=True (default setting),
+        #     it creates a dictionary of default manual qc states and calls
+        #     SweepTableModel.on_new_data(), which builds the sweep table and
+        #     generates all the thumbnail plots.
+        #
+        #     Parameters
+        #     ----------
+        #     commit : bool
+        #         indicates whether or not to build new sweep table model
+        #     """
+        #
+        # self.cell_features, self.cell_tags, self.sweep_features = \
+        #     extract_qc_features(self.data_set)
+        #
+        # sweep_props.drop_tagged_sweeps(self.sweep_features)
+        # # cell_state: list of dictionaries containing sweep pass/fail states
+        # self.cell_state, self.cell_features, \
+        # self.sweep_states, self.sweep_features = \
+        #     run_qc(self.stimulus_ontology, self.cellfeatures,
+        #            self.sweep_features, self.qc_criteria)
+        #
+        # if commit:
+        #     self.begin_commit_calculated.emit()
+        #
+        #     # creates dictionary of manual qc states from sweep features
+        #     self.manual_qc_states = {
+        #         sweep["sweep_number"]: "default"
+        #         for sweep in self.sweep_features
+        #     }
+        #
+        #     # Calls SweepTableModel.on_new_data(), which builds the sweep table
+        #     # and PreFxController.on_data_set_set()
+        #     self.end_commit_calculated.emit(
+        #         self.sweep_features, self.sweep_states,
+        #         self.manual_qc_states, self.data_set
+        #     )
+        #
+        # # calls FxData.set_fx_parameters()
+        # self.data_changed.emit(
+        #     self.nwb_path, self.stimulus_ontology,
+        #     self.sweep_features, self.cell_features
+        # )
+
+    def run_feature_extraction(self, dataset):
         self.status_message.emit("Computing features, please wait.")
         drop_failed_sweeps(self.sweep_info)
         data_set = create_data_set(sweep_info=self.sweep_info,

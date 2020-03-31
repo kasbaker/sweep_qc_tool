@@ -83,6 +83,8 @@ class PreFxController(QWidget):
         self.export_manual_states_to_lims_action.triggered.connect(self.export_manual_states_to_lims_dialog)
         self.export_manual_states_to_lims_action.setEnabled(False)
 
+        # auto qc and feature extraction options in the edit menu
+        self.run_auto_qc_action = QAction("Run auto QC", self)
         self.run_feature_extraction_action = QAction("Run feature extraction", self)
 
         self.on_stimulus_ontology_unset()
@@ -118,6 +120,7 @@ class PreFxController(QWidget):
         pre_fx_data.qc_criteria_unset.connect(self.on_qc_criteria_unset)
 
         pre_fx_data.end_commit_calculated.connect(self.on_data_set_set)
+        pre_fx_data.new_data.connect(self.on_data_set_set)
 
         fx_data.state_outdated.connect(self.on_fx_results_outdated)
         fx_data.new_state_set.connect(self.on_new_fx_results)
@@ -166,6 +169,7 @@ class PreFxController(QWidget):
         """ Triggered when the PreFxData's data set becomes not None
         """
         self._has_data_set = True
+        self.run_auto_qc_action.setEnabled(True)
         self.run_feature_extraction_action.setEnabled(True)
         self.export_manual_states_to_json_action.setEnabled(True)
 
@@ -173,6 +177,7 @@ class PreFxController(QWidget):
         """ Triggered when the PreFxData's data set becomes None
         """
         self._has_data_set = False
+        self.run_auto_qc_action.setEnabled(False)
         self.run_feature_extraction_action.setEnabled(False)
         self.export_manual_states_to_json_action.setEnabled(False)
 
@@ -234,7 +239,8 @@ class PreFxController(QWidget):
 
     def load_data_set_dialog(self):
         """ Prompts the user to select an NWB file containing data for one 
-        experiment.
+        experiment. Triggers PreFxData.load_data_set_from_nwb which creates
+        the data set.
         """
 
         if self._has_data_set:
@@ -266,7 +272,7 @@ class PreFxController(QWidget):
         """Prompt the user to select the JSON file for saving manual qc states
         as well as provenance information
         """
-
+        # TODO fix this function
         if self._fx_outdated:
             if QMessageBox.question(
                 self, 

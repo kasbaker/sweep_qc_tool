@@ -187,8 +187,8 @@ class PreFxData(QObject):
 
     def load_data_set_from_nwb(self, path: str):
         """ Attempts to read an NWB file describing an experiment. Fails if 
-        qc criteria or stimulus ontology not already present. Otherwise, 
-        attempts to run the pre-fx pipeline.
+        qc criteria or stimulus ontology not already present. Emits new_data
+        signal, which calls SweepTableModel.build_sweep_table
 
         Parameters
         ----------
@@ -231,7 +231,7 @@ class PreFxData(QObject):
         """ Extract manual sweep states in the format schemas.ManualSweepStates
         from PreFxData
         """
-
+        # TODO change this to all sweeps, not just sweep_features
         return [
             {
                 "sweep_number": sweep["sweep_number"],
@@ -282,7 +282,7 @@ class PreFxData(QObject):
         commit : bool
             indicates whether or not to build new sweep table model
         """
-
+        # TODO make this work with pre-loaded dataset
         # cell_features: overall features for the cell
         # cell_tags: details about the cell (e.g. 'Blowout is not available'
         # sweep_features: list of dictionaries containing sweep features for

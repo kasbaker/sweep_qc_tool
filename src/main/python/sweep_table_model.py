@@ -11,8 +11,6 @@ from pre_fx_data import PreFxData
 from sweep_plotter import SweepPlotter, SweepPlotConfig
 
 
-
-
 class SweepTableModel(QAbstractTableModel):
 
     qc_state_updated = pyqtSignal(int, str, name="qc_state_updated")
@@ -107,13 +105,26 @@ class SweepTableModel(QAbstractTableModel):
 
         self.endInsertRows()
 
-    def build_sweep_table(self, dataset: EphysDataSet):
+    def build_sweep_table(self, data_set: EphysDataSet):
+        """" Takes in a data set and populates the SweepTableModel with data
+        from all the sweeps except for those with stimulus name 'Search'. Uses
+        a progress bar to indicate sweep loading progress. Calls the plotter
+        during the population phase to make thumbnails and popup plots.
+
+        Parameters
+        ----------
+        data_set : EphysDataSet object
+            The ephys data set that is used to build the sweep table model
+
+        """
+
         # filtering out search sweeps
-        sweeps_to_plot = dataset.sweep_table[dataset.sweep_table['stimulus_name'] != 'Search']
+        sweeps_to_plot = data_set.sweep_table[data_set.sweep_table['stimulus_name'] != "Search"]
         num_sweeps = len(sweeps_to_plot)
 
         # start progress bar here
         progress_dialog = QProgressDialog()
+        progress_dialog.setGeometry(200, 200, 400, 150)
         progress_dialog.setModal(True)
         progress_dialog.setMinimum(1)
         progress_dialog.setMaximum(num_sweeps)
@@ -124,12 +135,12 @@ class SweepTableModel(QAbstractTableModel):
         data = []
 
         # plotter class that makes sweep plots
-        plotter = SweepPlotter(dataset, self.plot_config)
+        plotter = SweepPlotter(data_set, self.plot_config)
 
         for idx, swp_num in enumerate(sweeps_to_plot['sweep_number']):
             # update progress dialog
             progress_dialog.setValue(idx+1)
-            progress_dialog.setLabelText(f"Loading sweeps {idx+1}/{num_sweeps}")
+            progress_dialog.setLabelText(f"Loading sweep {idx+1}/{num_sweeps}")
 
             # make the plots for given sweep number
             test_pulse_plots, experiment_plots = plotter.advance(swp_num)
@@ -137,8 +148,8 @@ class SweepTableModel(QAbstractTableModel):
             # builds the sweep table
             data.append([
                 swp_num,
-                sweeps_to_plot["stimulus_code"][swp_num],
-                sweeps_to_plot["stimulus_name"][swp_num],
+                sweeps_to_plot['stimulus_code'][swp_num],
+                sweeps_to_plot['stimulus_name'][swp_num],
                 "n/a",
                 "default",
                 "",     # fail tags
@@ -153,7 +164,7 @@ class SweepTableModel(QAbstractTableModel):
         if not progress_dialog.wasCanceled():
             # remove old rows
             self.beginRemoveRows(QModelIndex(), 1, self.rowCount())
-            # TODO Fix bug where rows aren't removed when loading new dataset
+            # TODO Fix bug where blank rows remain when new data is loaded
             self._data = []
             self.endRemoveRows()
 

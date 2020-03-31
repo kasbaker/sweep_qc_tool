@@ -5,11 +5,9 @@ from typing import Optional
 
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QTabWidget,
-    QGraphicsView,
-    QHeaderView,
-    QVBoxLayout,
-    QLabel,
+    QGraphicsView, QHeaderView, QVBoxLayout, QLabel
 )
+
 from pyqtgraph import setConfigOption
 
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
@@ -163,6 +161,7 @@ class MainWindow(QMainWindow):
         self.settings_menu.addAction(pre_fx_controller.show_stimulus_ontology_action)
         self.settings_menu.addAction(pre_fx_controller.show_qc_criteria_action)
 
+        self.edit_menu.addAction(pre_fx_controller.run_auto_qc_action)
         self.edit_menu.addAction(pre_fx_controller.run_feature_extraction_action)
 
     def setup_status_bar(self, pre_fx_data: PreFxData, fx_data: FxData):
