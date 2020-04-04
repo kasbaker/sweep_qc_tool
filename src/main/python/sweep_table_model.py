@@ -168,7 +168,7 @@ class SweepTableModel(QAbstractTableModel):
             self._data = []
             self.endRemoveRows()
 
-            # insert new rows
+    # insert new rows
             self.beginInsertRows(QModelIndex(), 1, num_sweeps)
             self._data = data
             self.endInsertRows()

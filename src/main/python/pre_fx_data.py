@@ -347,11 +347,17 @@ class PreFxData(QObject):
 
 
 def extract_qc_features(data_set):
+    # gets QC features at the cell level (input / access / seal / etc.)
     cell_features, cell_tags = cell_qc_features(
         data_set,
         # manual_values=cell_qc_manual_values
     )
+    # extracts features at the sweep level, filtering out current clamp,
+    # test sweeps and search sweeps
+    # TODO implement this function: data_set.filtered_sweep_table(
+    #  clamp_mode=data_set.CURRENT_CLAMP, stimuli_exclude=["Test", "Search"])
     sweep_features = sweep_qc_features(data_set)    # gets features from ipfx
+    # drops any sweeps that have tags
     drop_tagged_sweeps(sweep_features)
     return cell_features, cell_tags, sweep_features
 
@@ -360,6 +366,7 @@ def run_qc(stimulus_ontology, cell_features, sweep_features, qc_criteria):
     """Adding qc status to sweep features
     Outputs qc summary on a screen
     """
+    # making a deep copy of features
     cell_features = copy.deepcopy(cell_features)
     sweep_features = copy.deepcopy(sweep_features)
 
