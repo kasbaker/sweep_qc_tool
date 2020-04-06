@@ -319,6 +319,7 @@ class PreFxData(QObject):
             self.sweep_features, self.cell_features
         )
 
+    # TODO move to qc_data.py
     def on_manual_qc_state_updated(self, sweep_number: int, new_state: str):
         self.manual_qc_states[sweep_number] = new_state
         self.update_sweep_states()
@@ -327,6 +328,7 @@ class PreFxData(QObject):
                                self.sweep_features,
                                self.cell_features)
 
+    # TODO move to qc_data.py
     def get_non_default_manual_sweep_states(self):
         manual_sweep_states = []
 
@@ -339,6 +341,7 @@ class PreFxData(QObject):
                 )
         return manual_sweep_states
 
+    # TODO move to qc_data.py
     def update_sweep_states(self):
         manual_sweep_states = self.get_non_default_manual_sweep_states()
         sweep_states = copy.deepcopy(self.sweep_states)

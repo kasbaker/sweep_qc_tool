@@ -1,22 +1,28 @@
-Restructuring of the underlying data:
+# Restructuring of data classes
 
 - `data_monitor: DataMonitor`
-    - Takes over signal emitting handled by  `pre_fx_controller`
-
+    - Replaces `pre_fx_controller`
+    - Connected to `data_mediator`,`data_manager`, `fx_data`, and `qc_data`
+    - Monitors the data to see if it has changed; emits signals as necessary
+  
 - `data_mediator: DataMediator`
     - Takes over load and save dialogs handled by `pre_fx_controller`
 
 - `data_manager: DataManager`
-    - Takes over most of the functionality from  `pre_fx_data: PreFxData`
-    - Owns the data, performs operations on the data
+    - Replaces `pre_fx_data: PreFxData`
+    - Handles loading and saving of data, creates data set from .nwb
+    - Owns the raw data
 
 - `fx_data: FxData`
-    - Holds features
-    - Runs feature extraction on the data
+    - Runs feature extraction on the data set
+    - Holds feature extracted data
     
 - `qc_data: QCData` 
-    - Holds QC states
-    - Runs auto-qc and calculates QC features
+    - Keeps track of sweep QC states
+    - Runs auto qc and calculates sweep qc features
+
+
+
 
 
 
