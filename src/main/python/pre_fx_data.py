@@ -21,18 +21,23 @@ from schemas import PipelineParameters
 
 class PreFxData(QObject):
 
+    # TODO move to NwbData
     stimulus_ontology_set = pyqtSignal(StimulusOntology, name="stimulus_ontology_set")
     stimulus_ontology_unset = pyqtSignal(name="stimulus_ontology_unset")
 
+    # TODO move to QcData
     qc_criteria_set = pyqtSignal(dict, name="qc_criteria_set")
     qc_criteria_unset = pyqtSignal(name="qc_criteria_unset")
 
+    # TODO remove / break into QcData / NwbData
     begin_commit_calculated = pyqtSignal(name="begin_commit_calculated")
     end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
 
+    # TODO move to NwbData
     new_data = pyqtSignal(EphysDataSet, name="new_data")
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
 
+    # TODO move to DataManager
     status_message = pyqtSignal(str, name="status_message")
 
     def __init__(self):
@@ -46,21 +51,29 @@ class PreFxData(QObject):
         """
         super(PreFxData, self).__init__()
 
-        self._stimulus_ontology: Optional[StimulusOntology] = None
-        self._qc_criteria: Optional[Dict] = None
-        self.data_set: Optional[EphysDataSet] = None
-        self.nwb_path: Optional[str] = None
-        self.manual_qc_states: Dict[int, str] = {}
-        self.ontology_file = None
 
-        # cell attributes
+
+        # TODO QcData
+        self._qc_criteria: Optional[Dict] = None
+        self.manual_qc_states: Dict[int, str] = {}
+        # TODO cell_features -> cell_qc_info
         self.cell_features: dict = {}
         self.cell_tags: list = []
         self.cell_state: dict = {}
-        # sweep attributes
+        # TODO sweep_features -> sweep_qc_info
         self.sweep_features: list = []
         self.sweep_states: list = []
 
+        # TODO NwbData
+        self._stimulus_ontology: Optional[StimulusOntology] = None
+        self.data_set: Optional[EphysDataSet] = None
+        self.nwb_path: Optional[str] = None
+        self.ontology_file = None
+
+
+
+
+    # TODO move to DataManager
     def _notifying_setter(
         self, 
         attr_name: str, 
@@ -96,6 +109,7 @@ class PreFxData(QObject):
             else:
                 on_set.emit()
 
+    # TODO move to NwbData
     @property
     def stimulus_ontology(self) -> Optional[StimulusOntology]:
         return self._stimulus_ontology
@@ -110,10 +124,12 @@ class PreFxData(QObject):
             send_value=True
         )
 
+    # TODO move to QCData
     @property
     def qc_criteria(self) -> Optional[Dict]:
         return self._qc_criteria
 
+    # TODO move to QCData
     @qc_criteria.setter
     def qc_criteria(self, value: Optional[Dict]):
         self._notifying_setter(
@@ -129,9 +145,11 @@ class PreFxData(QObject):
             StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE
         )
 
+    # TODO move to QcData
     def set_default_qc_criteria(self):
         self.load_qc_criteria_from_json(DEFAULT_QC_CRITERIA_FILE)
 
+    # TODO move to NwbData
     def load_stimulus_ontology_from_json(self, path: str):
         """ Attempts to read a stimulus ontology file from a JSON. If 
         successful (and other required data are already set), attempts to 
@@ -160,6 +178,7 @@ class PreFxData(QObject):
                 err
             )
 
+    # TODO move to QcData
     def load_qc_criteria_from_json(self, path: str):
         """ Attempts to read qc criteria from a JSON. If successful (and other 
         required data are already set), attempts to run the pre-fx pipeline
@@ -185,6 +204,7 @@ class PreFxData(QObject):
                 err
             )
 
+    # TODO move to NwbData
     def load_data_set_from_nwb(self, path: str):
         """ Attempts to read an NWB file describing an experiment. Fails if 
         qc criteria or stimulus ontology not already present. Emits new_data
@@ -227,6 +247,7 @@ class PreFxData(QObject):
                 err
             )
 
+    # TODO move to QcData
     def extract_manual_sweep_states(self):
         """ Extract manual sweep states in the format schemas.ManualSweepStates
         from PreFxData
@@ -240,6 +261,7 @@ class PreFxData(QObject):
             for sweep in self.sweep_features
         ]
 
+    # TODO move to QcData
     def save_manual_states_to_json(self, filepath: str):
 
         json_data = {
@@ -269,6 +291,7 @@ class PreFxData(QObject):
                 ioerr
             )
 
+    # TODO move auto QC portion to QcData
     def run_extraction_and_auto_qc(self, commit=True):
         """ Creates a data set from the nwb path;
         calculates cell features, tags, and sweep features using ipfx;
@@ -319,7 +342,7 @@ class PreFxData(QObject):
             self.sweep_features, self.cell_features
         )
 
-    # TODO move to qc_data.py
+    # TODO move to QcData
     def on_manual_qc_state_updated(self, sweep_number: int, new_state: str):
         self.manual_qc_states[sweep_number] = new_state
         self.update_sweep_states()
@@ -328,7 +351,7 @@ class PreFxData(QObject):
                                self.sweep_features,
                                self.cell_features)
 
-    # TODO move to qc_data.py
+    # TODO move to QcData
     def get_non_default_manual_sweep_states(self):
         manual_sweep_states = []
 
@@ -341,7 +364,7 @@ class PreFxData(QObject):
                 )
         return manual_sweep_states
 
-    # TODO move to qc_data.py
+    # TODO move to QcData
     def update_sweep_states(self):
         manual_sweep_states = self.get_non_default_manual_sweep_states()
         sweep_states = copy.deepcopy(self.sweep_states)
@@ -349,6 +372,7 @@ class PreFxData(QObject):
         sweep_props.assign_sweep_states(sweep_states, self.sweep_features)
 
 
+# TODO move to QcData
 def extract_qc_features(data_set):
     # gets QC features at the cell level (input / access / seal / etc.)
     cell_features, cell_tags = cell_qc_features(
@@ -365,6 +389,7 @@ def extract_qc_features(data_set):
     return cell_features, cell_tags, sweep_features
 
 
+# TODO move to QcData
 def run_qc(stimulus_ontology, cell_features, sweep_features, qc_criteria):
     """Adding qc status to sweep features
     Outputs qc summary on a screen
