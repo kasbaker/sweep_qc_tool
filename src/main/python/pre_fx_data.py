@@ -21,19 +21,19 @@ from schemas import PipelineParameters
 
 class PreFxData(QObject):
 
-    # TODO move to NwbData
+    # TODO move to NWBData
     stimulus_ontology_set = pyqtSignal(StimulusOntology, name="stimulus_ontology_set")
     stimulus_ontology_unset = pyqtSignal(name="stimulus_ontology_unset")
 
-    # TODO move to QcData
+    # TODO move to QCData
     qc_criteria_set = pyqtSignal(dict, name="qc_criteria_set")
     qc_criteria_unset = pyqtSignal(name="qc_criteria_unset")
 
-    # TODO remove / break into QcData / NwbData
+    # TODO remove / break into QCData / NWBData
     begin_commit_calculated = pyqtSignal(name="begin_commit_calculated")
     end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
 
-    # TODO move to NwbData
+    # TODO move to NWBData
     new_data = pyqtSignal(EphysDataSet, name="new_data")
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
 
@@ -53,7 +53,7 @@ class PreFxData(QObject):
 
 
 
-        # TODO QcData
+        # TODO QCData
         self._qc_criteria: Optional[Dict] = None
         self.manual_qc_states: Dict[int, str] = {}
         # TODO cell_features -> cell_qc_info
@@ -64,14 +64,11 @@ class PreFxData(QObject):
         self.sweep_features: list = []
         self.sweep_states: list = []
 
-        # TODO NwbData
+        # TODO NWBData
         self._stimulus_ontology: Optional[StimulusOntology] = None
         self.data_set: Optional[EphysDataSet] = None
         self.nwb_path: Optional[str] = None
         self.ontology_file = None
-
-
-
 
     # TODO move to DataManager
     def _notifying_setter(
@@ -109,7 +106,7 @@ class PreFxData(QObject):
             else:
                 on_set.emit()
 
-    # TODO move to NwbData
+    # TODO move to NWBData
     @property
     def stimulus_ontology(self) -> Optional[StimulusOntology]:
         return self._stimulus_ontology
@@ -140,16 +137,17 @@ class PreFxData(QObject):
             send_value=True
         )
 
+    # TODO NWBData
     def set_default_stimulus_ontology(self):
         self.load_stimulus_ontology_from_json(
             StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE
         )
 
-    # TODO move to QcData
+    # TODO move to QCData
     def set_default_qc_criteria(self):
         self.load_qc_criteria_from_json(DEFAULT_QC_CRITERIA_FILE)
 
-    # TODO move to NwbData
+    # TODO move to NWBData
     def load_stimulus_ontology_from_json(self, path: str):
         """ Attempts to read a stimulus ontology file from a JSON. If 
         successful (and other required data are already set), attempts to 
@@ -178,7 +176,7 @@ class PreFxData(QObject):
                 err
             )
 
-    # TODO move to QcData
+    # TODO move to QCData
     def load_qc_criteria_from_json(self, path: str):
         """ Attempts to read qc criteria from a JSON. If successful (and other 
         required data are already set), attempts to run the pre-fx pipeline
@@ -204,7 +202,7 @@ class PreFxData(QObject):
                 err
             )
 
-    # TODO move to NwbData
+    # TODO move to NWBData
     def load_data_set_from_nwb(self, path: str):
         """ Attempts to read an NWB file describing an experiment. Fails if 
         qc criteria or stimulus ontology not already present. Emits new_data
@@ -247,7 +245,7 @@ class PreFxData(QObject):
                 err
             )
 
-    # TODO move to QcData
+    # TODO move to QCData
     def extract_manual_sweep_states(self):
         """ Extract manual sweep states in the format schemas.ManualSweepStates
         from PreFxData
@@ -261,7 +259,7 @@ class PreFxData(QObject):
             for sweep in self.sweep_features
         ]
 
-    # TODO move to QcData
+    # TODO move to QCData
     def save_manual_states_to_json(self, filepath: str):
 
         json_data = {
@@ -291,7 +289,7 @@ class PreFxData(QObject):
                 ioerr
             )
 
-    # TODO move auto QC portion to QcData
+    # TODO move auto QC portion to QCData
     def run_extraction_and_auto_qc(self, commit=True):
         """ Creates a data set from the nwb path;
         calculates cell features, tags, and sweep features using ipfx;
@@ -342,7 +340,7 @@ class PreFxData(QObject):
             self.sweep_features, self.cell_features
         )
 
-    # TODO move to QcData
+    # TODO move to QCData
     def on_manual_qc_state_updated(self, sweep_number: int, new_state: str):
         self.manual_qc_states[sweep_number] = new_state
         self.update_sweep_states()
@@ -351,7 +349,7 @@ class PreFxData(QObject):
                                self.sweep_features,
                                self.cell_features)
 
-    # TODO move to QcData
+    # TODO move to QCData
     def get_non_default_manual_sweep_states(self):
         manual_sweep_states = []
 
@@ -364,7 +362,7 @@ class PreFxData(QObject):
                 )
         return manual_sweep_states
 
-    # TODO move to QcData
+    # TODO move to QCData
     def update_sweep_states(self):
         manual_sweep_states = self.get_non_default_manual_sweep_states()
         sweep_states = copy.deepcopy(self.sweep_states)
@@ -372,7 +370,7 @@ class PreFxData(QObject):
         sweep_props.assign_sweep_states(sweep_states, self.sweep_features)
 
 
-# TODO move to QcData
+# TODO move to QCData
 def extract_qc_features(data_set):
     # gets QC features at the cell level (input / access / seal / etc.)
     cell_features, cell_tags = cell_qc_features(
@@ -389,7 +387,7 @@ def extract_qc_features(data_set):
     return cell_features, cell_tags, sweep_features
 
 
-# TODO move to QcData
+# TODO move to QCData
 def run_qc(stimulus_ontology, cell_features, sweep_features, qc_criteria):
     """Adding qc status to sweep features
     Outputs qc summary on a screen
