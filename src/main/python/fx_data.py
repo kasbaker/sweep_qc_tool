@@ -17,6 +17,12 @@ class FxData(QObject):
         super().__init__()
         self._state_out_of_date: bool = False
 
+
+        self.input_nwb_file = None
+        self.ontology = None
+        self.sweep_info = None
+        self.cell_info = None
+
     def out_of_date(self):
         self.state_outdated.emit()
         self._state_out_of_date = True
@@ -86,6 +92,10 @@ class FxData(QObject):
     def run_feature_extraction(self, dataset):
         self.status_message.emit("Computing features, please wait.")
         drop_failed_sweeps(self.sweep_info)
+        # Creates a data set only containing sweeps that have passed qc
+        # sweep_info is an extended sweep table contianing only good sweeps
+        # api_sweeps=False (normally True in PreFxData), which tells
+        # AibsDataSet to keep the modified sweep table, here named sweep_info
         data_set = create_data_set(sweep_info=self.sweep_info,
                                    nwb_file=self.input_nwb_file,
                                    ontology=self.ontology,

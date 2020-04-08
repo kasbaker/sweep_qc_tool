@@ -29,12 +29,12 @@ class PreFxData(QObject):
     qc_criteria_set = pyqtSignal(dict, name="qc_criteria_set")
     qc_criteria_unset = pyqtSignal(name="qc_criteria_unset")
 
-    # TODO remove / break into QCData / NWBData
-    begin_commit_calculated = pyqtSignal(name="begin_commit_calculated")
+    # TODO break into QCData: begin/end_auto_qc
     end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
 
-    # TODO move to NWBData
+    # TODO replace with NWBData begin/end_load_nwb
     new_data = pyqtSignal(EphysDataSet, name="new_data")
+
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
 
     # TODO move to DataManager
