@@ -56,6 +56,7 @@ class PreFxController(QWidget):
             - show_stimulus_ontology_action
         """
 
+        # TODO in new implementation have data_controller call functions in aggregate objects
         self.load_stimulus_ontology_action = QAction("Load stimulus ontology from JSON", self)
         self.load_stimulus_ontology_action.triggered.connect(self.load_stimulus_ontology_dialog)
 
