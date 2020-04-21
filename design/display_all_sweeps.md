@@ -1,5 +1,6 @@
 # Data Management Classes
-- ###`DataController`
+- ###`DataController` - `QWidget`
+    - Owns high level data objects and connects them to GUI
     - Attributes: 
         - `nwb_data : NWBData` - holds raw ephys data and stimulus ontology
         - `fx_data : FXData` - runs feature extraction
@@ -13,21 +14,21 @@
             - Status messages to main window
 
 - ###`FXData` - _`DataOperator`_
-    - Inherits from _`DataOperator`_
+    - Runs feature extraction from `nwb_data` based on good sweeps from `qc_data`
     - Attributes:
         - `feature_data: JSONData` - raw feature extraction data
         - `fx_criteria : JSONData` - feature extraction criteria (future implementation)
-    - Runs feature extraction from `nwb_data` based on good sweeps from `qc_data`
 
 - ###`QCData` - _`DataOperator`_
+    - Runs auto QC based off of `qc_criteria`
+    - Stores auto and manual QC states
     - Attributes:
         - `manual_qc_data : JSONData` - manual QC states selected by the user
         - `auto_qc_data : JSONData` - auto QC data from from running auto qc
         - `qc_criteria: JSONData` - criteria to use for auto QC
-    - Runs auto QC based off of `qc_criteria`
-    - Stores auto and manual QC states
 
 - ###`NWBData` - _`DataContainer`_
+    - Holds raw .nwb data and stimulus ontology
     - Attributes:
         - `ontology_data : JSONData` - raw .json containing stimulus ontology
         - `stimulus_ontology : StimulusOntology` - stimulus ontology object used to create dataset
@@ -36,6 +37,42 @@
         - `create_ephys_dataset()` - creates ephys dataset using ontology and .nwb path
 
 - ###`JSONData` - _`DataContainer`_
+    - Holds .json data
     - Attributes:
         - `display_action : QAction`
-    - Owns `display_action : QAction` and `edit_action : QAction`
+        - `edit_action : QAction`
+    - Operations:
+        - `display_json()` - displays a read-only output of the .json file
+        - `edit_json()` - displays an editable output of the .json file
+        
+- ###_`DataOperator`_ - `QObject`
+    - Abstract data operator class; `run()` implemented in child classes
+    - Attributes:
+        - `run_action : QAction` - menu action to trigger the data operation
+        - `run_state : pyqtSignal` - status signal indicating state of data operation
+    - Operations:
+        - `run()` - performs the data operation (subclass implementation)
+
+- ###_`DataContainer`_ - `QObject`
+    - Abstract data container class; many attributes and operations implemented in child classes
+    - Attributes:
+        - `data_state : pyqtSignal` - indicates the state of the data (subclass implementation)
+        - `status_mesage :pyqtSignal` - status message to send to the main window
+        - `load_action : QAction` - menu action to trigger load dialog
+        - `save_action : QAction` - triggers save dialog
+        - `lims_download_action : QAction` - triggers download from lims (future implementation)
+        - `lims_upload_action : QAction` - triggers upload from lims (future implementation)
+        - `load_path : str` - location to load the data from
+        - `save_path : str` - location to save the data
+        - `data : Any` - holds the raw data (subclass implementation)
+    - Operations:
+        - `set_default_input()` - sets a file to load by default
+        - `set_default_output()` - sets a file to save by default
+        - `save()` - saves the data (subclass implementation)
+        - `load()` - loads the data (subclass implementation)
+        - `download_from_lims()` - downloads data from lims (future implementation in subclasses)
+        - `upload_from_lims()` - uploads data to lims (future implementation in subclasses)    
+        - `load_dialog()` - displays a dialog to load the data (subclass implementation)
+        - `save_dialog()` - displays a dialog to save the data (subclass implementation)
+        - `data_setter()` - sets the data (subclass implementation)
+        - `data()` - returns the data

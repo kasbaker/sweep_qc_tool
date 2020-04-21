@@ -51,8 +51,6 @@ class PreFxData(QObject):
         """
         super(PreFxData, self).__init__()
 
-
-
         # TODO QCData
         self._qc_criteria: Optional[Dict] = None
         self.manual_qc_states: Dict[int, str] = {}
