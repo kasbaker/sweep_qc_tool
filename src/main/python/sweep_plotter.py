@@ -131,7 +131,7 @@ class PulsePopupPlotter:
         plot.setLabel("bottom", "time (s)")
 
         plot.addLegend()
-        ###############################################################
+        ##############################################################
         # if self.initial is not None:
         #     plot.plot(
         #         self.time, self.initial,
@@ -288,7 +288,7 @@ class SweepPlotter:
         """" ... """
         sweep_data = self.data_set.sweep(sweep_number)
         return (
-            self.make_test_pulse_plots(sweep_number, sweep_data), 
+            self.make_test_pulse_plots(sweep_number, sweep_data),
             self.make_experiment_plots(sweep_number, sweep_data)
         )
 
