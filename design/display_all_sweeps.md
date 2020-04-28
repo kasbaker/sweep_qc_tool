@@ -1,11 +1,7 @@
 # Plan to display all sweeps
 
 ## Summary
-Ephys would like to be able to display all of the sweeps in a particular .nwb file before they are 
-filtered out by auto QC so we can perform manual QC on sweeps not included in the auto QC pipeline.
-Implementing this feature will require changes to data management architecture in order to keep 
-track of the status of data storage and operations. Changes will also need to be made to the 
-plotting classes in order to accommodate the display of voltage clamp sweeps.
+Ephys would like to be able to display all of the sweeps in a particular .nwb file before they are filtered out by auto QC so they can perform manual QC on sweeps not included in the auto QC. Implementing this feature will require changes to data management architecture in order to keep track of the status of data storage and operations. Changes will also need to be made to the plotting classes in order to accommodate the display of voltage clamp sweeps.
 
 ## Goals
 - Display all sweeps in the sweep table after an .nwb file is loaded
@@ -18,13 +14,14 @@ plotting classes in order to accommodate the display of voltage clamp sweeps.
 - Display initial test pulse for voltage clamp sweeps based on stimulus code
 
 ## Stepwise plan
-1. Implement data storage classes, keeping auto qc pipeline and plotting as is
+1. Implement data storage classes, keeping auto qc pipeline and plotting as-is
 2. Implement data operation classes, running auto qc and feature extraction from menu actions
-3. Display all sweeps upon first loading a .nwb. Popupate auto-qc column on running auto-qc
-4. Implement options to filter sweeps displayed
+3. Display all sweeps upon first loading a .nwb. Populate the auto-qc column upon running auto-qc
+4. Implement options to filter which sweeps are displayed
 
 ## Classes to be implemented and what they do
-See Attached UML diagrams for detailed architecture
+See Attached UML diagrams for detailed architecture. Link here: 
+[display_all_sweeps.pdf](https://github.com/AllenInstitute/sweep_qc_tool/files/4547602/display_all_sweeps.pdf)
 ### Data Management Classes
 - ####`DataController` - `QWidget`
     - Owns high level data objects and connects them to GUI
