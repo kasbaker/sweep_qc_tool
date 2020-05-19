@@ -30,19 +30,19 @@ class MockSweep:
 
     @property
     def t(self):
-        return np.arange(0, 10, 0.5)
+        return np.linspace(0, 1, 10000)
     
     @property
     def v(self):
-        return np.arange(0, 10, 0.5)
+        return np.linspace(0, 1, 10000)
 
     @property
     def i(self):
-        current = np.zeros(10)
-        current[2:] += 1
-        current[3:] -= 1
-        current[6:] += 1
-        current[-1] = 0
+        current = np.zeros(100000)
+        current[1000:] += 1
+        current[2000:] -= 1
+        current[3000:] += 1
+        current[-1000:] = 0
         return current
 
     @property
@@ -135,9 +135,9 @@ def sweep():
 
 @pytest.mark.parametrize("start,end,baseline,expected", [
     [2.0, 5.0, 3, PlotData(
-        stimulus=[0.0, 0.0, 1.0, 1.0, 1.0, 0.0],
-        time=[2, 2.5, 3, 3.5, 4, 4.5],
-        response=[1.5, 2, 2.5, 3, 3.5, 4],
+        stimulus=mock_data_set.sweep(0).stimulus,
+        time=mock_data_set.sweep(0).t,
+        response=mock_data_set.sweep(0).response,
     )]
 ])
 def test_test_response_plot_data(sweep, start, end, baseline, expected):
