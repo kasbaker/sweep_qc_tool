@@ -9,6 +9,7 @@ from pyqtgraph import PlotWidget, mkPen
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from scipy.signal import decimate
 
 from ipfx.ephys_data_set import EphysDataSet
 from ipfx.sweep import Sweep
@@ -20,11 +21,11 @@ DEFAULT_FIGSIZE = (8, 8)
 
 TEST_PULSE_CURRENT_COLOR = "#000000"
 # hex color code with transparency added for previous and initial test pulses
-TEST_PULSE_PREV_COLOR = "#0000ff50"
-TEST_PULSE_INIT_COLOR = "#ff000050"
+TEST_PULSE_PREV_COLOR = "#0000ff90"
+TEST_PULSE_INIT_COLOR = "#ff000090"
 
 EXP_PULSE_CURRENT_COLOR = "#000000"
-EXP_PULSE_BASELINE_COLOR = "#0000ff"
+EXP_PULSE_BASELINE_COLOR = "#0000ff50"
 
 
 class SweepPlotConfig(NamedTuple):
@@ -76,42 +77,22 @@ class PopupPlotter:
         self.sweep_number = sweep_number
         self.y_label = y_label
 
-    def make_graph(self):
+    def initialize_plot(self, graph: PlotWidget):
         """ Generates an interactive plot widget from this plotter's data. This
         function is used for easy implementation of __call__() in child classes
 
         Returns
         -------
-        graph : PlotWidget
-            a pyqtgraph interactive PlotWidget that pops up when user clicks
-            on a thumbnail of the graph
+        plot : PlotWidget PlotItem
+            a plot item that can be plotted upon
 
         """
-
-        graph = PlotWidget()
         plot = graph.getPlotItem()
-
         plot.addLegend()
         plot.setLabel("left", self.y_label)
         plot.setLabel("bottom", "time (s)")
 
-        plot.plot(self.plot_data.time, self.plot_data.response,
-                  pen=mkPen(color=EXP_PULSE_CURRENT_COLOR, width=2),
-                  name=f"sweep {self.sweep_number}")
-
-        return graph
-
-    def __call__(self):
-        """ Generates an interactive plot widget from this plotter's data.
-
-        Returns
-        -------
-        graph : PlotWidget
-            a pyqtgraph interactive PlotWidget that pops up when user clicks
-            on a thumbnail of the graph
-
-        """
-        return self.make_graph()
+        return plot
 
 
 class ExperimentPopupPlotter(PopupPlotter):
@@ -152,13 +133,19 @@ class ExperimentPopupPlotter(PopupPlotter):
             on a thumbnail of the graph
 
         """
-        graph = self.make_graph()
-        plot = graph.getPlotItem()
+        graph = PlotWidget()
+        plot = self.initialize_plot(graph)
 
         plot.addLine(
             y=self.baseline,
             pen=mkPen(color=EXP_PULSE_BASELINE_COLOR, width=2),
             label="baseline"
+        )
+
+        plot.plot(
+            self.plot_data.time, self.plot_data.response,
+            pen=mkPen(color=EXP_PULSE_CURRENT_COLOR, width=2),
+            name=f"sweep {self.sweep_number}"
         )
 
         return graph
@@ -212,18 +199,28 @@ class PulsePopupPlotter(PopupPlotter):
 
         """
 
-        graph = self.make_graph()
-        plot = graph.getPlotItem()
+        graph = PlotWidget()
+        plot = self.initialize_plot(graph)
 
         if self.initial_plot_data is not None:
-            plot.plot(self.initial_plot_data.time, self.initial_plot_data.response,
-                      pen=mkPen(color=TEST_PULSE_INIT_COLOR, width=2),
-                      name="initial")
+            plot.plot(
+                self.initial_plot_data.time, self.initial_plot_data.response,
+                pen=mkPen(color=TEST_PULSE_INIT_COLOR, width=2),
+                name="initial"
+            )
 
         if self.previous_plot_data is not None:
-            plot.plot(self.previous_plot_data.time, self.previous_plot_data.response,
-                      pen=mkPen(color=TEST_PULSE_PREV_COLOR, width=2),
-                      name="previous")
+            plot.plot(
+                self.previous_plot_data.time, self.previous_plot_data.response,
+                pen=mkPen(color=TEST_PULSE_PREV_COLOR, width=2),
+                name="previous"
+            )
+
+        plot.plot(
+            self.plot_data.time, self.plot_data.response,
+            pen=mkPen(color=TEST_PULSE_CURRENT_COLOR, width=2),
+            name=f"sweep {self.sweep_number}"
+        )
 
         return graph
 
@@ -488,6 +485,7 @@ def make_test_pulse_plot(
     initial: Optional[PlotData] = None,
     y_label: str = "",
     step: int = 1,
+    ds_factor=5,
     labels: bool = True
 ) -> mpl.figure.Figure:
     """ Make a (static) plot of the response to a single sweep's test pulse, 
@@ -523,15 +521,36 @@ def make_test_pulse_plot(
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
     if initial is not None:
-        ax.plot(initial.time[::step], initial.response[::step], linewidth=1, label=f"initial",
-            color=TEST_PULSE_INIT_COLOR)
+        ds_init_resp = decimate(
+            decimate(initial.response, ds_factor), ds_factor
+        )
+        ax.plot(initial.time[::(ds_factor**2)], ds_init_resp, linewidth=1,
+                label=f"initial", color=TEST_PULSE_INIT_COLOR)
 
     if previous is not None:
-        ax.plot(previous.time[::step], previous.response[::step], linewidth=1, label=f"previous",
-            color=TEST_PULSE_PREV_COLOR)
-    
-    ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+        ds_prev_resp = decimate(
+            decimate(previous.response, ds_factor), ds_factor
+        )
+        ax.plot(previous.time[::(ds_factor**2)], ds_prev_resp, linewidth=1,
+                label=f"previous", color=TEST_PULSE_PREV_COLOR)
+
+    # current sweep response
+    ds_curr_resp = decimate(
+        decimate(plot_data.response, ds_factor), ds_factor
+    )
+    ax.plot(plot_data.time[::(ds_factor**2)], ds_curr_resp, linewidth=1,
             label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
+
+    # if initial is not None:
+    #     ax.plot(initial.time[::step], initial.response[::step], linewidth=1, label=f"initial",
+    #             color=TEST_PULSE_INIT_COLOR)
+    #
+    # if previous is not None:
+    #     ax.plot(previous.time[::step], previous.response[::step], linewidth=1, label=f"previous",
+    #             color=TEST_PULSE_PREV_COLOR)
+    #
+    # ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+    #         label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
 
     ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
@@ -603,6 +622,7 @@ def make_experiment_plot(
     exp_baseline: float,
     y_label: str,
     step: int = 1,
+    ds_factor: int = 5,
     labels: bool = True
 ) -> mpl.figure.Figure:
     """ Make a (static) plot of the response to a single sweep's stimulus
@@ -634,12 +654,16 @@ def make_experiment_plot(
 
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
-    ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+    ds_resp = decimate(
+        decimate(plot_data.response, ds_factor, ds_factor), ds_factor)
+
+    ax.plot(plot_data.time[::ds_factor**2], ds_resp, linewidth=1,
             color=EXP_PULSE_CURRENT_COLOR,
             label=f"sweep {sweep_number}")
     ax.hlines(exp_baseline, *time_lim, linewidth=1, 
         color=EXP_PULSE_BASELINE_COLOR,
         label="baseline")
+
     ax.set_xlim(time_lim)
 
     ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
