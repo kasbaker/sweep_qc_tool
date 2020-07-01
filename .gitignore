@@ -5,7 +5,3 @@ __pycache__
 /.mypy_cache/
 
 /.idea/
-/*.nwb/
-/*.prof/
-/src/benchmarks/data/
-/src/benchmarks/profiles/
