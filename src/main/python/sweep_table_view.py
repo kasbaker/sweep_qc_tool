@@ -27,6 +27,9 @@ class SweepTableView(QTableView):
         super().__init__()
         self.colnames = colnames
 
+        # A list to store active popup plots
+        self.popup_plots = []
+
         self.svg_delegate = SvgDelegate()
         manual_qc_choices = ["default", "failed", "passed"]
         self.cb_delegate = ComboBoxDelegate(self, manual_qc_choices)
@@ -151,14 +154,14 @@ class SweepTableView(QTableView):
         top : top position at which the popup will be placed (px)
 
         """
+        # add the graph to popup_plots
+        self.popup_plots.append(graph)
+        # remove old popup plots if there are more than 5
+        while len(self.popup_plots) > 5:
+            self.popup_plots.pop(0)
 
-        popup = QDialog()
-        layout = QGridLayout()
-        
-        layout.addWidget(graph)
-        popup.setLayout(layout)
-        popup.move(left, top)
-        popup.exec()
+        graph.show()
+        graph.window().move(left, top)
 
     def filter_sweeps(self):
         """ Filters the table down to sweeps based on the checkboxes that are

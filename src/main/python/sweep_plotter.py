@@ -531,7 +531,8 @@ def make_test_pulse_plot(
         a matplotlib figure containing the plot to be turned into a thumbnail
 
     """
-    
+    # share a single MPL plot and reuse to create .svgs
+    # could also make one plot per CPU and use multiprocessing
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
     if initial is not None:

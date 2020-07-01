@@ -4,9 +4,13 @@ import multiprocessing as mp
 
 
 folder = "profiles"
-date = "200630"
-# time = "12.24.32"   # pre optimization
-time = "23.23.54"   # post optimization
+
+date = "200630"   # pre optimization
+time = "12.24.32"   # pre optimization
+
+# date = "200701"     # post optimization
+# time = "10.52.41"   # post optimization
+
 files = os.listdir(f'profiles/{date}/{time}')
 command = f"snakeviz {folder}/{date}/{time}/" + "{}"
 commands = list(map(command.format, files))
