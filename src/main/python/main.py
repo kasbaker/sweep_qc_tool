@@ -324,6 +324,9 @@ class Application(object):
         if initial_qc_criteria_path is not None:
             self.pre_fx_controller.selected_qc_criteria_path.emit(initial_qc_criteria_path)
         if initial_nwb_path is not None:
+            ###################################################################
+            # Connect data_changed to kill the main window for benchmarking #
+            self.pre_fx_data.data_changed.connect(self.main_window.deleteLater)
             self.pre_fx_controller.selected_data_set_path.emit(initial_nwb_path)
 
     def run(self):

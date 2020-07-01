@@ -98,20 +98,15 @@ class SweepTableModel(QAbstractTableModel):
             The underlying data. Used to extract sweep-wise voltage traces
 
         """
+        # TODO use caching here for sweep_types
         # dictionary of sweep types used for filtering sweeps in table view
-        self.sweep_types: Dict[str, set] = {
+        sweep_types: Dict[str, set] = {
             'all_sweeps': set(range(len(sweep_features))),
             'v_clamp': set(), 'i_clamp': set(), 'pipeline': set(),
             'search': set(), 'ex_tp': set(), 'nuc_vc': set(),
             'core_one': set(), 'core_two': set(), 'auto_pass': set(),
             'auto_fail': set(), 'no_auto_qc': set(), 'unknown': set()
         }
-
-        # grabbing sweep features, auto qc states, and manual qc states
-        #   so that sweep table view can filter based on these values
-        self.sweep_features = sweep_features
-        self.sweep_states = sweep_states
-        self.manual_qc_states = manual_qc_states
 
         # clears any data that the table is currently holding
         if self.rowCount() > 0:
@@ -125,46 +120,58 @@ class SweepTableModel(QAbstractTableModel):
 
         self.beginInsertRows(QModelIndex(), 0, len(sweep_features)-1)
 
+        # TODO use multiprocessing?
         # populates the sweep table model
         for index, sweep in enumerate(sweep_features):
+            # if skip == True the plotter will skip over that sweep
+            skip = False
+            # if store_tp == True the plotter will store the test pulse
+            store_tp = False
             # define vclamp and iclamp sweeps
             if sweep['clamp_mode'] == "VoltageClamp":
-                self.sweep_types['v_clamp'].add(index)
+                sweep_types['v_clamp'].add(index)
             else:
-                self.sweep_types['i_clamp'].add(index)
+                sweep_types['i_clamp'].add(index)
 
             # define qc pipeline sweeps
             if sweep['passed'] is not None:
-                self.sweep_types['pipeline'].add(index)
+                sweep_types['pipeline'].add(index)
 
             # define sweep types based on stimulus codes
             if sweep['stimulus_code'][-6:] == "Search":
-                self.sweep_types['search'].add(index)
+                sweep_types['search'].add(index)
+                skip = True     # don't plot "Search" sweeps
             elif sweep['stimulus_code'][0:4] == "EXTP":
-                self.sweep_types['ex_tp'].add(index)
+                sweep_types['ex_tp'].add(index)
+                skip = True     # don't plot "EXTP" sweeps
             elif sweep['stimulus_code'][0:5] == "NucVC":
-                self.sweep_types['nuc_vc'].add(index)
+                sweep_types['nuc_vc'].add(index)
+                store_tp = True
             elif sweep['stimulus_code'][0] == "X":
-                self.sweep_types['core_one'].add(index)
+                sweep_types['core_one'].add(index)
+                store_tp = True
             elif sweep['stimulus_code'][0] == "C":
-                self.sweep_types['core_two'].add(index)
+                sweep_types['core_two'].add(index)
+                store_tp = True
             else:
-                self.sweep_types['unknown'].add(index)
-
+                sweep_types['unknown'].add(index)
             # populates auto qc state column based on sweep states list
             if sweep_states[index]['passed']:
                 auto_qc_state = "passed"
-                self.sweep_types['auto_pass'].add(index)
+                sweep_types['auto_pass'].add(index)
             # sweep state should be None if it did not go through auto qc
             elif sweep_states[index]['passed'] is None:
                 auto_qc_state = "n/a"
-                self.sweep_types['no_auto_qc'].add(index)
+                sweep_types['no_auto_qc'].add(index)
             else:
                 auto_qc_state = "failed"
-                self.sweep_types['auto_fail'].add(index)
+                sweep_types['auto_fail'].add(index)
 
             # generate thumbnail / popup plot pairs for each sweep
-            test_pulse_plots, experiment_plots = plotter.advance(index)
+            if not skip:
+                test_pulse_plots, experiment_plots = plotter.advance(index, store_tp)
+            else:
+                test_pulse_plots, experiment_plots = None, None
 
             # add the new row to the sweep table model
             self._data.append([
@@ -179,6 +186,13 @@ class SweepTableModel(QAbstractTableModel):
             ])
 
         self.endInsertRows()
+
+        # grabbing sweep features, auto qc states, and manual qc states
+        #   so that sweep table view can filter based on these values
+        self.sweep_features = sweep_features
+        self.sweep_states = sweep_states
+        self.manual_qc_states = manual_qc_states
+        self.sweep_types = sweep_types
 
         # emit signal indicating that the model now has new data in it
         self.new_data.emit()

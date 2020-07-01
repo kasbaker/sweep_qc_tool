@@ -12,7 +12,7 @@ import matplotlib as mpl
 
 from ipfx.ephys_data_set import EphysDataSet
 from ipfx.sweep import Sweep
-from ipfx.epochs import get_experiment_epoch
+from ipfx.epochs import get_experiment_epoch, get_test_epoch
 
 
 PLOT_FONTSIZE = 24
@@ -261,9 +261,9 @@ class SweepPlotter:
     def make_test_pulse_plots(
         self, 
         sweep_number: int, 
-        sweep: Sweep,
+        sweep_data: dict,
         y_label: str = "",
-        store_test_pulse: bool = True
+        store_tp: bool = True
     ) -> FixedPlots:
         """ Generate test pulse response plots for a single sweep
 
@@ -271,11 +271,11 @@ class SweepPlotter:
         ----------
         sweep_number : int
             used to generate meaningful labels
-        sweep : Sweep
+        sweep_data : Sweep
             holds timestamps and response values for this sweep
         y_label: str
             label for the y-axis (mV or pA)
-        store_test_pulse : bool
+        store_tp : bool
             if True, store this sweep's response for use in later plots
 
         Returns
@@ -291,29 +291,29 @@ class SweepPlotter:
 
         # grabbing data for test pulse
         plot_data = test_response_plot_data(
-            sweep,
+            sweep_data,
             self.config.test_pulse_plot_start,
             self.config.test_pulse_plot_end,
             self.config.test_pulse_baseline_samples
         )
 
-        # called for sweeps that will save initial / previous test pulses
-        if store_test_pulse:
-            if sweep.clamp_mode == "CurrentClamp":
-                previous = self.previous_iclamp_data
-                initial = self.initial_iclamp_data
-                if self.initial_iclamp_data is None:
-                    self.initial_iclamp_data = plot_data
-                else:
-                    self.previous_iclamp_data = plot_data
-
-            else:
+        if store_tp:
+            # store voltage clamp test pulse
+            if sweep_data['stimulus_unit'] == "Volts":
                 previous = self.previous_vclamp_data
                 initial = self.initial_vclamp_data
                 if self.initial_vclamp_data is None:
                     self.initial_vclamp_data = plot_data
                 else:
                     self.previous_vclamp_data = plot_data
+            # store current clamp test pulse
+            else:
+                previous = self.previous_iclamp_data
+                initial = self.initial_iclamp_data
+                if self.initial_iclamp_data is None:
+                    self.initial_iclamp_data = plot_data
+                else:
+                    self.previous_iclamp_data = plot_data
 
         thumbnail = make_test_pulse_plot(
             sweep_number=sweep_number, plot_data=plot_data,
@@ -335,7 +335,7 @@ class SweepPlotter:
     def make_experiment_plots(
         self, 
         sweep_number: int, 
-        sweep_data: Sweep,
+        sweep_data: dict,
         y_label: str = ""
     ) -> FixedPlots:
         """ Generate experiment response plots for a single sweep
@@ -349,7 +349,7 @@ class SweepPlotter:
         """
 
         plot_data, exp_baseline = experiment_plot_data(
-            sweep=sweep_data,
+            sweep_data=sweep_data,
             backup_start_index=self.config.backup_experiment_start_index,
             baseline_start_index=self.config.experiment_baseline_start_index,
             baseline_end_index=self.config.experiment_baseline_end_index
@@ -371,7 +371,7 @@ class SweepPlotter:
             )
         )
 
-    def advance(self, sweep_number: int):
+    def advance(self, sweep_number: int, store_tp: bool = False):
         """ Determines what the y-label for the plots should be based on the
         clamp mode and then generates two fixed plots: one for the test pulse
         epoch and another for the experiment epoch.
@@ -386,31 +386,21 @@ class SweepPlotter:
              for the test pulse and experiment epoch of the sweep to be plotted
 
         """
-        # grab sweep object and stimulus code for this sweep number
-        sweep_data = self.data_set.sweep(sweep_number)
-        stimulus_code = self.data_set.sweep_table['stimulus_code'][sweep_number]
+        # grab sweep_data dictionary and the stimulus code for this sweep_data number
+        sweep_data = self.data_set.get_sweep_data(sweep_number)
+        # stimulus_code = self.data_set.sweep_table['stimulus_code'][sweep_number]
 
         # determine y-axis label based on clamp mode and which tp's to store
-        if sweep_data.clamp_mode == "CurrentClamp":
-            # don't store test pulse for 'Search' in current clamp
-            if stimulus_code[-6:] == "Search":
-                return None, None
-            else:
-                store_test_pulse = True
-            y_label = "membrane potential (mV)"
-        else:
-            # only store test pulse for 'NucVC' sweeps in voltage clamp
-            if stimulus_code[0:5] == "NucVC":
-                store_test_pulse = True
-            else:
-                store_test_pulse = False
+        if sweep_data['stimulus_unit'] == "Volts":
             y_label = "holding current (pA)"
+        else:
+            y_label = "membrane potential (mV)"
 
         return (
             self.make_test_pulse_plots(
                 sweep_number=sweep_number,
-                sweep=sweep_data, y_label=y_label,
-                store_test_pulse=store_test_pulse
+                sweep_data=sweep_data, y_label=y_label,
+                store_tp=store_tp
             ),
             self.make_experiment_plots(sweep_number, sweep_data, y_label)
         )
@@ -439,20 +429,20 @@ def svg_from_mpl_axes(fig: mpl.figure.Figure) -> QByteArray:
 
 
 def test_response_plot_data(
-    sweep: Sweep, 
-    test_pulse_plot_start: float = 0.0,
-    test_pulse_plot_end: float = 0.1, 
+    sweep_data: dict,
+    tp_start: float = 0.0,
+    tp_end: float = 0.1,
     num_baseline_samples: int = 100
 ) -> PlotData:
     """ Generate time and response arrays for the test pulse plots.
 
     Parameters
     ----------
-    sweep :
+    sweep_data:
         data source for one sweep
-    test_pulse_plot_start :
+    tp_start :
         The start point of the plot (s)
-    test_pulse_plot_end :
+    tp_end :
         The endpoint of the plot (s)
     num_baseline_samples :
         How many samples (from time 0) to use when calculating the baseline 
@@ -465,15 +455,41 @@ def test_response_plot_data(
 
     """
 
-    start_index, end_index = (
-        np.searchsorted(sweep.t, [test_pulse_plot_start, test_pulse_plot_end])
-        .astype(int)
+    # find start index
+    # start_index = int(np.ceil(tp_start*sweep_data.sampling_rate))
+    # # set end index to be the same length as time data
+    # end_index = start_index + len(time_data)
+
+    # might crash if can't find test epoch
+    try:
+        start_index, end_index = get_test_epoch(sweep_data['stimulus'], sweep_data['sampling_rate'])
+    except Exception:
+        start_index = 0
+        end_index = 5000
+
+    stimulus = sweep_data['stimulus'][start_index:end_index]
+    response = sweep_data['response'][start_index: end_index]
+    num_pts = len(stimulus)
+    time = np.linspace(
+        start_index / sweep_data['sampling_rate'],
+        (start_index + num_pts) / sweep_data['sampling_rate'],
+        num_pts
     )
 
+    # generate time vector for plotting
+    # time_data = np.linspace(
+    #     tp_start, tp_end, int(np.ceil((tp_end-tp_start)*sweep_data['sampling_rate']))
+    # )
+
+    # start_index, end_index = (
+    #     np.searchsorted(sweep_data.t, [tp_start, tp_end])
+    #     .astype(int)
+    # )
+
     return PlotData(
-        stimulus=sweep.stimulus[start_index:end_index],
-        response=sweep.response[start_index: end_index] - np.mean(sweep.response[0: num_baseline_samples]),
-        time=sweep.t[start_index:end_index]
+        stimulus=stimulus,
+        response=response - np.mean(sweep_data['response'][0: num_baseline_samples]),
+        time=time
     )
 
 
@@ -486,7 +502,7 @@ def make_test_pulse_plot(
     step: int = 1,
     labels: bool = True
 ) -> mpl.figure.Figure:
-    """ Make a (static) plot of the response to a single sweep's test pulse, 
+    """ Make a (static) plot of the response to a single sweep's test pulse,
     optionally comparing to other sweeps from this experiment.
 
     Parameters
@@ -543,12 +559,12 @@ def make_test_pulse_plot(
 
     
 def experiment_plot_data(
-    sweep: Sweep,
+    sweep_data: dict,
     backup_start_index: int = 5000,
     baseline_start_index: int = 5000,
     baseline_end_index: int = 9000
 ) -> Tuple[PlotData, float]:
-    """ Extract the data required for plotting a single sweep's experiment 
+    """ Extract the data required for plotting a single sweep's experiment
     epoch.
 
     Parameters
@@ -575,15 +591,22 @@ def experiment_plot_data(
 
     # might want to grab this from sweep.epochs instead
     start_index, end_index = \
-        get_experiment_epoch(sweep.i, sweep.sampling_rate) \
-            or (backup_start_index, len(sweep.i))
+        get_experiment_epoch(sweep_data['stimulus'], sweep_data['sampling_rate']) \
+            or (backup_start_index, len(sweep_data['stimulus']))
 
     if start_index <= 0:
         start_index = backup_start_index
     
-    stimulus = sweep.stimulus[start_index:end_index]
-    response = sweep.response[start_index:end_index]
-    time = sweep.t[start_index:end_index]
+    stimulus = sweep_data['stimulus'][start_index:end_index]
+    response = sweep_data['response'][start_index:end_index]
+
+    num_pts = len(stimulus)
+
+    time = np.linspace(
+        start_index / sweep_data['sampling_rate'],
+        (start_index + num_pts) / sweep_data['sampling_rate'],
+        num_pts
+    )
 
     if len(response) > baseline_end_index:
         baseline_mean = float(np.nanmean(response[baseline_start_index: baseline_end_index]))
@@ -627,17 +650,17 @@ def make_experiment_plot(
     """
 
     time_lim = [plot_data.time[0], plot_data.time[-1]]
-
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
     ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
             color=EXP_PULSE_CURRENT_COLOR,
             label=f"sweep {sweep_number}")
+
     ax.hlines(exp_baseline, *time_lim, linewidth=1, 
         color=EXP_PULSE_BASELINE_COLOR,
         label="baseline")
-    ax.set_xlim(time_lim)
 
+    ax.set_xlim(time_lim)
     ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
     ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
 

@@ -302,7 +302,8 @@ class PreFxData(QObject):
             ontology=stimulus_ontology
         )
 
-        data_set.sweep_table.sort_values(by='sweep_number', axis=0, inplace=True)
+        sweep_table = data_set.sweep_table.sort_values(by='sweep_number', axis=0, inplace=False)
+        # data_set.sweep_table.sort_values(by='sweep_number', axis=0, inplace=True)
 
         self.status_message.emit("Performing auto QC...")
         # cell_features: dictionary of QC information about the cell
@@ -311,9 +312,9 @@ class PreFxData(QObject):
         #   sweeps that that have gone through auto qc
         cell_features, cell_tags, pre_qc_sweep_features = extract_qc_features(data_set)
 
-        # sweep_states: list of dictionaries containing sweep pass/fail states
+        # auto_qc_states: list of dictionaries containing sweep pass/fail states
         # cell_state: dictionary of qc states for the cell related to cell_features
-        cell_state, cell_features, sweep_states, post_qc_sweep_features = run_qc(
+        cell_state, cell_features, auto_qc_states, post_qc_sweep_features = run_qc(
             stimulus_ontology, cell_features, pre_qc_sweep_features, qc_criteria
         )
 
@@ -321,6 +322,29 @@ class PreFxData(QObject):
             self.status_message.emit("Gathering QC information...")
             self.begin_commit_calculated.emit()
 
+            # uses auto qc info to populate self with initial and current
+            # sweep features and sweep states
+            sweep_features, sweep_states = self.populate_qc_info(
+                sweep_table=sweep_table,
+                pre_qc_sweep_features=pre_qc_sweep_features,
+                post_qc_sweep_features=post_qc_sweep_features,
+                auto_qc_states=auto_qc_states
+            )
+
+            # initializing manual qc states as "default" for everything
+            manual_qc_states = {
+                sweep['sweep_number']: "default" for sweep in sweep_states
+            }
+
+            self.status_message.emit("Initializing sweep page...")
+            # emits signal that tells sweep_table_model to populate itself
+            # with new data
+            self.end_commit_calculated.emit(
+                sweep_features, sweep_states, manual_qc_states, data_set
+            )
+
+            self.sweep_features = sweep_features
+            self.sweep_states = sweep_states
             self.stimulus_ontology = stimulus_ontology
             self.qc_criteria = qc_criteria
             self.nwb_path = nwb_path
@@ -330,26 +354,6 @@ class PreFxData(QObject):
             self.cell_tags = cell_tags
             self.cell_state = cell_state
 
-            # uses auto qc info to populate self with initial and current
-            # sweep features and sweep states
-            self.populate_qc_info(
-                pre_qc_sweep_features=pre_qc_sweep_features,
-                post_qc_sweep_features=post_qc_sweep_features,
-                sweep_states=sweep_states
-            )
-
-            # initializing manual qc states as "default" for everything
-            self.manual_qc_states = {
-                sweep['sweep_number']: "default" for sweep in self.sweep_states
-            }
-
-            self.status_message.emit("Initializing sweep page...")
-            # emits signal that tells sweep_table_model to populate itself
-            # with new data
-            self.end_commit_calculated.emit(
-                self.sweep_features, self.sweep_states, self.manual_qc_states, self.data_set
-            )
-
         # notifies fx_data that data has changed
         self.data_changed.emit(self.nwb_path,
                                self.stimulus_ontology,
@@ -358,9 +362,10 @@ class PreFxData(QObject):
 
     def populate_qc_info(
         self,
+        sweep_table,
         pre_qc_sweep_features: List[dict],
         post_qc_sweep_features: List[dict],
-        sweep_states: List[dict]
+        auto_qc_states: List[dict]
     ):
         """ Uses pre and post sweep qc features to populate initial and current
         sweep QC features and states. Sweep features and states use values of
@@ -399,46 +404,49 @@ class PreFxData(QObject):
 
 
         """
-        num_sweeps = len(self.data_set.sweep_table)
-
+        num_sweeps = len(sweep_table)
+        # sweep_features
         # initializing list of empty dicts with keys from post_qc_features
-        self.sweep_features = [
+        # self.sweep_features = [
+        sweep_features = [
             dict.fromkeys(post_qc_sweep_features[0].keys())
             for _ in range(num_sweeps)
         ]
 
         # initializing sweep auto qc states
-        self.sweep_states = [{'passed': None, 'reasons': [], 'sweep_number': x}
-                             for x in range(num_sweeps)]
+        # self.sweep_states = \
+        sweep_states = [{'passed': None, 'reasons': [], 'sweep_number': x}
+                        for x in range(num_sweeps)]
 
         # populating sweep_features and sweep_states with
         # sweeps that made it through auto qc
         for index, row in enumerate(post_qc_sweep_features):
-            self.sweep_features[row['sweep_number']] = row
-            self.sweep_states[row['sweep_number']] = sweep_states[index]
+            sweep_features[row['sweep_number']] = row
+            sweep_states[row['sweep_number']] = auto_qc_states[index]
 
         # populating sweep_features and sweep_states with
         # rows that were dropped during run_qc() (usually terminated early)
         for row in pre_qc_sweep_features:
-            if self.sweep_features[row['sweep_number']]['passed'] is None:
-                self.sweep_features[row['sweep_number']].update(row)
+            if sweep_features[row['sweep_number']]['passed'] is None:
+                sweep_features[row['sweep_number']].update(row)
                 # Leaving sweep features 'passed' = None here to distinguish sweeps
                 # weeded out after first round of auto-qc
-                self.sweep_states[row['sweep_number']]['passed'] = False
+                sweep_states[row['sweep_number']]['passed'] = False
 
         # populating sweep_features and sweep_states with
         # rows that were not included in auto qc
-        for index, row in self.data_set.sweep_table.iterrows():
-            if self.sweep_features[index]['sweep_number'] is None:
-                self.sweep_features[index].update(row)
-                self.sweep_features[index]['tags'] = []
+        for index, row in sweep_table.iterrows():
+            if sweep_features[index]['sweep_number'] is None:
+                sweep_features[index].update(row)
+                sweep_features[index]['tags'] = []
                 # sweep states with no auto QC have the "None" tag for auto-qc state
-                self.sweep_states[index]['reasons'] = ['No auto QC']
+                sweep_states[index]['reasons'] = ['No auto QC']
 
         # making a copy of these initial values so they can be reset if
         # user changes manual qc state away from 'default' and back
-        self.initial_sweep_features = copy.deepcopy(self.sweep_features)
-        self.initial_sweep_states = copy.deepcopy(self.sweep_states)
+        self.initial_sweep_features = copy.deepcopy(sweep_features)
+        self.initial_sweep_states = copy.deepcopy(sweep_states)
+        return sweep_features, sweep_states
 
     def on_manual_qc_state_updated(self, index: int, new_state: str):
         """ Takes in new manual QC state and updates sweep_states and
