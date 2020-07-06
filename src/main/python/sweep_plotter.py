@@ -246,6 +246,8 @@ class SweepPlotter:
             parameters tweaking the generated plots
 
         """
+        self.fig, self.ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+        self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
         self.data_set = data_set
         self.config = config
@@ -315,14 +317,12 @@ class SweepPlotter:
                 else:
                     self.previous_iclamp_data = plot_data
 
-        thumbnail = make_test_pulse_plot(
-            sweep_number=sweep_number, plot_data=plot_data,
-            previous=previous, initial=initial, y_label=y_label,
-            step=self.config.thumbnail_step, labels=False
-        )
-
         return FixedPlots(
-            thumbnail=svg_from_mpl_axes(thumbnail),
+            thumbnail=self.make_test_pulse_plot(
+                sweep_number=sweep_number, plot_data=plot_data,
+                previous=previous, initial=initial, y_label=y_label,
+                step=self.config.thumbnail_step, labels=False
+            ),
             full=PulsePopupPlotter(
                 plot_data=plot_data,
                 previous_plot_data=previous,
@@ -355,14 +355,12 @@ class SweepPlotter:
             baseline_end_index=self.config.experiment_baseline_end_index
         )
 
-        thumbnail = make_experiment_plot(
-            sweep_number=sweep_number, plot_data=plot_data,
-            exp_baseline=exp_baseline, y_label=y_label,
-            step=self.config.thumbnail_step, labels=False
-        )
-
         return FixedPlots(
-            thumbnail=svg_from_mpl_axes(thumbnail),
+            thumbnail=self.make_experiment_plot(
+                sweep_number=sweep_number, plot_data=plot_data,
+                exp_baseline=exp_baseline, y_label=y_label,
+                step=self.config.thumbnail_step, labels=False
+            ),
             full=ExperimentPopupPlotter(
                 plot_data=plot_data,
                 baseline=exp_baseline,
@@ -388,7 +386,6 @@ class SweepPlotter:
         """
         # grab sweep_data dictionary and the stimulus code for this sweep_data number
         sweep_data = self.data_set.get_sweep_data(sweep_number)
-        # stimulus_code = self.data_set.sweep_table['stimulus_code'][sweep_number]
 
         # determine y-axis label based on clamp mode and which tp's to store
         if sweep_data['stimulus_unit'] == "Volts":
@@ -404,6 +401,159 @@ class SweepPlotter:
             ),
             self.make_experiment_plots(sweep_number, sweep_data, y_label)
         )
+
+    def make_test_pulse_plot(
+            self,
+            sweep_number: int,
+            plot_data: PlotData,
+            previous: Optional[PlotData] = None,
+            initial: Optional[PlotData] = None,
+            y_label: str = "",
+            step: int = 1,
+            labels: bool = True
+    ) -> mpl.figure.Figure:
+        """ Make a (static) plot of the response to a single sweep's test pulse,
+        optionally comparing to other sweeps from this experiment.
+
+        Parameters
+        ----------
+        sweep_number : int
+            Identifier for this sweep. Used for labeling.
+        plot_data : PlotData
+            named tuple with raw data used for plotting
+        previous : Optional[PlotData]
+           named tuple with raw data used for the previous sweep of the same
+           clamp mode
+        initial : Optional[PlotData]
+            named tuple with raw data used to plot the first sweep for a given
+            clamp mode or stimulus code
+        y_label: str
+            label for the y-axis (mV or pA)
+        step : int
+            stepsize applied to each array. Can be used to generate decimated
+            thumbnails
+        labels : bool
+            If False, labels will not be generated (useful for thumbnails).
+
+        Returns
+        -------
+        fig : mpl.figure.Figure
+            a matplotlib figure containing the plot to be turned into a thumbnail
+
+        """
+        if initial is not None:
+            self.ax.plot(initial.time[::step], initial.response[::step], linewidth=1, label=f"initial",
+                         color=TEST_PULSE_INIT_COLOR)
+
+        if previous is not None:
+            self.ax.plot(previous.time[::step], previous.response[::step], linewidth=1, label=f"previous",
+                    color=TEST_PULSE_PREV_COLOR)
+
+        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+                label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
+
+        # ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
+
+        self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
+
+        if labels:
+            self.ax.legend()
+        else:
+            self.ax.xaxis.set_major_locator(plt.NullLocator())
+            self.ax.yaxis.set_major_locator(plt.NullLocator())
+
+        thumbnail = svg_from_mpl_axes(self.fig)
+
+        self.ax.clear()
+
+        return thumbnail
+
+        # share a single MPL plot and reuse to create .svgs
+        # could also make one plot per CPU and use multiprocessing
+        # fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+        #
+        # if initial is not None:
+        #     ax.plot(initial.time[::step], initial.response[::step], linewidth=1, label=f"initial",
+        #         color=TEST_PULSE_INIT_COLOR)
+        #
+        # if previous is not None:
+        #     ax.plot(previous.time[::step], previous.response[::step], linewidth=1, label=f"previous",
+        #         color=TEST_PULSE_PREV_COLOR)
+        #
+        # ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+        #         label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
+        #
+        # ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
+        #
+        # ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
+        #
+        # if labels:
+        #     ax.legend()
+        # else:
+        #     ax.xaxis.set_major_locator(plt.NullLocator())
+        #     ax.yaxis.set_major_locator(plt.NullLocator())
+        #
+        # return fig
+
+    def make_experiment_plot(
+        self,
+        sweep_number: int,
+        plot_data: PlotData,
+        exp_baseline: float,
+        y_label: str,
+        step: int = 1,
+        labels: bool = True
+    ) -> mpl.figure.Figure:
+        """ Make a (static) plot of the response to a single sweep's stimulus
+
+        Parameters
+        ----------
+        sweep_number : int
+            Identifier for this sweep. Used for labeling.
+        plot_data : PlotData
+            named tuple with raw data for plotting
+        exp_baseline : float
+            the average response (mV or pA) during a period just before stimulation
+        y_label: str
+            label for the y-axis (mV or pA)
+        step : int
+            stepsize applied to each array. Can be used to generate decimated
+            thumbnails
+        labels : bool
+            If False, labels will not be generated (useful for thumbnails).
+
+        Returns
+        -------
+        fig : mpl.figure.Figure
+            a matplotlib figure containing the plot to be turned into a thumbnail
+
+        """
+
+        time_lim = [plot_data.time[0], plot_data.time[-1]]
+
+        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+                color=EXP_PULSE_CURRENT_COLOR,
+                label=f"sweep {sweep_number}")
+
+        self.ax.hlines(exp_baseline, *time_lim, linewidth=1,
+            color=EXP_PULSE_BASELINE_COLOR,
+            label="baseline")
+
+        self.ax.set_xlim(time_lim)
+        # self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
+        self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
+
+        if labels:
+            self.ax.legend()
+        else:
+            self.ax.xaxis.set_major_locator(plt.NullLocator())
+            self.ax.yaxis.set_major_locator(plt.NullLocator())
+
+        thumbnail = svg_from_mpl_axes(self.fig)
+
+        self.ax.clear()
+
+        return thumbnail
 
 
 def svg_from_mpl_axes(fig: mpl.figure.Figure) -> QByteArray:
@@ -454,12 +604,6 @@ def test_response_plot_data(
         A named tuple with the sweep's stimulus, response, and time
 
     """
-
-    # find start index
-    # start_index = int(np.ceil(tp_start*sweep_data.sampling_rate))
-    # # set end index to be the same length as time data
-    # end_index = start_index + len(time_data)
-
     # might crash if can't find test epoch
     try:
         start_index, end_index = get_test_epoch(sweep_data['stimulus'], sweep_data['sampling_rate'])
@@ -476,16 +620,6 @@ def test_response_plot_data(
         num_pts
     )
 
-    # generate time vector for plotting
-    # time_data = np.linspace(
-    #     tp_start, tp_end, int(np.ceil((tp_end-tp_start)*sweep_data['sampling_rate']))
-    # )
-
-    # start_index, end_index = (
-    #     np.searchsorted(sweep_data.t, [tp_start, tp_end])
-    #     .astype(int)
-    # )
-
     return PlotData(
         stimulus=stimulus,
         response=response - np.mean(sweep_data['response'][0: num_baseline_samples]),
@@ -493,72 +627,6 @@ def test_response_plot_data(
     )
 
 
-def make_test_pulse_plot(
-    sweep_number: int, 
-    plot_data: PlotData,
-    previous: Optional[PlotData] = None,
-    initial: Optional[PlotData] = None,
-    y_label: str = "",
-    step: int = 1,
-    labels: bool = True
-) -> mpl.figure.Figure:
-    """ Make a (static) plot of the response to a single sweep's test pulse,
-    optionally comparing to other sweeps from this experiment.
-
-    Parameters
-    ----------
-    sweep_number : int
-        Identifier for this sweep. Used for labeling.
-    plot_data : PlotData
-        named tuple with raw data used for plotting
-    previous : Optional[PlotData]
-       named tuple with raw data used for the previous sweep of the same
-       clamp mode
-    initial : Optional[PlotData]
-        named tuple with raw data used to plot the first sweep for a given
-        clamp mode or stimulus code
-    y_label: str
-        label for the y-axis (mV or pA)
-    step : int
-        stepsize applied to each array. Can be used to generate decimated
-        thumbnails
-    labels : bool
-        If False, labels will not be generated (useful for thumbnails).
-
-    Returns
-    -------
-    fig : mpl.figure.Figure
-        a matplotlib figure containing the plot to be turned into a thumbnail
-
-    """
-    # share a single MPL plot and reuse to create .svgs
-    # could also make one plot per CPU and use multiprocessing
-    fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
-
-    if initial is not None:
-        ax.plot(initial.time[::step], initial.response[::step], linewidth=1, label=f"initial",
-            color=TEST_PULSE_INIT_COLOR)
-
-    if previous is not None:
-        ax.plot(previous.time[::step], previous.response[::step], linewidth=1, label=f"previous",
-            color=TEST_PULSE_PREV_COLOR)
-    
-    ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
-            label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
-
-    ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
-
-    ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
-
-    if labels:
-        ax.legend()
-    else:
-        ax.xaxis.set_major_locator(plt.NullLocator())
-        ax.yaxis.set_major_locator(plt.NullLocator())
-
-    return fig
-
-    
 def experiment_plot_data(
     sweep_data: dict,
     backup_start_index: int = 5000,
@@ -615,62 +683,3 @@ def experiment_plot_data(
         baseline_mean = float(np.nanmean(response))
 
     return PlotData(stimulus, response, time), baseline_mean
-
-
-def make_experiment_plot(
-    sweep_number: int,
-    plot_data: PlotData,
-    exp_baseline: float,
-    y_label: str,
-    step: int = 1,
-    labels: bool = True
-) -> mpl.figure.Figure:
-    """ Make a (static) plot of the response to a single sweep's stimulus
-
-    Parameters
-    ----------
-    sweep_number : int
-        Identifier for this sweep. Used for labeling.
-    plot_data : PlotData
-        named tuple with raw data for plotting
-    exp_baseline : float
-        the average response (mV or pA) during a period just before stimulation
-    y_label: str
-        label for the y-axis (mV or pA)
-    step : int
-        stepsize applied to each array. Can be used to generate decimated
-        thumbnails
-    labels : bool
-        If False, labels will not be generated (useful for thumbnails).
-
-    Returns
-    -------
-    fig : mpl.figure.Figure
-        a matplotlib figure containing the plot to be turned into a thumbnail
-
-    """
-
-    time_lim = [plot_data.time[0], plot_data.time[-1]]
-    fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
-
-    ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
-            color=EXP_PULSE_CURRENT_COLOR,
-            label=f"sweep {sweep_number}")
-
-    ax.hlines(exp_baseline, *time_lim, linewidth=1, 
-        color=EXP_PULSE_BASELINE_COLOR,
-        label="baseline")
-
-    ax.set_xlim(time_lim)
-    ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
-    ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
-
-    if labels:
-        ax.legend()
-    else:
-        ax.xaxis.set_major_locator(plt.NullLocator())
-        ax.yaxis.set_major_locator(plt.NullLocator())
-
-    return fig
-
-
