@@ -1,4 +1,5 @@
 import os
+
 import scipy
 
 scipy_dir = os.path.dirname(scipy.__file__)
