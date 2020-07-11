@@ -2,18 +2,26 @@ import io
 import os
 from pathlib import Path
 import multiprocessing as mp
+from copy import deepcopy
+import datetime as dt
+from json import load
+
+
 from concurrent.futures import ProcessPoolExecutor
-
-
 from PyQt5.QtCore import QByteArray #QRectF
 # from PyQt5.QtSvg import QSvgRenderer
 # from PyQt5.QtGui import QPainter, QPixmap
 # from PyQt5.QtWidgets import QStyleOptionViewItem
-
-from ipfx.dataset.create import create_ephys_data_set
 import matplotlib.pyplot as plt
 import numpy as np
 
+from ipfx.dataset.create import create_ephys_data_set
+from ipfx.qc_feature_extractor import cell_qc_features, sweep_qc_features
+from ipfx.qc_feature_evaluator import qc_experiment, DEFAULT_QC_CRITERIA_FILE
+from ipfx.bin.run_qc import qc_summary
+from ipfx.sweep_props import drop_tagged_sweeps
+from ipfx.ephys_data_set import EphysDataSet
+from ipfx.stimulus import StimulusOntology
 
 # from main import MainWindow, PlotPage, SweepPage
 # from sweep_table_model import SweepTableModel
@@ -23,9 +31,6 @@ from sweep_plotter import SweepPlotConfig
 
 import cProfile
 import pstats
-import datetime as dt
-
-CPU_COUNT = mp.cpu_count()
 
 # CONFIG = SweepPlotConfig(
 #     test_pulse_plot_start= 0.04,
@@ -36,6 +41,11 @@ CPU_COUNT = mp.cpu_count()
 #     experiment_baseline_end_index=9000,
 #     thumbnail_step=20
 # )
+with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
+    QC_CRITERIA = load(path)
+
+with open(StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE, "r") as path:
+    STIMULUS_ONTOLOGY = StimulusOntology(load(path))
 
 
 def svg_from_mpl_axes(fig) -> QByteArray:
@@ -83,37 +93,120 @@ class MockPlotter:
 #
 #     def run(self):
 
-def plot_worker(sweep_datas, plotter):
-    for sweep in sweep_datas:
-        plotter.make_plot(sweep)
+# def plot_worker(sweep_datas, plotter):
+#     for sweep in sweep_datas:
+#         plotter.make_plot(sweep)
 
 
-def main(nwb_file, sweep_datas, multi=False, concurrent=False, num_procs=CPU_COUNT):
+def run_auto_qc(nwb_file: str, qc_pipe: mp.Pipe = None):
 
     data_set = create_ephys_data_set(nwb_file=nwb_file)
-    num_sweeps = len(data_set._data.sweep_numbers)
-    # if multi:
-    #     if concurrent:
-    #         # with ProcessPoolExecutor(max_workers=num_procs) as executor:
-    #         #     executor.map(plotter.make_plot, sweep_datas)
-    #         ...
-    #
-    #     else:
-    #         # workers = [mp.Process(name=x,target=plot_worker, args = len)]
-    #         tasks = np.array_split(sweep_datas, num_procs)
-    #         workers = [
-    #             mp.Process(name = f"p{x}", target=plot_worker, args=(tasks[x], MockPlotter()))
-    #             for x in range(num_procs)
-    #         ]
-    #
-    #         for worker in workers:
-    #             worker.start()
-    #         for worker in workers:
-    #             worker.join()
-    # else:
-    #     plotter = MockPlotter()
-    #     for sweep in sweep_datas:
-    #         plotter.make_plot(sweep)
+    cell_features, cell_tags = cell_qc_features(data_set)
+    sweep_features = sweep_qc_features(data_set)
+
+    post_qc_sweep_features = deepcopy(sweep_features)
+    cell_features = deepcopy(cell_features)
+
+    drop_tagged_sweeps(post_qc_sweep_features)
+
+    cell_state, sweep_states = qc_experiment(
+        ontology=STIMULUS_ONTOLOGY,
+        cell_features=cell_features,
+        sweep_features=post_qc_sweep_features,
+        qc_criteria=QC_CRITERIA
+    )
+
+    qc_summary(
+        sweep_features=post_qc_sweep_features,
+        sweep_states=sweep_states,
+        cell_features=cell_features,
+        cell_state=cell_state
+    )
+
+    qc_results = (cell_features, cell_tags, sweep_features,
+                  cell_state, sweep_states, post_qc_sweep_features)
+
+    if qc_pipe:
+        _, qc_out = qc_pipe
+        qc_out.send(qc_results)
+        qc_out.close()
+    else:
+        return data_set, qc_results
+
+
+def make_plots(nwb_file: str, thumb_pipe: mp.Pipe = None, sweep_datas=None):
+
+    if sweep_datas:
+        sweep_datas = sweep_datas
+    else:
+        data_set = create_ephys_data_set(nwb_file=nwb_file)
+        sweep_datas = list(map(
+            data_set.get_sweep_data,
+            list(range(len(data_set._data.sweep_numbers)))
+        ))  # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
+
+    # initialize a plotter
+    plotter = MockPlotter()
+    thumbs = list(map(plotter.make_plot, sweep_datas))
+
+    if thumb_pipe:
+        # pipe to send thumbnails out
+        _, thumb_out = thumb_pipe
+        thumb_out.send(thumbs)
+        thumb_out.close()
+    else:
+        return thumbs
+
+
+def main(nwb_file, multi=False):
+    if multi:
+        plot_pipe = mp.Pipe(duplex=False)
+        qc_pipe = mp.Pipe(duplex=False)
+
+        # worker to do auto-qc
+        qc_worker = mp.Process(
+            name="qc_worker", target=run_auto_qc, args=(nwb_file, qc_pipe)
+        )
+
+        # worker to make plots
+        plot_worker = mp.Process(
+            name="plot_worker", target=make_plots, args=(nwb_file, plot_pipe)
+        )
+
+        # start workers
+        qc_worker.start()
+        plot_worker.start()
+
+        # close pipes
+        qc_pipe[1].close()
+        plot_pipe[1].close()
+
+        try:
+            foo = plot_pipe[0].recv()
+        except EOFError:
+            print("error no plot data")
+        try:
+            bar = qc_pipe[0].recv()
+        except EOFError:
+            print("error no qc data")
+
+
+        # join workers
+        qc_worker.join()
+        plot_worker.join()
+
+        # kill workers
+        qc_worker.terminate()
+        plot_worker.terminate()
+
+
+    else:
+        data_set, qc_results = run_auto_qc(nwb_file)
+        sweep_datas = list(map(
+            data_set.get_sweep_data,
+            list(range(len(data_set._data.sweep_numbers)))
+        ))  # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
+        thumbs = make_plots(nwb_file=nwb_file, sweep_datas=sweep_datas)
 
 
 if __name__ == '__main__':
@@ -123,37 +216,29 @@ if __name__ == '__main__':
     today = dt.datetime.now().strftime('%y%m%d')
     now = dt.datetime.now().strftime('%H.%M.%S')
 
-    # plotter = MockPlotter()
-    # for index in range(len(files)):
+    profile_dir = base_dir.joinpath(f'profiles/{today}/{now}/')
+    profile_dir.mkdir(parents=True)
+
+    plotter = MockPlotter()
     for index in range(len(files)):
         nwb_file = str(base_dir.joinpath(f'data/nwb/{files[index]}'))
 
-        # main(nwb_file, sweep_datas=None)
-
-        profile_dir = base_dir.joinpath(f'profiles/plotter/{today}/{now}/')
-        profile_dir.mkdir(parents=True)
-
-        # data_set = create_ephys_data_set(nwb_file=nwb_file)
-        # num_sweeps = len(data_set.sweep_table)
-        # sweep_datas = list(map(data_set.get_sweep_data, list(range(num_sweeps))))
-
+        # main(nwb_file=nwb_file, multi=True)
 
         # benchmark single processing
-        profile_file = str(profile_dir.joinpath(f'{files[index][0:-4]}.prof'))
-        cProfile.run('main(nwb_file, sweep_datas=None)', filename=profile_file)
+        profile_file = str(profile_dir.joinpath(f'single_{files[index][0:-4]}.prof'))
+        cProfile.run('main(nwb_file, multi=False)', filename=profile_file)
         p = pstats.Stats(profile_file)
         p.sort_stats('cumtime').print_stats(20)
 
-        # benchmark multiprocessing
-        # for cpu in range(1, CPU_COUNT):
-        #     multi_profile_file = str(profile_dir.joinpath(f'cpu{cpu}_{files[index][0:-4]}.prof'))
-        #     cProfile.run(
-        #         f'main(nwb_file, sweep_datas=None, multi=True, num_procs={cpu})',
-        #         filename=multi_profile_file
-        #     )
-        #     p = pstats.Stats(multi_profile_file)
-        #     p.sort_stats('cumtime').print_stats(20)
-        #
+        multi_profile_file = str(profile_dir.joinpath(f'multi_{files[index][0:-4]}.prof'))
+        cProfile.run(
+            f'main(nwb_file, multi=True)',
+            filename=multi_profile_file
+        )
+        p = pstats.Stats(multi_profile_file)
+        p.sort_stats('cumtime').print_stats(20)
+
         # # benchmark concurrent_futures
         # concurrent_profile_file = str(profile_dir.joinpath(f'concurrent_{files[index][0:-4]}.prof'))
         # cProfile.run(
