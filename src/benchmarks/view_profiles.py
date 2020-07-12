@@ -1,8 +1,8 @@
-import webbrowser
 from pathlib import Path
 import datetime as dt
 import subprocess
 import multiprocessing as mp
+
 from tkinter import filedialog
 from tkinter import *
 
@@ -18,8 +18,7 @@ if __name__ == '__main__':
 
     files = list(Path(folder_selected).glob("*.prof"))
 
-    command = "snakeviz {}"
-    commands = list(map(command.format, files))
+    commands = list(map("snakeviz {}".format, files))
 
     pool = mp.Pool(processes=len(commands))
     pool.map(subprocess.run, commands)
