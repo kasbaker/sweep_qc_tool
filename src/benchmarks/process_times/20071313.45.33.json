@@ -1,0 +1,50 @@
+{
+    "Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+        "mono": null,
+        "dual": 7.5361214,
+        "tri": null,
+        "quad": null
+    },
+    "Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+        "mono": null,
+        "dual": null,
+        "tri": null,
+        "quad": null
+    },
+    "H20.03.302.11.52.01.03.nwb": {
+        "mono": null,
+        "dual": null,
+        "tri": null,
+        "quad": null
+    },
+    "Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+        "mono": null,
+        "dual": null,
+        "tri": null,
+        "quad": null
+    },
+    "Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+        "mono": null,
+        "dual": null,
+        "tri": null,
+        "quad": null
+    },
+    "Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+        "mono": null,
+        "dual": null,
+        "tri": null,
+        "quad": null
+    },
+    "Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+        "mono": null,
+        "dual": null,
+        "tri": null,
+        "quad": null
+    },
+    "Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+        "mono": null,
+        "dual": null,
+        "tri": null,
+        "quad": null
+    }
+}
