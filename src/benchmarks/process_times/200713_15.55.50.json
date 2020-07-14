@@ -1,0 +1,86 @@
+[
+    {
+        "Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "mono": 9.5485869,
+            "dual": 8.137070800000002,
+            "tri": 7.720831400000002
+        },
+        "Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "H20.03.302.11.52.01.03.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        }
+    },
+    {
+        "Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "mono": 9.3038414,
+            "dual": 7.683662599999998,
+            "tri": 7.949306199999995
+        },
+        "Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "H20.03.302.11.52.01.03.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        },
+        "Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "mono": null,
+            "dual": null,
+            "tri": null
+        }
+    }
+]

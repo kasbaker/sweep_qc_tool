@@ -43,6 +43,8 @@ import pstats
 #     thumbnail_step=20
 # )
 
+NUM_TRIALS = 20
+
 filterwarnings('ignore')
 
 with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
@@ -50,15 +52,6 @@ with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
 
 with open(StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE, "r") as path:
     STIMULUS_ONTOLOGY = StimulusOntology(json.load(path))
-
-
-def timer(function):
-    def new_function():
-        start_time = default_timer()
-        function()
-        elapsed = default_timer() - start_time
-        print('Function "{name}" took {time} seconds to complete.'.format(name=function.__name__, time=elapsed))
-    return new_function()
 
 
 def svg_from_mpl_axes(fig) -> QByteArray:
@@ -137,6 +130,7 @@ def run_auto_qc(nwb_file: str, experiment_qc_pipe: mp.Pipe = None):
 
 def run_cell_qc(nwb_file: str, cell_qc_pipe: mp.Pipe = None):
     """ Creates data set, runs cell QC, and pipes out sweep features. """
+    # start_time = default_timer()
     # create data set
     data_set = create_ephys_data_set(nwb_file=nwb_file)
 
@@ -149,10 +143,12 @@ def run_cell_qc(nwb_file: str, cell_qc_pipe: mp.Pipe = None):
     _, cell_qc_out = cell_qc_pipe
     cell_qc_out.send((cell_features, cell_tags))
     cell_qc_out.close()
+    # print(f"cell qc took {default_timer() - start_time} seconds")
 
 
 def run_sweep_qc(nwb_file: str, sweep_qc_pipe: mp.Pipe = None):
     """ Creates data set, runs sweep QC, and pipes out sweep features. """
+    # start_time = default_timer()
     # create data set
     data_set = create_ephys_data_set(nwb_file=nwb_file)
 
@@ -169,7 +165,7 @@ def run_sweep_qc(nwb_file: str, sweep_qc_pipe: mp.Pipe = None):
     _, sweep_qc_out = sweep_qc_pipe
     sweep_qc_out.send(sweep_features)
     sweep_qc_out.close()
-
+    # print(f"sweep qc took {default_timer() - start_time} seconds")
 
 def run_experiment_qc(cell_qc_pipe: mp.Pipe, sweep_qc_pipe: mp.Pipe, qc_pipe: mp.Pipe):
     """" Run experiment qc after receiving cell and sweep qc data"""
@@ -215,6 +211,7 @@ def run_experiment_qc(cell_qc_pipe: mp.Pipe, sweep_qc_pipe: mp.Pipe, qc_pipe: mp
 
 def make_plots(nwb_file: str, thumb_pipe: mp.Pipe = None, sweep_datas=None):
     """ Generate thumbnail plots for all sweeps. """
+    # start_time = default_timer()
     if sweep_datas:
         sweep_datas = sweep_datas
     else:
@@ -233,7 +230,9 @@ def make_plots(nwb_file: str, thumb_pipe: mp.Pipe = None, sweep_datas=None):
         _, thumb_out = thumb_pipe
         thumb_out.send(thumbs)
         thumb_out.close()
+        # print(f"plotting took {default_timer() - start_time} seconds")
     else:
+        # print(f"plotting took {default_timer() - start_time} seconds")
         return thumbs
 
 
@@ -539,55 +538,65 @@ if __name__ == '__main__':
     # profile_dir = base_dir.joinpath(f'profiles/{today}/{now}/')
     # profile_dir.mkdir(parents=True)
 
-    time_file = base_dir.joinpath(f'process_times/{today}{now}.json')
+    time_file = base_dir.joinpath(f'process_times/{today}_{now}.json')
 
-    times = {files[x]: dict.fromkeys(['mono', 'dual', 'tri', 'quad']) for x in range(len(files))}
+    times = [
+        {files[x]: dict.fromkeys(['mono', 'dual', 'tri']) for x in range(len(files))}
+        for _ in range(NUM_TRIALS)
+    ]
+    for trial in range(NUM_TRIALS):
+        print(f"--------TRIAL {trial}--------")
+        for index in range(len(files)):
+            nwb_file = str(base_dir.joinpath(f'data/nwb/{files[index]}'))
 
-    for index in range(1):#range(len(files)):
-        nwb_file = str(base_dir.joinpath(f'data/nwb/{files[index]}'))
+            times[trial][files[index]]['mono'] = main(nwb_file=nwb_file)
+            times[trial][files[index]]['dual'] = main(nwb_file=nwb_file, dual=True)
+            times[trial][files[index]]['tri'] = main(nwb_file=nwb_file, tri=True)
+            # times[files[index]]['quad'] = main(nwb_file=nwb_file, quad=True)
 
-        # times[files[index]]['mono'] = main(nwb_file=nwb_file)
-        # times[files[index]]['dual'] = main(nwb_file=nwb_file, dual=True)
-        # times[files[index]]['tri'] = main(nwb_file=nwb_file, tri=True)
-        times[files[index]]['quad'] = main(nwb_file=nwb_file, quad=True)
+            # main(nwb_file=nwb_file, tri=True)
 
-        # main(nwb_file=nwb_file, tri=True)
+            # # benchmark dual processing
+            # dual_profile_file = str(profile_dir.joinpath(f'dual_{files[index][0:-4]}.prof'))
+            # cProfile.run('main(nwb_file, dual=True)', filename=dual_profile_file)
+            # p = pstats.Stats(dual_profile_file)
+            # p.sort_stats('cumtime').print_stats(2)
+            #
+            # # benchmark quad processing
+            # quad_profile_file = str(profile_dir.joinpath(f'quad_{files[index][0:-4]}.prof'))
+            # cProfile.run(
+            #     f'main(nwb_file, quad=True)',
+            #     filename=quad_profile_file
+            # )
+            # p = pstats.Stats(quad_profile_file)
+            # p.sort_stats('cumtime').print_stats(2)
 
-        # # benchmark dual processing
-        # dual_profile_file = str(profile_dir.joinpath(f'dual_{files[index][0:-4]}.prof'))
-        # cProfile.run('main(nwb_file, dual=True)', filename=dual_profile_file)
-        # p = pstats.Stats(dual_profile_file)
-        # p.sort_stats('cumtime').print_stats(2)
-        #
-        # # benchmark quad processing
-        # quad_profile_file = str(profile_dir.joinpath(f'quad_{files[index][0:-4]}.prof'))
-        # cProfile.run(
-        #     f'main(nwb_file, quad=True)',
-        #     filename=quad_profile_file
-        # )
-        # p = pstats.Stats(quad_profile_file)
-        # p.sort_stats('cumtime').print_stats(2)
+            # # benchmark single processing
+            # profile_file = str(profile_dir.joinpath(f'single_{files[index][0:-4]}.prof'))
+            # cProfile.run('main(nwb_file, multi=False)', filename=profile_file)
+            # p = pstats.Stats(profile_file)
+            # p.sort_stats('cumtime').print_stats(20)
+            #
+            # multi_profile_file = str(profile_dir.joinpath(f'multi_{files[index][0:-4]}.prof'))
+            # cProfile.run(
+            #     f'main(nwb_file, multi=True)',
+            #     filename=multi_profile_file
+            # )
+            # p = pstats.Stats(multi_profile_file)
+            # p.sort_stats('cumtime').print_stats(20)
 
-        # # benchmark single processing
-        # profile_file = str(profile_dir.joinpath(f'single_{files[index][0:-4]}.prof'))
-        # cProfile.run('main(nwb_file, multi=False)', filename=profile_file)
-        # p = pstats.Stats(profile_file)
-        # p.sort_stats('cumtime').print_stats(20)
-        #
-        # multi_profile_file = str(profile_dir.joinpath(f'multi_{files[index][0:-4]}.prof'))
-        # cProfile.run(
-        #     f'main(nwb_file, multi=True)',
-        #     filename=multi_profile_file
-        # )
-        # p = pstats.Stats(multi_profile_file)
-        # p.sort_stats('cumtime').print_stats(20)
+        with open(time_file, 'w') as file:
+            json.dump(times, file, indent=4)
 
-    for file in times:
+    for file in times[0]:
         print(f"Elapsed times for {file}")
-        print(f"    Mono: {times[file]['mono']}")
-        print(f"    Dual: {times[file]['dual']}")
-        print(f"    Tri:  {times[file]['tri']}")
-        print(f"    Quad: {times[file]['quad']}")
-
-    with open(time_file, 'w') as file:
-        json.dump(times, file, indent=4)
+        for cpu in times[0][file].keys():
+            print(f"    {cpu} times: ")
+            temp_time = 0
+            for trial in range(NUM_TRIALS):
+                try:
+                    temp_time += times[trial][file][cpu]
+                    print(f"            {times[trial][file][cpu]}")
+                except TypeError:
+                    print(f"            N/A")
+            print(f"       avg: {temp_time/NUM_TRIALS}")
