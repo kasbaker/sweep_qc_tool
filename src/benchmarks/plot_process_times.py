@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Load time (s)')
-    ax.set_title('Load times by file number and processing type')
+    ax.set_title('Load times by file number and processing type (N=20)')
 
     ax.set_xticks(ind)
     ax.set_xticklabels((f"file {x}" for x in range(1,len(file_names)+1))) #, rotation='vertical')
