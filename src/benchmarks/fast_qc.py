@@ -196,7 +196,7 @@ def extract_series_data(series):
         stimulus = stimulus * 1.0e12
         response = response * 1.0e3
 
-    epochs = get_epochs(sampling_rate,stimulus,response)
+    epochs = get_epochs(sampling_rate, stimulus, response)
 
     return {
         'sweep_number': sweep_number,
@@ -205,61 +205,17 @@ def extract_series_data(series):
         'response': response,
         'stimulus_unit': stimulus_unit,
         'sampling_rate': sampling_rate,
-        'recording_epoch': epochs[0],
-        'test_epoch': epochs[1],
-        'stimulus_epoch': epochs[2],
-        'experiment_epoch': epochs[3],
-        'first_stability_epoch': epochs[4],
-        'first_noise_epoch': epochs[5],
-        'last_stability_epoch': epochs[6],
-        'last_noise_epoch': epochs[7]
+        'epochs': {
+            'recording': epochs[0],
+            'test': epochs[1],
+            'stimulus': epochs[2],
+            'experiment': epochs[3],
+            'first_stability': epochs[4],
+            'first_noise': epochs[5],
+            'last_stability': epochs[6],
+            'last_noise': epochs[7]
+        }
     }
-
-        # get long unit name
-        # unit = s.unit
-        # if not unit:
-        #     stimulus_unit = "Unknown"
-        # elif unit in ["Amps", "A", "amps", "amperes"]:
-        #     stimulus_unit = "Amps"
-        # elif unit in ["Volts", "V", "volts"]:
-        #     stimulus_unit = "Volts"
-        # else:
-        #     stimulus_unit = unit
-
-
-
-
-
-    # print(series[0][0].stimulus_description)
-    # print(series[0][1].stimulus_description)
-    # print(series[0][0].data[:]*float(series[0][0].conversion))
-    #     print('---------
-    #     # for sweep in series:--------------------')
-    #     for field in sweep:
-    #         print(field)
-    #     print(sweep)
-    #     print('-----------------------------')
-
-    # stim_codes = tuple(map(data_set.get_stimulus_code, sweep_range))
-    #
-    # sweep_datas = tuple(map(data_set.get_sweep_data, sweep_range))
-    # # test epoch for blowout - skip this?
-    # # expt epoch, stim epoch, recording epoch
-    # # first/last noise/stability epochs
-    #
-    # epochs = tuple(map(get_epochs, sweep_datas))
-    # # for epoch in epochs:
-    # #     print(epoch)
-    #
-    # # sweep_info = [{'sweep_number': x, 'stimulus_code': stim_codes[x]}.update()]
-    #
-    # sweep_info = zip(stim_codes, sweep_datas, epochs)
-
-    # for sweep in sweep_info:
-    #     print('------------')
-    #     for char in sweep:
-    #         print(char)
-    #     print('------------')
 
 
 def get_epochs(sampling_rate, stimulus, response):
@@ -267,8 +223,10 @@ def get_epochs(sampling_rate, stimulus, response):
     test_epoch = ep.get_test_epoch(stimulus, sampling_rate)
 
     if test_epoch:
-        stimulus_epoch = ep.get_stim_epoch(stimulus)
-        experiment_epoch = ep.get_experiment_epoch(stimulus, sampling_rate)
+        stimulus_epoch = ep.get_stim_epoch(stimulus, test_pulse=True)
+        experiment_epoch = ep.get_experiment_epoch(
+            stimulus, sampling_rate, test_pulse=True
+        )
     else:
         stimulus_epoch = ep.get_stim_epoch(stimulus, test_pulse=False)
         experiment_epoch = ep.get_experiment_epoch(
@@ -338,29 +296,6 @@ if __name__ == "__main__":
         # p = pstats.Stats(profile_file)
         # p.sort_stats('cumtime').print_stats(10)
 
-    # # cell_qc_features
-    # if manual_values is None:
-    #     manual_values = {}
-    #
-    # features = {}
-    # tags = []
-    #
-    # features['blowout_mv'] = extract_blowout(data_set, tags)
-    #
-    # features['electrode_0_pa'] = extract_electrode_0(data_set, tags)
-    #
-    # features['recording_date'] = extract_recording_date(data_set, tags)
-    #
-    # features["seal_gohm"] = extract_clamp_seal(data_set, tags, manual_values)
-    #
-    # ir, sr = extract_input_and_access_resistance(data_set, tags)
-    #
-    # features['input_resistance_mohm'] = ir
-    # features["initial_access_resistance_mohm"] = sr
-    #
-    # features['input_access_resistance_ratio'] = compute_input_access_resistance_ratio(ir, sr)
-    #
-    # # return features, tags
     # # sweep_qc_features
     # ontology = data_set.ontology
     # sweeps_features = []
