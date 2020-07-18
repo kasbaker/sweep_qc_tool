@@ -27,7 +27,7 @@ from ipfx.qc_feature_extractor \
 def fast_extract_blowout(blowout_sweeps, tags):
     if blowout_sweeps:
         blowout_mv = qcf.measure_blowout(
-            blowout_sweeps[-1]['response'], blowout_sweeps[-1]['test_epoch'][1]
+            blowout_sweeps[-1]['response'], blowout_sweeps[-1]['epochs']['test'][1]
         )
     else:
         tags.append("Blowout is not available")
