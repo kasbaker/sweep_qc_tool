@@ -8,11 +8,7 @@ import json
 from warnings import filterwarnings
 from timeit import default_timer
 
-# from concurrent.futures import ProcessPoolExecutor
-from PyQt5.QtCore import QByteArray #QRectF
-# from PyQt5.QtSvg import QSvgRenderer
-# from PyQt5.QtGui import QPainter, QPixmap
-# from PyQt5.QtWidgets import QStyleOptionViewItem
+from PyQt5.QtCore import QByteArray
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -21,14 +17,8 @@ from ipfx.qc_feature_extractor import cell_qc_features, sweep_qc_features
 from ipfx.qc_feature_evaluator import qc_experiment, DEFAULT_QC_CRITERIA_FILE
 from ipfx.bin.run_qc import qc_summary
 from ipfx.sweep_props import drop_tagged_sweeps
-from ipfx.ephys_data_set import EphysDataSet
 from ipfx.stimulus import StimulusOntology
 
-# from main import MainWindow, PlotPage, SweepPage
-# from sweep_table_model import SweepTableModel
-# from sweep_table_view import SweepTableView
-# from cell_feature_page import CellFeaturePage
-# from sweep_plotter import SweepPlotConfig
 
 import cProfile
 import pstats
@@ -166,6 +156,7 @@ def run_sweep_qc(nwb_file: str, sweep_qc_pipe: mp.Pipe = None):
     sweep_qc_out.send(sweep_features)
     sweep_qc_out.close()
     # print(f"sweep qc took {default_timer() - start_time} seconds")
+
 
 def run_experiment_qc(cell_qc_pipe: mp.Pipe, sweep_qc_pipe: mp.Pipe, qc_pipe: mp.Pipe):
     """" Run experiment qc after receiving cell and sweep qc data"""
