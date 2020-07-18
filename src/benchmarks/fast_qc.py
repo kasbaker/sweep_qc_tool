@@ -35,7 +35,7 @@ def fast_extract_blowout(blowout_sweeps, tags):
     return blowout_mv
 
 
-def fast_extract_electrode_0(bath_sweeps, tags):
+def fast_extract_electrode_0(bath_sweeps: list, tags):
     if bath_sweeps:
         e0 = qcf.measure_electrode_0(
             bath_sweeps[-1]['response'], bath_sweeps[-1]['sampling_rate']
@@ -46,7 +46,7 @@ def fast_extract_electrode_0(bath_sweeps, tags):
     return e0
 
 
-def fast_extract_clamp_seal(seal_sweeps, tags):
+def fast_extract_clamp_seal(seal_sweeps: list, tags, manual_values=None):
     if seal_sweeps:
         num_pts = len(seal_sweeps[-1]['stimulus'])
         time = np.linspace(0, num_pts/seal_sweeps[-1]['sampling_rate'], num_pts)
@@ -57,12 +57,14 @@ def fast_extract_clamp_seal(seal_sweeps, tags):
             raise er.FeatureError("Could not compute seal")
     else:
         tags.append("Seal is not available")
-        seal_gohm = None
+        seal_gohm = manual_values.get('manual_seal_gohm', None)
+        if seal_gohm is not None:
+            tags.append("Using manual seal value: %f" % seal_gohm)
 
     return seal_gohm
 
 
-def fast_extract_input_and_acess_resistance(breakin_sweeps, tags):
+def fast_extract_input_and_acess_resistance(breakin_sweeps: list, tags):
     if breakin_sweeps:
         num_pts = len(breakin_sweeps[-1]['stimulus'])
         time = np.linspace(0, num_pts/breakin_sweeps[-1]['sampling_rate'], num_pts)
@@ -90,6 +92,40 @@ def fast_extract_input_and_acess_resistance(breakin_sweeps, tags):
     return input_resistance, access_resistance
 
 
+def fast_cell_qc(
+        data_set, blowout_sweeps, bath_sweeps, seal_sweeps, breakin_sweeps,
+        manual_values=None
+):
+    if manual_values is None:
+        manual_values = {}
+
+    features = {}
+    tags = []
+
+    features['blowout_mv'] = fast_extract_blowout(blowout_sweeps, tags)
+
+    features['electrode_0_pa'] = fast_extract_electrode_0(bath_sweeps, tags)
+
+    features['recording_date'] = extract_recording_date(data_set, tags)
+
+    features["seal_gohm"] = fast_extract_clamp_seal(seal_sweeps, tags, manual_values)
+
+    input_resistance, access_resistance = \
+        fast_extract_input_and_acess_resistance(breakin_sweeps, tags)
+
+    features['input_resistance_mohm'] = input_resistance
+    features["initial_access_resistance_mohm"] = access_resistance
+
+    features['input_access_resistance_ratio'] = \
+        compute_input_access_resistance_ratio(input_resistance, access_resistance)
+
+    return features, tags
+
+
+def fast_sweep_qc():
+    ...
+
+
 def fast_experiment_qc(nwb_file):
     data_set = create_ephys_data_set(nwb_file=nwb_file)
 
@@ -111,30 +147,14 @@ def fast_experiment_qc(nwb_file):
         data_iter, data_set.ontology
     )
 
-    features = {}
-    tags = []
+    cell_features, cell_tags = fast_cell_qc(
+        data_set, blowout_sweeps, bath_sweeps, seal_sweeps, breakin_sweeps
+    )
 
-    features['blowout_mv'] = fast_extract_blowout(blowout_sweeps, tags)
-
-    features['electrode_0_pa'] = fast_extract_electrode_0(bath_sweeps, tags)
-
-    features['recording_date'] = extract_recording_date(data_set, tags)
-
-    features["seal_gohm"] = fast_extract_clamp_seal(seal_sweeps, tags)
-
-    input_resistance, access_resistance = \
-        fast_extract_input_and_acess_resistance(breakin_sweeps, tags)
-
-    features['input_resistance_mohm'] = input_resistance
-    features["initial_access_resistance_mohm"] = access_resistance
-
-    features['input_access_resistance_ratio'] = \
-        compute_input_access_resistance_ratio(input_resistance, access_resistance)
-
-    return features, tags
+    return cell_features, cell_tags
 
 
-def get_sweep_types(data_iter, ontology):
+def get_sweep_types(data_iter: map, ontology):
 
     blowout_sweeps = []
     bath_sweeps = []
