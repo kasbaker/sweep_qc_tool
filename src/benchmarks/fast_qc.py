@@ -6,7 +6,7 @@ from multiprocessing import Pipe, Pool, cpu_count
 import cProfile
 import pstats
 import logging
-from copy import deepcopy
+from copy import copy, deepcopy
 import json
 
 import numpy as np
@@ -32,15 +32,15 @@ from ipfx.stimulus import StimulusOntology
 
 class QCOperator(object):
     __slots__ = [
-        'nwb_file', '_data_set',
+        'nwb_file', '_data_set', 'ontology_file',
         '_series_iter', '_data_iter', '_qc_criteria', '_ontology'
     ]
 
-    def __init__(self, nwb_file: str, ontology=None, qc_criteria=None):
+    def __init__(self, nwb_file: str, ontology_file=None, qc_criteria=None):
         self.nwb_file = nwb_file
         self._qc_criteria = qc_criteria
-        self.ontology = ontology
-
+        self.ontology_file = ontology_file
+        self.ontology = ontology_file
         self._data_set = None
         self._series_iter = None
         self._data_iter = None
@@ -80,11 +80,11 @@ class QCOperator(object):
     def data_set(self, nwb_file):
         if nwb_file:
             self._data_set = create_ephys_data_set(
-                nwb_file=nwb_file, ontology=self.ontology
+                nwb_file=nwb_file, ontology=self.ontology_file
             )
         else:
             self._data_set = create_ephys_data_set(
-                nwb_file=self.nwb_file, ontology=self.ontology
+                nwb_file=self.nwb_file, ontology=self.ontology_file
             )
 
     def _extract_series_data(self, series):
@@ -99,15 +99,16 @@ class QCOperator(object):
 
         for s in series:
             if isinstance(s, (VoltageClampSeries, CurrentClampSeries, IZeroClampSeries)):
-                response = s.data[:] * float(s.conversion)
+                response = copy(s.data[:] * float(s.conversion))
 
                 stim_code = s.stimulus_description
                 if stim_code[-5:] == "_DA_0":
                     stim_code = stim_code[:-5]
                 stimulus_code = stim_code.split("[")[0]
                 stimulus_name = self.data_set._data.get_stimulus_name(stimulus_code)
+
             elif isinstance(s, (VoltageClampStimulusSeries, CurrentClampStimulusSeries)):
-                stimulus = s.data[:] * float(s.conversion)
+                stimulus = copy(s.data[:] * float(s.conversion))
                 unit = s.unit
                 if not unit:
                     stimulus_unit = "Unknown"
@@ -125,7 +126,17 @@ class QCOperator(object):
             stimulus = stimulus * 1.0e12
             response = response * 1.0e3
 
-        epochs = self.get_epochs(sampling_rate, stimulus, response)
+        nonzero = np.flatnonzero(response)
+        if len(nonzero) == 0:
+            recording_end_idx = 0
+        else:
+            recording_end_idx = nonzero[-1] + 1
+        response = response[:recording_end_idx]
+        stimulus = stimulus[:recording_end_idx]
+
+        epochs = self.get_epochs(
+            sampling_rate=sampling_rate, stimulus=stimulus, response=response
+        )
 
         return {
             'sweep_number': sweep_number,
@@ -135,16 +146,7 @@ class QCOperator(object):
             'response': response,
             'stimulus_unit': stimulus_unit,
             'sampling_rate': sampling_rate,
-            'epochs': {
-                'recording': epochs[0],
-                'test': epochs[1],
-                'stimulus': epochs[2],
-                'experiment': epochs[3],
-                'first_stability': epochs[4],
-                'first_noise': epochs[5],
-                'last_stability': epochs[6],
-                'last_noise': epochs[7]
-            }
+            'epochs': epochs
         }
 
     def fast_cell_qc(self, sweep_types, manual_values=None):
@@ -221,8 +223,6 @@ class QCOperator(object):
         self._series_iter = map(sweep_table.get_series, sweep_range)
         self._data_iter = map(self._extract_series_data, self._series_iter)
 
-
-
         # number of sweeps is half the shape of the sweep table here because
         # each sweep has two series associated with it (stimulus and response)
 
@@ -233,12 +233,12 @@ class QCOperator(object):
 
         sweep_types = self.get_sweep_types()
 
+        cell_features, cell_tags = self.fast_cell_qc(sweep_types)
+        cell_features = deepcopy(cell_features)
+
         sweep_features = self.fast_sweep_qc(sweep_types)
         sweep_features = deepcopy(sweep_features)
         drop_tagged_sweeps(sweep_features)
-
-        cell_features, cell_tags = self.fast_cell_qc(sweep_types)
-        cell_features = deepcopy(cell_features)
 
         cell_state, sweep_states = qc_experiment(
             ontology=self.ontology,
@@ -308,7 +308,6 @@ class QCOperator(object):
                 sweep_types['searches'].append(sweep)
 
         return sweep_types
-
 
     @staticmethod
     def fast_extract_blowout(blowout_sweeps, tags):
@@ -424,19 +423,21 @@ class QCOperator(object):
         qc_features = {}
 
         voltage = sweep['response']
-
+        hz = sweep['sampling_rate']
         # measure noise before stimulus
-        idx0, idx1 = sweep['epochs']['first_noise']  # count from the beginning of the experiment
+        idx0, idx1 = ep.get_first_noise_epoch(sweep['epochs']['experiment'][0], hz)
+        # count from the beginning of the experiment
         _, qc_features["pre_noise_rms_mv"] = qcf.measure_vm(voltage[idx0:idx1])
 
         # measure mean and rms of Vm at end of recording
         # do not check for ramps, because they do not have enough time to recover
 
+        rec_end_idx = sweep['epochs']['recording'][1]
         if not is_ramp:
-            idx0, idx1 = sweep['epochs']['last_stability']
+            idx0, idx1 = ep.get_last_stability_epoch(rec_end_idx, hz)
             mean_last_stability_epoch, _ = qcf.measure_vm(voltage[idx0:idx1])
 
-            idx0, idx1 = sweep['epochs']['last_noise']
+            idx0, idx1 = ep.get_last_noise_epoch(rec_end_idx, hz)
             _, rms_last_noise_epoch = qcf.measure_vm(voltage[idx0:idx1])
         else:
             rms_last_noise_epoch = None
@@ -447,9 +448,9 @@ class QCOperator(object):
 
         # measure mean and rms of Vm and over extended interval before stimulus, to check stability
 
-        stim_start_idx = sweep['epochs']['stimulus'][0]
+        stim_start_idx = sweep['epochs']['stim'][0]
 
-        idx0, idx1 = sweep['epochs']['first_stability']
+        idx0, idx1 = ep.get_first_stability_epoch(stim_start_idx, hz)
         mean_first_stability_epoch, rms_first_stability_epoch = qcf.measure_vm(voltage[idx0:idx1])
 
         qc_features["pre_vm_mv"] = mean_first_stability_epoch
@@ -460,117 +461,88 @@ class QCOperator(object):
 
         return qc_features
 
-
-# def extract_series_data(series):
-#
-#     sweep_number = series[0].sweep_number
-#
-#     stimulus_code = ""
-#
-#     response = None
-#     stimulus = None
-#     stimulus_unit = None
-#     sampling_rate = float(series[0].rate)
-#
-#     for s in series:
-#         if isinstance(s, (VoltageClampSeries, CurrentClampSeries, IZeroClampSeries)):
-#             response = s.data[:] * float(s.conversion)
-#
-#             stim_code = s.stimulus_description
-#             if stim_code[-5:] == "_DA_0":
-#                 stim_code = stim_code[:-5]
-#             stimulus_code = stim_code.split("[")[0]
-#
-#         elif isinstance(s, (VoltageClampStimulusSeries, CurrentClampStimulusSeries)):
-#             stimulus = s.data[:] * float(s.conversion)
-#             unit = s.unit
-#             if not unit:
-#                 stimulus_unit = "Unknown"
-#             elif unit in {"Amps", "A", "amps", "amperes"}:
-#                 stimulus_unit = "Amps"
-#             elif unit in {"Volts", "V", "volts"}:
-#                 stimulus_unit = "Volts"
-#             else:
-#                 stimulus_unit = unit
-#
-#     if stimulus_unit == "Volts":
-#         stimulus = stimulus * 1.0e3
-#         response = response * 1.0e12
-#     elif stimulus_unit == "Amps":
-#         stimulus = stimulus * 1.0e12
-#         response = response * 1.0e3
-#
-#     epochs = get_epochs(sampling_rate, stimulus, response)
-#
-#     return {
-#         'sweep_number': sweep_number,
-#         'stimulus_code': stimulus_code,
-#         'stimulus': stimulus,
-#         'response': response,
-#         'stimulus_unit': stimulus_unit,
-#         'sampling_rate': sampling_rate,
-#         'epochs': {
-#             'recording': epochs[0],
-#             'test': epochs[1],
-#             'stimulus': epochs[2],
-#             'experiment': epochs[3],
-#             'first_stability': epochs[4],
-#             'first_noise': epochs[5],
-#             'last_stability': epochs[6],
-#             'last_noise': epochs[7]
-#         }
-#     }
-
     @staticmethod
     def get_epochs(sampling_rate, stimulus, response):
-        recording_epoch = ep.get_recording_epoch(response)
         test_epoch = ep.get_test_epoch(stimulus, sampling_rate)
-
         if test_epoch:
-            stimulus_epoch = ep.get_stim_epoch(stimulus, test_pulse=True)
-            experiment_epoch = ep.get_experiment_epoch(
-                stimulus, sampling_rate, test_pulse=True
-            )
+            test_pulse = True
         else:
-            stimulus_epoch = ep.get_stim_epoch(stimulus, test_pulse=False)
-            experiment_epoch = ep.get_experiment_epoch(
-                stimulus, sampling_rate, test_pulse=False
-            )
+            test_pulse = False
 
-        if stimulus_epoch:
-            first_stability_epoch = ep.get_first_stability_epoch(
-                stimulus_epoch[0], sampling_rate
-            )
-            first_noise_epoch = ep.get_first_noise_epoch(
-                experiment_epoch[0], sampling_rate
-            )
-
-            last_stability_epoch = ep.get_last_stability_epoch(
-                recording_epoch[1], sampling_rate
-            )
-            last_noise_epoch = ep.get_last_noise_epoch(
-                recording_epoch[1], sampling_rate
-            )
-
-        else:
-            first_stability_epoch = None
-            first_noise_epoch = None
-
-            last_stability_epoch = None
-            last_noise_epoch = None
-
-        return (
-            recording_epoch, test_epoch,stimulus_epoch, experiment_epoch,
-            first_stability_epoch, first_noise_epoch,
-            last_stability_epoch, last_noise_epoch
+        sweep_epoch = ep.get_sweep_epoch(response)
+        recording_epoch = ep.get_recording_epoch(response)
+        stimulus_epoch = ep.get_stim_epoch(stimulus, test_pulse=test_pulse)
+        experiment_epoch = ep.get_experiment_epoch(
+            stimulus, sampling_rate, test_pulse=test_pulse
         )
 
+        return {
+            'test': test_epoch,
+            'sweep': sweep_epoch,
+            'recording': recording_epoch,
+            'experiment': experiment_epoch,
+            'stim': stimulus_epoch
+        }
+
+
+def slow_qc(nwb_file: str):
+    """ Does Auto QC and makes plots using single process.
+
+    Parameters:
+        nwb_file (str): string of nwb path
+
+    Returns:
+        thumbs (list[QByteArray]): a list of plot thumbnails
+
+        qc_results (tuple): cell_features, cell_tags,
+            sweep_features, cell_state, sweep_states
+
+    """
+    with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
+        QC_CRITERIA = json.load(path)
+
+    with open(StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE, "r") as path:
+        STIMULUS_ONTOLOGY = StimulusOntology(json.load(path))
+
+    data_set = create_ephys_data_set(nwb_file=nwb_file)
+
+    # cell QC worker
+    cell_features, cell_tags = cell_qc_features(data_set)
+    cell_features = deepcopy(cell_features)
+
+    # sweep QC worker
+    sweep_features = sweep_qc_features(data_set)
+    sweep_features = deepcopy(sweep_features)
+    drop_tagged_sweeps(sweep_features)
+
+    # experiment QC worker
+    cell_state, sweep_states = qc_experiment(
+        ontology=STIMULUS_ONTOLOGY,
+        cell_features=cell_features,
+        sweep_features=sweep_features,
+        qc_criteria=QC_CRITERIA
+    )
+
+    qc_summary(
+        sweep_features=sweep_features,
+        sweep_states=sweep_states,
+        cell_features=cell_features,
+        cell_state=cell_state
+    )
+
+    qc_results = (
+        cell_features, cell_tags, sweep_features, cell_state, sweep_states
+    )
+
+    return qc_results
 
 
 if __name__ == "__main__":
 
+    num_trials = 5
+
     # ignore warnings during loading .nwb files
-    # filterwarnings('ignore')
+    filterwarnings('ignore')
 
     files = list(Path("data/nwb").glob("*.nwb"))
     base_dir = Path(__file__).parent
@@ -582,58 +554,51 @@ if __name__ == "__main__":
     # profile_dir.mkdir(parents=True)
 
     # fast_experiment_qc(nwb_file=str(base_dir.joinpath(files[1])))
+    time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
 
+    times = [
+        {str(files[x]): dict.fromkeys(['slow_qc', 'fast_qc']) for x in range(len(files))}
+        for _ in range(num_trials)
+    ]
+    for trial in range(num_trials):
+        print(f"-----------------TRIAL {trial}-----------------")
+        for index, file in enumerate(files):
+            nwb_file = str(base_dir.joinpath(file))
 
-    for file in files:
-        start_time = default_timer()
-        qc_operator = QCOperator(nwb_file=str(base_dir.joinpath(file)))
-        # qc_results = fast_experiment_qc(
-        #     nwb_file=str(base_dir.joinpath(file))
-        # )
-        qc_results = qc_operator.fast_experiment_qc()
-        print(f'{file} took {default_timer()-start_time} to load')
-        for result in qc_results:
-            print(result)
-        print('--------------------------------------------------------------')
+            start_time = default_timer()
+            qc_operator = QCOperator(nwb_file=nwb_file)
+            fast_qc_results = qc_operator.fast_experiment_qc()
+            fast_qc_time = default_timer()-start_time
+            print(f'Fast QC: {file} took {fast_qc_time} to load')
+            times[trial][str(files[index])]['fast_qc'] = fast_qc_time
 
+            with open(time_file, 'w') as save_loc:
+                json.dump(times, save_loc, indent=4)
 
-        # profile_file = str(profile_dir.joinpath(f'{file.stem}.prof'))
-        # cProfile.run(
-        #     'fast_experiment_qc(nwb_file=str(base_dir.joinpath(file)))',
-        #     filename=profile_file
-        # )
-        # p = pstats.Stats(profile_file)
-        # p.sort_stats('cumtime').print_stats(10)
+            start_time = default_timer()
+            slow_qc_results = slow_qc(nwb_file=nwb_file)
+            slow_qc_time = default_timer()-start_time
+            print(f'Slow QC: {file} took {slow_qc_time} to load')
+            times[trial][str(files[index])]['slow_qc'] = slow_qc_time
 
-    # # sweep_qc_features
-    # ontology = data_set.ontology
-    # sweeps_features = []
-    # iclamp_sweeps = data_set.filtered_sweep_table(clamp_mode=data_set.CURRENT_CLAMP,
-    #                                               s
-    # timuli_exclude = ["Test", "Search"],
-    # )
-    # if len(iclamp_sweeps.index) == 0:
-    #     logging.warning("No current clamp sweeps available to compute QC features")
-    #
-    # for sweep_info in iclamp_sweeps.to_dict(orient='records'):
-    #     sweep_features = {}
-    #     sweep_features.update(sweep_info)
-    #
-    #     sweep_num = sweep_info['sweep_number']
-    #     sweep = data_set.sweep(sweep_num)
-    #     is_ramp = sweep_info['stimulus_name'] in ontology.ramp_names
-    #     tags = check_sweep_integrity(sweep, is_ramp)
-    #     sweep_features["tags"] = tags
-    #
-    #     stim_features = current_clamp_sweep_stim_features(sweep)
-    #     sweep_features.update(stim_features)
-    #
-    #     if not tags:
-    #         qc_features = current_clamp_sweep_qc_features(sweep, is_ramp)
-    #         sweep_features.update(qc_features)
-    #     else:
-    #         logging.warning("sweep {}: {}".format(sweep_num, tags))
-    #
-    #     sweeps_features.append(sweep_features)
-    #
-    # return sweeps_features
+            with open(time_file, 'w') as save_loc:
+                json.dump(times, save_loc, indent=4)
+
+            print(f"Cell features difference? {set(slow_qc_results[0]).symmetric_difference(fast_qc_results[0])}")
+            print(f"Cell tags difference? {set(slow_qc_results[1]).symmetric_difference(fast_qc_results[1])}")
+            print(f"Cell state difference? {set(slow_qc_results[3]).symmetric_difference(fast_qc_results[3])}")
+            print(f"Sweep_states equal? {slow_qc_results[4] == fast_qc_results[4]}")
+            print('--------------------------------------------------------------')
+
+    for file in times[0]:
+        print(f"Elapsed times for {file}")
+        for qc_mode in times[0][file].keys():
+            print(f"    {qc_mode} times: ")
+            temp_time = 0
+            for trial in range(num_trials):
+                try:
+                    temp_time += times[trial][file][qc_mode]
+                    print(f"            {times[trial][file][qc_mode]}")
+                except TypeError:
+                    print(f"            N/A")
+            print(f"       avg: {temp_time/num_trials}")
