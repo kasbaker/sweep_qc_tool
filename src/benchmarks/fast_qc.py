@@ -92,89 +92,6 @@ def fast_extract_input_and_acess_resistance(breakin_sweeps: list, tags):
     return input_resistance, access_resistance
 
 
-def fast_cell_qc(
-        data_set, blowout_sweeps, bath_sweeps, seal_sweeps, breakin_sweeps,
-        manual_values=None
-):
-    if manual_values is None:
-        manual_values = {}
-
-    features = {}
-    tags = []
-
-    features['blowout_mv'] = fast_extract_blowout(blowout_sweeps, tags)
-
-    features['electrode_0_pa'] = fast_extract_electrode_0(bath_sweeps, tags)
-
-    features['recording_date'] = extract_recording_date(data_set, tags)
-
-    features["seal_gohm"] = fast_extract_clamp_seal(seal_sweeps, tags, manual_values)
-
-    input_resistance, access_resistance = \
-        fast_extract_input_and_acess_resistance(breakin_sweeps, tags)
-
-    features['input_resistance_mohm'] = input_resistance
-    features["initial_access_resistance_mohm"] = access_resistance
-
-    features['input_access_resistance_ratio'] = \
-        compute_input_access_resistance_ratio(input_resistance, access_resistance)
-
-    return features, tags
-
-
-def fast_sweep_qc():
-    ...
-
-
-def fast_experiment_qc(nwb_file):
-    data_set = create_ephys_data_set(nwb_file=nwb_file)
-
-    sweep_table = data_set._data.nwb.sweep_table
-
-    # number of sweeps is half the shape of the sweep table here because
-    # each sweep has two series associated with it (stimulus and response)
-    num_sweeps = sweep_table.series.shape[0]//2
-
-    # reverse the sweep list so when we grab the last sweep when we iterate
-    # through to find the appropriate sweep
-    sweep_range = range(num_sweeps)
-    series_iter = map(sweep_table.get_series, sweep_range)
-
-    # iterator with all the necessary sweep data
-    data_iter = map(extract_series_data, series_iter)
-
-    blowout_sweeps, bath_sweeps, seal_sweeps, breakin_sweeps = get_sweep_types(
-        data_iter, data_set.ontology
-    )
-
-    cell_features, cell_tags = fast_cell_qc(
-        data_set, blowout_sweeps, bath_sweeps, seal_sweeps, breakin_sweeps
-    )
-
-    return cell_features, cell_tags
-
-
-def get_sweep_types(data_iter: map, ontology):
-
-    blowout_sweeps = []
-    bath_sweeps = []
-    seal_sweeps = []
-    breakin_sweeps = []
-
-    for sweep in data_iter:
-        stim_code = sweep['stimulus_code']
-        if ontology.blowout_names[0] in stim_code:
-            blowout_sweeps.append(sweep)
-        if ontology.bath_names[0] in stim_code:
-            bath_sweeps.append(sweep)
-        if ontology.seal_names[0] in stim_code:
-            seal_sweeps.append(sweep)
-        if ontology.breakin_names[0] in stim_code:
-            breakin_sweeps.append(sweep)
-
-    return blowout_sweeps, bath_sweeps, seal_sweeps, breakin_sweeps
-
-
 def extract_series_data(series):
 
     sweep_number = series[0].sweep_number
@@ -189,13 +106,11 @@ def extract_series_data(series):
     for s in series:
         if isinstance(s, (VoltageClampSeries, CurrentClampSeries, IZeroClampSeries)):
             response = s.data[:] * float(s.conversion)
-
+            # TODO use EphysDataInterface.get_stimulus_name(stimulus_code) here
             stim_code = s.stimulus_description
             if stim_code[-5:] == "_DA_0":
                 stim_code = stim_code[:-5]
-
             stimulus_code = stim_code.split("[")[0]
-            # TODO use EphysDataInterface.get_stimulus_name(stimulus_code) here
 
         elif isinstance(s, (VoltageClampStimulusSeries, CurrentClampStimulusSeries)):
             stimulus = s.data[:] * float(s.conversion)
@@ -208,6 +123,7 @@ def extract_series_data(series):
                 stimulus_unit = "Volts"
             else:
                 stimulus_unit = unit
+
 
     if stimulus_unit == "Volts":
         stimulus = stimulus * 1.0e3
@@ -282,10 +198,118 @@ def get_epochs(sampling_rate, stimulus, response):
     )
 
 
+def get_sweep_types(data_iter: map, data_set):
+    sweep_keys = (
+        'v_clamps', 'i_clamps', 'blowouts', 'baths', 'seals', 'breakins',
+        'ramps', 'long_squares', 'coarse_long_squares', 'short_square_triples',
+        'short_squares', 'searches', 'tests', 'extps'
+    )
+
+    sweep_types = {key: [] for key in sweep_keys}
+
+    ontology = data_set.ontology
+
+    for sweep in data_iter:
+
+        stim_unit = sweep['stimulus_unit']
+
+        if stim_unit == "Volts":
+            sweep_types['v_clamps'].append(sweep)
+        if stim_unit == "Amps":
+            sweep_types['i_clamps'].append(sweep)
+
+        stim_code = sweep['stimulus_code']
+        stim_name = data_set._data.get_stimulus_name(stim_code)
+        if stim_name in ontology.extp_names or ontology.extp_names[0] in stim_code:
+            sweep_types['extps'].append(sweep)
+        if stim_name in ontology.test_names:
+            sweep_types['tests'].append(sweep)
+        if stim_name in ontology.blowout_names or ontology.blowout_names[0] in stim_code:
+            sweep_types['blowouts'].append(sweep)
+        if stim_name in ontology.bath_names or ontology.bath_names[0] in stim_code:
+            sweep_types['baths'].append(sweep)
+        if stim_name in ontology.seal_names or ontology.seal_names[0] in stim_code:
+            sweep_types['seals'].append(sweep)
+        if stim_name in ontology.breakin_names or ontology.breakin_names[0] in stim_code:
+            sweep_types['breakins'].append(sweep)
+
+        if stim_name in ontology.ramp_names:
+            sweep_types['ramps'].append(sweep)
+        if stim_name in ontology.long_square_names:
+            sweep_types['long_squares'].append(sweep)
+        if stim_name in ontology.coarse_long_square_names:
+            sweep_types['coarse_long_squares'].append(sweep)
+        if stim_name in ontology.short_square_triple_names:
+            sweep_types['short_square_triples'].append(sweep)
+        if stim_name in ontology.short_square_names:
+            sweep_types['short_squares'].append(sweep)
+        if stim_name in ontology.search_names:
+            sweep_types['searches'].append(sweep)
+
+    return sweep_types
+
+
+def fast_cell_qc(
+        data_set, sweep_types, manual_values=None
+):
+    if manual_values is None:
+        manual_values = {}
+
+    features = {}
+    tags = []
+
+    features['blowout_mv'] = fast_extract_blowout(sweep_types['blowouts'], tags)
+
+    features['electrode_0_pa'] = fast_extract_electrode_0(sweep_types['baths'], tags)
+
+    features['recording_date'] = extract_recording_date(data_set, tags)
+
+    features["seal_gohm"] = fast_extract_clamp_seal(sweep_types['seals'], tags, manual_values)
+
+    input_resistance, access_resistance = \
+        fast_extract_input_and_acess_resistance(sweep_types['breakins'], tags)
+
+    features['input_resistance_mohm'] = input_resistance
+    features["initial_access_resistance_mohm"] = access_resistance
+
+    features['input_access_resistance_ratio'] = \
+        compute_input_access_resistance_ratio(input_resistance, access_resistance)
+
+    return features, tags
+
+
+def fast_sweep_qc():
+    ...
+
+
+def fast_experiment_qc(nwb_file):
+    data_set = create_ephys_data_set(nwb_file=nwb_file)
+
+    sweep_table = data_set._data.nwb.sweep_table
+
+    # number of sweeps is half the shape of the sweep table here because
+    # each sweep has two series associated with it (stimulus and response)
+    num_sweeps = sweep_table.series.shape[0]//2
+
+    # reverse the sweep list so when we grab the last sweep when we iterate
+    # through to find the appropriate sweep
+    sweep_range = range(num_sweeps)
+    series_iter = map(sweep_table.get_series, sweep_range)
+
+    # iterator with all the necessary sweep data
+    data_iter = map(extract_series_data, series_iter)
+
+    sweep_types = get_sweep_types(data_iter, data_set)
+
+    cell_features, cell_tags = fast_cell_qc(data_set, sweep_types)
+
+    return cell_features, cell_tags
+
+
 if __name__ == "__main__":
 
     # ignore warnings during loading .nwb files
-    filterwarnings('ignore')
+    # filterwarnings('ignore')
 
     files = list(Path("data/nwb").glob("*.nwb"))
     base_dir = Path(__file__).parent
