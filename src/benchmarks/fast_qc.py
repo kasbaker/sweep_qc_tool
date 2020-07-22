@@ -572,8 +572,7 @@ if __name__ == "__main__":
             print(f'Fast QC: {file} took {fast_qc_time} to load')
             times[trial][str(files[index])]['fast_qc'] = fast_qc_time
 
-            with open(time_file, 'w') as save_loc:
-                json.dump(times, save_loc, indent=4)
+
 
             start_time = default_timer()
             slow_qc_results = slow_qc(nwb_file=nwb_file)
@@ -581,14 +580,14 @@ if __name__ == "__main__":
             print(f'Slow QC: {file} took {slow_qc_time} to load')
             times[trial][str(files[index])]['slow_qc'] = slow_qc_time
 
-            with open(time_file, 'w') as save_loc:
-                json.dump(times, save_loc, indent=4)
-
             print(f"Cell features difference? {set(slow_qc_results[0]).symmetric_difference(fast_qc_results[0])}")
             print(f"Cell tags difference? {set(slow_qc_results[1]).symmetric_difference(fast_qc_results[1])}")
             print(f"Cell state difference? {set(slow_qc_results[3]).symmetric_difference(fast_qc_results[3])}")
             print(f"Sweep_states equal? {slow_qc_results[4] == fast_qc_results[4]}")
             print('--------------------------------------------------------------')
+
+            with open(time_file, 'w') as save_loc:
+                json.dump(times, save_loc, indent=4)
 
     for file in times[0]:
         print(f"Elapsed times for {file}")
