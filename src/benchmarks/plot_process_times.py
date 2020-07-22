@@ -25,7 +25,8 @@ def autolabel(rects, xpos='center'):
 
 
 if __name__ == "__main__":
-    path = r'C:\Users\Katie\GitHub\sweep_qc_tool\src\benchmarks\process_times\200713_21.11.13.json'
+    # path = r'C:\Users\Katie\GitHub\sweep_qc_tool\src\benchmarks\process_times\200713_21.11.13.json'
+    path = r'C:\Users\Katie\GitHub\sweep_qc_tool\src\benchmarks\qc_times\200721_16.55.53.json'
     with open(path, 'r') as file:
         load_times = json.load(file)
 
@@ -35,41 +36,68 @@ if __name__ == "__main__":
     file_names = [file for file in load_times[0]]
     processes = list(load_times[0][file_names[0]].keys())
 
-    mono_times = [[load_times[trial][file]['mono'] for file in file_names]
+    # mono_times = [[load_times[trial][file]['mono'] for file in file_names]
+    #               for trial in range(num_trials)]
+    # mono_times = np.array(mono_times, dtype=np.float)
+    # mono_means = np.nanmean(mono_times, axis=0)
+    # mono_std = np.nanstd(mono_times, axis=0)
+    #
+    # dual_times = [[load_times[trial][file]['dual'] for file in file_names]
+    #               for trial in range(num_trials)]
+    # dual_times = np.array(dual_times, dtype=np.float)
+    # dual_means = np.nanmean(dual_times, axis=0)
+    # dual_std = np.std(dual_times, axis=0)
+
+    # tri_times = [[load_times[trial][file]['tri'] for file in file_names]
+    #               for trial in range(num_trials)]
+    # tri_times = np.array(tri_times, dtype=np.float)
+    # tri_means = np.nanmean(tri_times, axis=0)
+    # tri_std = np.std(tri_times, axis=0)
+
+    # ind = np.arange(len(mono_means))  # the x locations for the groups
+    # width = 0.6  # the width of the bars
+    #
+    # fig, ax = plt.subplots()
+    # fig.set_size_inches(16, 9)
+    #
+    # rects1 = ax.bar(ind - width / 3, mono_means, width/3, yerr=mono_std,
+    #                 label='Mono')
+    # rects2 = ax.bar(ind, dual_means, width/3, yerr=dual_std,
+    #                 label='Dual')
+    # rect3 = ax.bar(ind + width / 3, tri_means, width/3, yerr=tri_std,
+    #                 label='Tri')
+
+
+    slow_times = [[load_times[trial][file]['slow_qc'] for file in file_names]
                   for trial in range(num_trials)]
-    mono_times = np.array(mono_times, dtype=np.float)
-    mono_means = np.nanmean(mono_times, axis=0)
-    mono_std = np.nanstd(mono_times, axis=0)
+    slow_times = np.array(slow_times, dtype=np.float)
+    slow_means = np.nanmean(slow_times, axis=0)
+    slow_std = np.nanstd(slow_times, axis=0)
 
-    dual_times = [[load_times[trial][file]['dual'] for file in file_names]
+    fast_times = [[load_times[trial][file]['fast_qc'] for file in file_names]
                   for trial in range(num_trials)]
-    dual_times = np.array(dual_times, dtype=np.float)
-    dual_means = np.nanmean(dual_times, axis=0)
-    dual_std = np.std(dual_times, axis=0)
+    fast_times = np.array(fast_times, dtype=np.float)
+    fast_means = np.nanmean(fast_times, axis=0)
+    fast_std = np.std(fast_times, axis=0)
 
 
-    tri_times = [[load_times[trial][file]['tri'] for file in file_names]
-                  for trial in range(num_trials)]
-    tri_times = np.array(tri_times, dtype=np.float)
-    tri_means = np.nanmean(tri_times, axis=0)
-    tri_std = np.std(tri_times, axis=0)
-
-    ind = np.arange(len(mono_means))  # the x locations for the groups
-    width = 0.6  # the width of the bars
+    ind = np.arange(len(slow_means))  # the x locations for the groups
+    width = 0.35  # the width of the bars
 
     fig, ax = plt.subplots()
     fig.set_size_inches(16, 9)
 
-    rects1 = ax.bar(ind - width / 3, mono_means, width/3, yerr=mono_std,
-                    label='Mono')
-    rects2 = ax.bar(ind, dual_means, width/3, yerr=dual_std,
-                    label='Dual')
-    rect3 = ax.bar(ind + width / 3, tri_means, width/3, yerr=tri_std,
-                    label='Tri')
+    rects1 = ax.bar(ind - width / 2, slow_means, width, yerr=slow_std,
+                    label='Slow QC')
+    rects2 = ax.bar(ind + width /2, fast_means, width, yerr=fast_std,
+                    label='Fast QC')
+    # rect3 = ax.bar(ind + width / 3, tri_means, width/3, yerr=tri_std,
+    #                 label='Tri')
+
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Load time (s)')
-    ax.set_title('Load times by file number and processing type (N=20)')
+    ax.set_title('Load times by QC method (N=5)')
 
     ax.set_xticks(ind)
     ax.set_xticklabels((f"file {x}" for x in range(1,len(file_names)+1))) #, rotation='vertical')
@@ -77,7 +105,7 @@ if __name__ == "__main__":
 
     autolabel(rects1)   #, "left")
     autolabel(rects2)   #, "center")
-    autolabel(rect3)    #, "right")
+    # autolabel(rect3)    #, "right")
 
     fig.tight_layout()
 
