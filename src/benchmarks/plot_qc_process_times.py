@@ -80,7 +80,6 @@ if __name__ == "__main__":
     fast_means = np.nanmean(fast_times, axis=0)
     fast_std = np.std(fast_times, axis=0)
 
-
     ind = np.arange(len(slow_means))  # the x locations for the groups
     width = 0.35  # the width of the bars
 

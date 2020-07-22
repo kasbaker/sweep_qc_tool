@@ -1,0 +1,152 @@
+[
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "mono_slow": 8.7577073,
+            "mono_fast": 5.3296834,
+            "dual_slow": 8.298726,
+            "dual_fast": 6.634036500000001
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "mono_slow": 10.154332999999998,
+            "mono_fast": 6.401722800000002,
+            "dual_slow": 8.680574,
+            "dual_fast": 6.556536100000002
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "mono_slow": 15.119058900000006,
+            "mono_fast": 8.713774900000004,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        }
+    },
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        }
+    },
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "mono_slow": null,
+            "mono_fast": null,
+            "dual_slow": null,
+            "dual_fast": null
+        }
+    }
+]

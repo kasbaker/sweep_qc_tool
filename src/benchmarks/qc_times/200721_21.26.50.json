@@ -1,0 +1,152 @@
+[
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "mono_slow": 9.1945858,
+            "mono_fast": 5.9083688,
+            "dual_slow": 8.0858845,
+            "dual_fast": 6.8186216
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "mono_slow": 10.5969218,
+            "mono_fast": 6.558156699999998,
+            "dual_slow": 8.088057400000004,
+            "dual_fast": 6.790164399999995
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "mono_slow": 15.02094610000001,
+            "mono_fast": 9.085931500000001,
+            "dual_slow": 11.6711952,
+            "dual_fast": 7.8730951000000005
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "mono_slow": 24.004848999999993,
+            "mono_fast": 11.67064430000002,
+            "dual_slow": 18.883337400000016,
+            "dual_fast": 9.190505599999995
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "mono_slow": 60.720504000000005,
+            "mono_fast": 39.31196059999996,
+            "dual_slow": 43.803281200000015,
+            "dual_fast": 24.04646980000001
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "mono_slow": 23.1122517,
+            "mono_fast": 13.095740700000022,
+            "dual_slow": 16.465472999999974,
+            "dual_fast": 14.048111000000006
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "mono_slow": 29.672153900000012,
+            "mono_fast": 15.308922499999994,
+            "dual_slow": 20.68523859999999,
+            "dual_fast": 13.165677199999948
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "mono_slow": 9.908455200000049,
+            "mono_fast": 6.280629400000009,
+            "dual_slow": 7.893214600000022,
+            "dual_fast": 7.050472899999988
+        }
+    },
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "mono_slow": 9.15277489999994,
+            "mono_fast": 5.637156800000071,
+            "dual_slow": 8.251786000000038,
+            "dual_fast": 6.684965600000055
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "mono_slow": 10.72906039999998,
+            "mono_fast": 6.831124299999942,
+            "dual_slow": 8.294234199999892,
+            "dual_fast": 6.845592099999976
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "mono_slow": 14.92007250000006,
+            "mono_fast": 9.373819899999944,
+            "dual_slow": 11.861149299999965,
+            "dual_fast": 7.541394500000024
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "mono_slow": 24.013527700000054,
+            "mono_fast": 11.597072400000002,
+            "dual_slow": 19.14893219999999,
+            "dual_fast": 9.700066600000014
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "mono_slow": 60.73709240000005,
+            "mono_fast": 39.500597200000016,
+            "dual_slow": 44.637272499999995,
+            "dual_fast": 23.84860709999998
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "mono_slow": 23.12321339999994,
+            "mono_fast": 12.800443100000052,
+            "dual_slow": 17.25981539999998,
+            "dual_fast": 11.573471199999972
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "mono_slow": 28.815754999999967,
+            "mono_fast": 15.167564999999968,
+            "dual_slow": 21.523354599999948,
+            "dual_fast": 12.471697800000015
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "mono_slow": 9.867573099999959,
+            "mono_fast": 6.204353200000014,
+            "dual_slow": 7.990671799999973,
+            "dual_fast": 6.9151442000001
+        }
+    },
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "mono_slow": 9.385559000000057,
+            "mono_fast": 5.567288600000211,
+            "dual_slow": 7.659252800000104,
+            "dual_fast": 6.740030400000023
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "mono_slow": 10.54919649999988,
+            "mono_fast": 6.6793078000000605,
+            "dual_slow": 8.263681700000006,
+            "dual_fast": 6.505231899999899
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "mono_slow": 15.36264170000004,
+            "mono_fast": 8.984519999999975,
+            "dual_slow": 12.014028499999995,
+            "dual_fast": 7.373563099999956
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "mono_slow": 24.06486229999996,
+            "mono_fast": 11.847030900000163,
+            "dual_slow": 18.880926099999897,
+            "dual_fast": 9.7843941000001
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "mono_slow": 60.52278709999996,
+            "mono_fast": 41.87683220000008,
+            "dual_slow": 45.40996599999994,
+            "dual_fast": 23.304688400000032
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "mono_slow": 23.551005600000053,
+            "mono_fast": 13.155601400000023,
+            "dual_slow": 16.042531399999916,
+            "dual_fast": 12.280475699999897
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "mono_slow": 29.37097279999989,
+            "mono_fast": 15.172159899999997,
+            "dual_slow": 21.67497370000001,
+            "dual_fast": 13.093582900000001
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "mono_slow": 10.078628600000002,
+            "mono_fast": 6.10197079999989,
+            "dual_slow": 9.00308199999995,
+            "dual_fast": 6.903825099999949
+        }
+    }
+]

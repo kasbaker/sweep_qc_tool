@@ -485,7 +485,7 @@ class QCOperator(object):
         }
 
 
-def slow_qc(nwb_file: str):
+def slow_qc(nwb_file: str, return_data_set = False):
     """ Does Auto QC and makes plots using single process.
 
     Parameters:
@@ -498,6 +498,7 @@ def slow_qc(nwb_file: str):
             sweep_features, cell_state, sweep_states
 
     """
+
     with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
         QC_CRITERIA = json.load(path)
 
@@ -533,8 +534,10 @@ def slow_qc(nwb_file: str):
     qc_results = (
         cell_features, cell_tags, sweep_features, cell_state, sweep_states
     )
-
-    return qc_results
+    if return_data_set:
+        return qc_results, data_set
+    else:
+        return qc_results
 
 
 if __name__ == "__main__":
