@@ -72,6 +72,7 @@ class SweepPage(QWidget):
 
         super().__init__()
         # abstract model of the sweep table that is represented by sweep_view
+        # TODO give plot_worker to SweepTableModel
         self.sweep_model = SweepTableModel(self.colnames, sweep_plot_config)
 
         # view of the sweep table that the user sees
@@ -289,9 +290,16 @@ class Application(object):
         # initialize components
         self.main_window = MainWindow()
         self.pre_fx_controller: PreFxController = PreFxController()
+
+        # TODO create qc_worker process and give to PreFxData
         self.pre_fx_data: PreFxData = PreFxData()
+
+        # TODO create fx_worker process and give to FxData
         self.fx_data: FxData = FxData()
+
+        # TODO create plot_worker and give to SweepPage
         self.sweep_page = SweepPage(sweep_plot_config)
+
         self.feature_page = CellFeaturePage()
         self.plot_page = PlotPage()
         self.status_bar = self.main_window.statusBar()

@@ -2,9 +2,6 @@ from pathlib import Path
 from timeit import default_timer
 from warnings import filterwarnings
 import datetime as dt
-from multiprocessing import Pipe, Pool, cpu_count
-import cProfile
-import pstats
 import logging
 from copy import copy, deepcopy
 import json
@@ -13,7 +10,7 @@ import numpy as np
 from pynwb.icephys import (
     CurrentClampSeries, CurrentClampStimulusSeries,
     VoltageClampSeries, VoltageClampStimulusSeries,
-    IZeroClampSeries, PatchClampSeries
+    IZeroClampSeries
 )
 
 from ipfx.qc_feature_extractor import cell_qc_features, sweep_qc_features
@@ -218,18 +215,14 @@ class QCOperator(object):
     def fast_experiment_qc(self):
         self.data_set = self.nwb_file
         sweep_table = self.data_set._data.nwb.sweep_table
-        num_sweeps = sweep_table.series.shape[0]//2
-        sweep_range = range(num_sweeps)
-        self._series_iter = map(sweep_table.get_series, sweep_range)
-        self._data_iter = map(self._extract_series_data, self._series_iter)
 
         # number of sweeps is half the shape of the sweep table here because
         # each sweep has two series associated with it (stimulus and response)
-
-        # reverse the sweep list so when we grab the last sweep when we iterate
-        # through to find the appropriate sweep
-
+        num_sweeps = sweep_table.series.shape[0]//2
+        sweep_range = range(num_sweeps)
+        self._series_iter = map(sweep_table.get_series, sweep_range)
         # iterator with all the necessary sweep data
+        self._data_iter = map(self._extract_series_data, self._series_iter)
 
         sweep_types = self.get_sweep_types()
 
@@ -500,10 +493,10 @@ def slow_qc(nwb_file: str, return_data_set = False):
     """
 
     with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
-        QC_CRITERIA = json.load(path)
+        qc_criteria = json.load(path)
 
     with open(StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE, "r") as path:
-        STIMULUS_ONTOLOGY = StimulusOntology(json.load(path))
+        stimulus_ontology = StimulusOntology(json.load(path))
 
     data_set = create_ephys_data_set(nwb_file=nwb_file)
 
@@ -518,10 +511,10 @@ def slow_qc(nwb_file: str, return_data_set = False):
 
     # experiment QC worker
     cell_state, sweep_states = qc_experiment(
-        ontology=STIMULUS_ONTOLOGY,
+        ontology=stimulus_ontology,
         cell_features=cell_features,
         sweep_features=sweep_features,
-        qc_criteria=QC_CRITERIA
+        qc_criteria=qc_criteria
     )
 
     qc_summary(
@@ -542,7 +535,7 @@ def slow_qc(nwb_file: str, return_data_set = False):
 
 if __name__ == "__main__":
 
-    num_trials = 5
+    num_trials = 1
 
     # ignore warnings during loading .nwb files
     filterwarnings('ignore')
@@ -556,7 +549,6 @@ if __name__ == "__main__":
     profile_dir = base_dir.joinpath(f'fast_qc_profiles/{today}_{now}')
     # profile_dir.mkdir(parents=True)
 
-    # fast_experiment_qc(nwb_file=str(base_dir.joinpath(files[1])))
     time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
 
     times = [
@@ -575,19 +567,21 @@ if __name__ == "__main__":
             print(f'Fast QC: {file} took {fast_qc_time} to load')
             times[trial][str(files[index])]['fast_qc'] = fast_qc_time
 
-
-
             start_time = default_timer()
             slow_qc_results = slow_qc(nwb_file=nwb_file)
             slow_qc_time = default_timer()-start_time
             print(f'Slow QC: {file} took {slow_qc_time} to load')
             times[trial][str(files[index])]['slow_qc'] = slow_qc_time
 
-            print(f"Cell features difference? {set(slow_qc_results[0]).symmetric_difference(fast_qc_results[0])}")
-            print(f"Cell tags difference? {set(slow_qc_results[1]).symmetric_difference(fast_qc_results[1])}")
-            print(f"Cell state difference? {set(slow_qc_results[3]).symmetric_difference(fast_qc_results[3])}")
-            print(f"Sweep_states equal? {slow_qc_results[4] == fast_qc_results[4]}")
-            print('--------------------------------------------------------------')
+            print(f"Cell features difference? "
+                  f"{set(slow_qc_results[0]).symmetric_difference(fast_qc_results[0])}")
+            print(f"Cell tags difference? "
+                  f"{set(slow_qc_results[1]).symmetric_difference(fast_qc_results[1])}")
+            print(f"Cell state difference?"
+                  f" {set(slow_qc_results[3]).symmetric_difference(fast_qc_results[3])}")
+            print(f"Sweep_states equal? "
+                  f"{slow_qc_results[4] == fast_qc_results[4]}")
+            print('----------------------------------------------------------')
 
             with open(time_file, 'w') as save_loc:
                 json.dump(times, save_loc, indent=4)

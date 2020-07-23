@@ -116,11 +116,21 @@ class SweepTableModel(QAbstractTableModel):
             self._data = []
             self.endResetModel()
 
+        # TODO multiprocessing - YES!
+
         plotter = SweepPlotter(data_set, self.plot_config)
+        # TODO put this section in a new function: start_plot_worker()
+        #  create plot pipe
+        #  create SweepPlotter, give it plot_worker and output connection
+        #  start plot worker
+        #  return plot pipe
+
+        # TODO receive FixedPlots and QCData
+        #  close output connections, receive data through input connections
+        #  add results to ._data
 
         self.beginInsertRows(QModelIndex(), 0, len(sweep_features)-1)
 
-        # TODO use multiprocessing?
         # populates the sweep table model
         for index, sweep in enumerate(sweep_features):
             # if skip == True the plotter will skip over that sweep

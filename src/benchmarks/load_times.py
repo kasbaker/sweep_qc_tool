@@ -219,7 +219,7 @@ def main(nwb_file, dual=False, fast_qc=False):
 
 if __name__ == '__main__':
 
-    num_trials = 3
+    num_trials = 1
 
     files = list(Path("data/nwb").glob("*.nwb"))
     base_dir = Path(__file__).parent
@@ -228,13 +228,10 @@ if __name__ == '__main__':
     now = dt.datetime.now().strftime('%H.%M.%S')
 
     profile_dir = base_dir.joinpath(f'fast_qc_profiles/{today}_{now}')
-    # profile_dir.mkdir(parents=True)
+    profile_dir.mkdir(parents=True)
 
     # fast_experiment_qc(nwb_file=str(base_dir.joinpath(files[1])))
-    time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
-
-    # profile_dir = base_dir.joinpath(f'fast_qc_profiles/{today}_{now}')
-    # profile_dir.mkdir(parents=True)
+    # time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
 
     times = [
         {str(files[x]): dict.fromkeys(
@@ -247,48 +244,45 @@ if __name__ == '__main__':
         for index, file in enumerate(files):
             nwb_file = str(base_dir.joinpath(file))
 
-            mono_slow = main(
-                nwb_file=nwb_file, dual=False, fast_qc=False
-            )
-            print(f"Mono-slow: {file} took {mono_slow} time to load")
-            times[trial][str(files[index])]['mono_slow'] = mono_slow
-            with open(time_file, 'w') as save_loc:
-                json.dump(times, save_loc, indent=4)
-
-            mono_fast = main(
-                nwb_file=nwb_file, dual=False, fast_qc=True
-            )
-            print(f"Mono-fast: {file} took {mono_fast} time to load")
-            times[trial][str(files[index])]['mono_fast'] = mono_fast
-            with open(time_file, 'w') as save_loc:
-                json.dump(times, save_loc, indent=4)
-
-            dual_slow = main(
-                nwb_file=nwb_file, dual=True, fast_qc=False
-            )
-            print(f"Dual-slow: {file} took {dual_slow} time to load")
-            times[trial][str(files[index])]['dual_slow'] = dual_slow
-            with open(time_file, 'w') as save_loc:
-                json.dump(times, save_loc, indent=4)
-
-            dual_fast = main(
-                nwb_file=nwb_file, dual=True, fast_qc=True
-            )
-            print(f"Dual-fast: {file} took {dual_fast} time to load")
-            times[trial][str(files[index])]['dual_fast'] = dual_fast
-            with open(time_file, 'w') as save_loc:
-                json.dump(times, save_loc, indent=4)
-
-            # times[files[index]]['quad'] = main(nwb_file=nwb_file, quad=True)
-
-            # main(nwb_file=nwb_file, tri=True)
+            # mono_slow = main(
+            #     nwb_file=nwb_file, dual=False, fast_qc=False
+            # )
+            # print(f"Mono-slow: {file} took {mono_slow} time to load")
+            # times[trial][str(files[index])]['mono_slow'] = mono_slow
+            # with open(time_file, 'w') as save_loc:
+            #     json.dump(times, save_loc, indent=4)
+            #
+            # mono_fast = main(
+            #     nwb_file=nwb_file, dual=False, fast_qc=True
+            # )
+            # print(f"Mono-fast: {file} took {mono_fast} time to load")
+            # times[trial][str(files[index])]['mono_fast'] = mono_fast
+            # with open(time_file, 'w') as save_loc:
+            #     json.dump(times, save_loc, indent=4)
+            #
+            # dual_slow = main(
+            #     nwb_file=nwb_file, dual=True, fast_qc=False
+            # )
+            # print(f"Dual-slow: {file} took {dual_slow} time to load")
+            # times[trial][str(files[index])]['dual_slow'] = dual_slow
+            # with open(time_file, 'w') as save_loc:
+            #     json.dump(times, save_loc, indent=4)
+            #
+            # dual_fast = main(
+            #     nwb_file=nwb_file, dual=True, fast_qc=True
+            # )
+            # print(f"Dual-fast: {file} took {dual_fast} time to load")
+            # times[trial][str(files[index])]['dual_fast'] = dual_fast
+            # with open(time_file, 'w') as save_loc:
+            #     json.dump(times, save_loc, indent=4)
 
             # profile mono fast qc
-            # dual_profile_file = str(profile_dir.joinpath(f'dual_{files[index][0:-4]}.prof'))
-            # cProfile.run('main(nwb_file, dual=True)', filename=dual_profile_file)
-            # p = pstats.Stats(dual_profile_file)
-            # p.sort_stats('cumtime').print_stats(2)
-            #
+            fast_qc_file = str(profile_dir.joinpath(f'fast_qc_{str(files)[0:-4]}.prof'))
+
+            cProfile.run('main(str(nwb_file), dual=False, fast_qc=True)', filename=fast_qc_file)
+            p = pstats.Stats(fast_qc_file)
+            p.sort_stats('cumtime').print_stats(10)
+
             # # benchmark quad processing
             # quad_profile_file = str(profile_dir.joinpath(f'quad_{files[index][0:-4]}.prof'))
             # cProfile.run(
@@ -312,15 +306,15 @@ if __name__ == '__main__':
             # p = pstats.Stats(multi_profile_file)
             # p.sort_stats('cumtime').print_stats(20)
 
-    for file in times[0]:
-        print(f"Elapsed times for {file}")
-        for cpu in times[0][file].keys():
-            print(f"    {cpu} times: ")
-            temp_time = 0
-            for trial in range(num_trials):
-                try:
-                    temp_time += times[trial][file][cpu]
-                    print(f"            {times[trial][file][cpu]}")
-                except TypeError:
-                    print(f"            N/A")
-            print(f"       avg: {temp_time/num_trials}")
+    # for file in times[0]:
+    #     print(f"Elapsed times for {file}")
+    #     for cpu in times[0][file].keys():
+    #         print(f"    {cpu} times: ")
+    #         temp_time = 0
+    #         for trial in range(num_trials):
+    #             try:
+    #                 temp_time += times[trial][file][cpu]
+    #                 print(f"            {times[trial][file][cpu]}")
+    #             except TypeError:
+    #                 print(f"            N/A")
+    #         print(f"       avg: {temp_time/num_trials}")
