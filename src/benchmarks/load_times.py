@@ -150,6 +150,52 @@ def single_process(nwb_file: str, fast_qc: bool):
     return thumbs, qc_results
 
 
+def plot_worker(nwb_file: str, fast_qc: bool):
+    plot_pipe, plot_worker = plot_process(nwb_file=nwb_file)
+    plot_worker.daemon = True
+
+    plot_worker.start()
+    if fast_qc:
+        qc_operator = QCOperator(nwb_file=nwb_file)
+        qc_results = qc_operator.fast_experiment_qc()
+    else:
+        qc_results = slow_qc(nwb_file=nwb_file, return_data_set=False)
+
+    plot_pipe[1].close()
+    thumbs = plot_pipe[0].recv()
+    plot_worker.join()
+    plot_worker.terminate()
+
+    return thumbs, qc_results
+
+
+def qc_worker(nwb_file: str, fast_qc: bool):
+
+    qc_pipe = mp.Pipe(duplex=False)
+    # worker to do auto-qc
+    qc_worker = mp.Process(
+        name="qc_worker",
+        target=run_auto_qc, args=(nwb_file, qc_pipe, fast_qc)
+    )
+    qc_worker.daemon = True
+
+    qc_worker.start()
+
+    data_set = create_ephys_data_set(nwb_file)
+    sweep_datas = list(map(
+        data_set.get_sweep_data,
+        list(range(len(data_set._data.sweep_numbers)))
+    ))  # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
+    thumbs = make_plots(nwb_file=nwb_file, sweep_datas=sweep_datas)
+
+    qc_pipe[1].close()
+    qc_results = qc_pipe[0].recv()
+    qc_worker.join()
+    qc_worker.terminate()
+
+    return thumbs, qc_results
+
+
 def dual_process(nwb_file: str, fast_qc: bool):
     """ Does Auto QC and makes plot using two processes.
 
@@ -199,15 +245,31 @@ def dual_process(nwb_file: str, fast_qc: bool):
     return thumbs, qc_results
 
 
-def main(nwb_file, dual=False, fast_qc=False):
+def main(nwb_file, load_method: int, dual=False, fast_qc=False):
     start_time = default_timer()
 
-    if dual:
-        thumbs, qc_results = dual_process(nwb_file=nwb_file, fast_qc=fast_qc)
+    if load_method == 0:
+        thumbs, qc_results = qc_worker(nwb_file=nwb_file, fast_qc=False)
+        elapsed_time = default_timer() - start_time
+    elif load_method == 1:
+        thumbs, qc_results = qc_worker(nwb_file=nwb_file, fast_qc=True)
+        elapsed_time = default_timer() - start_time
+    elif load_method == 2:
+        thumbs, qc_results = plot_worker(nwb_file=nwb_file, fast_qc=False)
+        elapsed_time = default_timer() - start_time
+    elif load_method == 3:
+        thumbs, qc_results = plot_worker(nwb_file=nwb_file, fast_qc=True)
         elapsed_time = default_timer() - start_time
     else:
-        thumbs, qc_results = single_process(nwb_file=nwb_file, fast_qc=fast_qc)
+        thumbs, qc_results = single_process(nwb_file, fast_qc=fast_qc)
         elapsed_time = default_timer() - start_time
+
+    # if dual:
+    #     thumbs, qc_results = dual_process(nwb_file=nwb_file, fast_qc=fast_qc)
+    #     elapsed_time = default_timer() - start_time
+    # else:
+    #     thumbs, qc_results = plot_worker(nwb_file=nwb_file, fast_qc=fast_qc)
+    #     elapsed_time = default_timer() - start_time
 
     # for thumb in thumbs:
     #     print(thumb)
@@ -219,7 +281,8 @@ def main(nwb_file, dual=False, fast_qc=False):
 
 if __name__ == '__main__':
 
-    num_trials = 1
+    num_trials = 2
+    profile = False
 
     files = list(Path("data/nwb").glob("*.nwb"))
     base_dir = Path(__file__).parent
@@ -228,93 +291,78 @@ if __name__ == '__main__':
     now = dt.datetime.now().strftime('%H.%M.%S')
 
     profile_dir = base_dir.joinpath(f'fast_qc_profiles/{today}_{now}')
-    profile_dir.mkdir(parents=True)
 
-    # fast_experiment_qc(nwb_file=str(base_dir.joinpath(files[1])))
-    # time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
+    time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
 
+    load_methods = ('qc_worker-slow', 'qc_worker-fast',
+                  'plot_worker-slow', 'plot_worker-fast')
     times = [
         {str(files[x]): dict.fromkeys(
-            ['mono_slow', 'mono_fast', 'dual_slow', 'dual_fast']
+            load_methods
         ) for x in range(len(files))} for _ in range(num_trials)
     ]
 
-    for trial in range(num_trials):
-        print(f"--------TRIAL {trial}--------")
-        for index, file in enumerate(files):
+    if profile:
+        profile_dir.mkdir(parents=True)
+        for file in files:
             nwb_file = str(base_dir.joinpath(file))
-
-            # mono_slow = main(
-            #     nwb_file=nwb_file, dual=False, fast_qc=False
-            # )
-            # print(f"Mono-slow: {file} took {mono_slow} time to load")
-            # times[trial][str(files[index])]['mono_slow'] = mono_slow
-            # with open(time_file, 'w') as save_loc:
-            #     json.dump(times, save_loc, indent=4)
-            #
-            # mono_fast = main(
-            #     nwb_file=nwb_file, dual=False, fast_qc=True
-            # )
-            # print(f"Mono-fast: {file} took {mono_fast} time to load")
-            # times[trial][str(files[index])]['mono_fast'] = mono_fast
-            # with open(time_file, 'w') as save_loc:
-            #     json.dump(times, save_loc, indent=4)
-            #
-            # dual_slow = main(
-            #     nwb_file=nwb_file, dual=True, fast_qc=False
-            # )
-            # print(f"Dual-slow: {file} took {dual_slow} time to load")
-            # times[trial][str(files[index])]['dual_slow'] = dual_slow
-            # with open(time_file, 'w') as save_loc:
-            #     json.dump(times, save_loc, indent=4)
-            #
-            # dual_fast = main(
-            #     nwb_file=nwb_file, dual=True, fast_qc=True
-            # )
-            # print(f"Dual-fast: {file} took {dual_fast} time to load")
-            # times[trial][str(files[index])]['dual_fast'] = dual_fast
-            # with open(time_file, 'w') as save_loc:
-            #     json.dump(times, save_loc, indent=4)
-
-            # profile mono fast qc
-            fast_qc_file = str(profile_dir.joinpath(f'fast_qc_{str(files)[0:-4]}.prof'))
-
-            cProfile.run('main(str(nwb_file), dual=False, fast_qc=True)', filename=fast_qc_file)
+            fast_qc_file = str(profile_dir.joinpath(f'fast_qc_{file.stem}.prof'))
+            cProfile.run('main(str(nwb_file), load_method=-1, fast_qc=True)', filename=fast_qc_file)
             p = pstats.Stats(fast_qc_file)
             p.sort_stats('cumtime').print_stats(10)
 
-            # # benchmark quad processing
-            # quad_profile_file = str(profile_dir.joinpath(f'quad_{files[index][0:-4]}.prof'))
-            # cProfile.run(
-            #     f'main(nwb_file, quad=True)',
-            #     filename=quad_profile_file
-            # )
-            # p = pstats.Stats(quad_profile_file)
-            # p.sort_stats('cumtime').print_stats(2)
+            slow_qc_file = str(profile_dir.joinpath(f'slow_qc_{file.stem}.prof'))
+            cProfile.run('main(str(nwb_file), load_method=-1, fast_qc=False)', filename=slow_qc_file)
+            p = pstats.Stats(slow_qc_file)
+            p.sort_stats('cumtime').print_stats(10)
 
-            # # benchmark single processing
-            # profile_file = str(profile_dir.joinpath(f'single_{files[index][0:-4]}.prof'))
-            # cProfile.run('main(nwb_file, multi=False)', filename=profile_file)
-            # p = pstats.Stats(profile_file)
-            # p.sort_stats('cumtime').print_stats(20)
-            #
-            # multi_profile_file = str(profile_dir.joinpath(f'multi_{files[index][0:-4]}.prof'))
-            # cProfile.run(
-            #     f'main(nwb_file, multi=True)',
-            #     filename=multi_profile_file
-            # )
-            # p = pstats.Stats(multi_profile_file)
-            # p.sort_stats('cumtime').print_stats(20)
+    else:
+        for trial in range(num_trials):
+            print(f"--------TRIAL {trial}--------")
+            for index, file in enumerate(files):
+                nwb_file = str(base_dir.joinpath(file))
 
-    # for file in times[0]:
-    #     print(f"Elapsed times for {file}")
-    #     for cpu in times[0][file].keys():
-    #         print(f"    {cpu} times: ")
-    #         temp_time = 0
-    #         for trial in range(num_trials):
-    #             try:
-    #                 temp_time += times[trial][file][cpu]
-    #                 print(f"            {times[trial][file][cpu]}")
-    #             except TypeError:
-    #                 print(f"            N/A")
-    #         print(f"       avg: {temp_time/num_trials}")
+                qc_0 = main(
+                    nwb_file=nwb_file, load_method=0
+                )
+                print(f"{load_methods[0]}: {file} took {qc_0} time to load")
+                times[trial][str(files[index])][load_methods[0]] = qc_0
+                with open(time_file, 'w') as save_loc:
+                    json.dump(times, save_loc, indent=4)
+
+                qc_1 = main(
+                    nwb_file=nwb_file, load_method=1
+                )
+                print(f"{load_methods[1]}: {file} took {qc_1} time to load")
+                times[trial][str(files[index])][load_methods[1]] = qc_1
+                with open(time_file, 'w') as save_loc:
+                    json.dump(times, save_loc, indent=4)
+
+                qc_2 = main(
+                    nwb_file=nwb_file, load_method=2
+                )
+                print(f"{load_methods[2]}: {file} took {qc_2} time to load")
+                times[trial][str(files[index])][load_methods[2]] = qc_2
+                with open(time_file, 'w') as save_loc:
+                    json.dump(times, save_loc, indent=4)
+
+                qc_3 = main(
+                    nwb_file=nwb_file, load_method=3
+                )
+                print(f"{load_methods[3]}: {file} took {qc_3} time to load")
+                times[trial][str(files[index])][load_methods[3]] = qc_3
+                with open(time_file, 'w') as save_loc:
+                    json.dump(times, save_loc, indent=4)
+
+        for file in times[0]:
+            print(f"Elapsed times for {file}")
+            for cpu in times[0][file].keys():
+                print(f"    {cpu} times: ")
+                temp_time = 0
+                for trial in range(num_trials):
+                    try:
+                        temp_time += times[trial][file][cpu]
+                        print(f"            {times[trial][file][cpu]}")
+                    except TypeError:
+                        print(f"            N/A")
+                print(f"       avg: {temp_time/num_trials}")

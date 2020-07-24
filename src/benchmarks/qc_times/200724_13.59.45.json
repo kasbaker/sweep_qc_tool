@@ -1,0 +1,102 @@
+[
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "qc_worker-slow": 7.5316177,
+            "qc_worker-fast": 4.557321299999999,
+            "plot_worker-slow": 6.337047400000001,
+            "plot_worker-fast": 6.363227000000002
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "qc_worker-slow": 7.9880225,
+            "qc_worker-fast": 4.625471500000003,
+            "plot_worker-slow": 6.335419100000003,
+            "plot_worker-fast": 6.479258399999999
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "qc_worker-slow": 11.2820174,
+            "qc_worker-fast": 5.7503956999999986,
+            "plot_worker-slow": 10.223265499999997,
+            "plot_worker-fast": 7.2849389
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "qc_worker-slow": 18.58837100000001,
+            "qc_worker-fast": 7.9292461,
+            "plot_worker-slow": 17.522649700000002,
+            "plot_worker-fast": 9.131889099999995
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "qc_worker-slow": 41.3812423,
+            "qc_worker-fast": 20.679900599999996,
+            "plot_worker-slow": 40.496447500000016,
+            "plot_worker-fast": 22.280641300000013
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "qc_worker-slow": 16.209517500000004,
+            "qc_worker-fast": 9.366635200000019,
+            "plot_worker-slow": 14.231652699999984,
+            "plot_worker-fast": 11.111702300000047
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "qc_worker-slow": 20.057766400000048,
+            "qc_worker-fast": 10.606276000000037,
+            "plot_worker-slow": 18.7923811,
+            "plot_worker-fast": 12.437233300000003
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "qc_worker-slow": 8.04077490000003,
+            "qc_worker-fast": 5.070445600000028,
+            "plot_worker-slow": 6.885751099999993,
+            "plot_worker-fast": 7.043853200000001
+        }
+    },
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "qc_worker-slow": 7.883775000000014,
+            "qc_worker-fast": 4.65751130000001,
+            "plot_worker-slow": 6.866444000000001,
+            "plot_worker-fast": 6.4748030000000085
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "qc_worker-slow": 7.797183000000018,
+            "qc_worker-fast": 4.44770920000002,
+            "plot_worker-slow": 6.336161499999946,
+            "plot_worker-fast": 6.50262680000003
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "qc_worker-slow": 11.17319630000003,
+            "qc_worker-fast": 5.639098599999954,
+            "plot_worker-slow": 9.795647099999996,
+            "plot_worker-fast": 6.9920057999999585
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "qc_worker-slow": 18.054959999999994,
+            "qc_worker-fast": 7.181572700000061,
+            "plot_worker-slow": 16.587126000000012,
+            "plot_worker-fast": 8.902440500000012
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "qc_worker-slow": 40.615812300000016,
+            "qc_worker-fast": 20.85728789999996,
+            "plot_worker-slow": 39.715777799999955,
+            "plot_worker-fast": 20.284313699999984
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "qc_worker-slow": 20.362842199999932,
+            "qc_worker-fast": 9.825901299999941,
+            "plot_worker-slow": 14.89492370000005,
+            "plot_worker-fast": 11.703314699999964
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "qc_worker-slow": 20.18641439999999,
+            "qc_worker-fast": 10.3001984,
+            "plot_worker-slow": 18.88695050000001,
+            "plot_worker-fast": 12.803346600000054
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "qc_worker-slow": 7.799888499999952,
+            "qc_worker-fast": 4.727850999999987,
+            "plot_worker-slow": 6.513574199999994,
+            "plot_worker-fast": 6.755400900000041
+        }
+    }
+]
