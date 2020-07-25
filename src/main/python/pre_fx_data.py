@@ -31,6 +31,9 @@ class PreFxData(QObject):
     begin_commit_calculated = pyqtSignal(name="begin_commit_calculated")
     end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
 
+    # signal to send data to the sweep table once auto qc and plotting is done
+    sweep_table_data_ready = pyqtSignal(list, list, name="data_ready")
+
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
 
     status_message = pyqtSignal(str, name="status_message")
@@ -284,6 +287,7 @@ class PreFxData(QObject):
             )
 
     def run_auto_qc_and_make_plots(self, nwb_path, stimulus_ontology, qc_criteria):
+        """" foo"""
         self.status_message.emit("Starting auto-QC...")
         qc_pipe = Pipe(duplex=False)
         qc_worker = Process(
@@ -303,6 +307,7 @@ class PreFxData(QObject):
         qc_results, sweep_table_data = qc_pipe[0].recv()
         qc_worker.join()
         qc_worker.terminate()
+        self.sweep_table_data_ready.emit(sweep_table_data, sweep_plots)
 
     def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
         """ Creates a data set from the nwb path;
@@ -523,6 +528,7 @@ class PreFxData(QObject):
                                self.stimulus_ontology,
                                self.sweep_features,
                                self.cell_features)
+
 
 def extract_qc_features(data_set):
     """ Extracts QC information for the cell and the sweeps using ipfx.

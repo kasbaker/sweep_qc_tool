@@ -262,19 +262,18 @@ class QCOperator(object):
             else:
                 sweep_table_data[state['sweep_number']]['auto_qc_state'] = "failed"
 
-            sweep_table_data[state['sweep_number']]['tags'].append(
-                post_qc_sweep_features[idx]['tags'] + state['reasons']
-            )
+            sweep_table_data[state['sweep_number']]['tags'] += post_qc_sweep_features[idx]['tags']
+            sweep_table_data[state['sweep_number']]['tags'] += state['reasons']
 
         for feature in pre_qc_sweep_features:
             if sweep_table_data[feature['sweep_number']]['auto_qc_state'] \
                     not in ("passed", "failed"):
                 sweep_table_data[feature['sweep_number']]['auto_qc_state'] = "failed"
-            sweep_table_data[feature['sweep_number']]['tags'].append(feature['tags'])
+            sweep_table_data[feature['sweep_number']]['tags'] += feature['tags']
 
         for idx, feature in enumerate(sweep_table_data):
             if sweep_table_data[idx]['auto_qc_state'] not in ("passed", "failed"):
-                sweep_table_data[idx]['tags'].append(["no auto qc"])
+                sweep_table_data[idx]['tags'] += ["no auto qc"]
 
         return sweep_table_data
 

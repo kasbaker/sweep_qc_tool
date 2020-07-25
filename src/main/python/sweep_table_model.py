@@ -71,7 +71,32 @@ class SweepTableModel(QAbstractTableModel):
         """
 
         data.end_commit_calculated.connect(self.on_new_data)
+        data.sweep_table_data_ready.connect(self.build_sweep_table)
         self.qc_state_updated.connect(data.on_manual_qc_state_updated)
+
+    def build_sweep_table(self, sweep_table_data, sweep_plots):
+        """ foobar """
+        if self.rowCount() > 0:
+            # reset the model if it is not already empty
+            self.beginResetModel()
+            self._data = []
+            self.endResetModel()
+
+        self.beginInsertRows(QModelIndex(), 0, len(sweep_table_data) - 1)
+
+        for index, row in enumerate(sweep_table_data):
+            self._data.append([
+                row['sweep_number'],
+                row['stimulus_code'],
+                row['stimulus_name'],
+                row['auto_qc_state'],
+                row['manual_qc_state'],
+                format_fail_tags(row['tags']),  # fail tags
+                sweep_plots[index][0],
+                sweep_plots[index][1]
+            ])
+        self.endInsertRows()
+        self.new_data.emit()
 
     def on_new_data(
         self, 
