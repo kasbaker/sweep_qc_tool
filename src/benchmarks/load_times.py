@@ -78,7 +78,6 @@ def run_auto_qc(nwb_file: str, experiment_qc_pipe: mp.Pipe, fast_qc: bool):
 
 def make_plots(nwb_file: str, thumb_pipe: mp.Pipe = None, sweep_datas=None):
     """ Generate thumbnail plots for all sweeps. """
-    # start_time = default_timer()
     if sweep_datas:
         sweep_datas = sweep_datas
     else:
@@ -182,10 +181,9 @@ def qc_worker(nwb_file: str, fast_qc: bool):
     qc_worker.start()
 
     data_set = create_ephys_data_set(nwb_file)
-    sweep_datas = list(map(
-        data_set.get_sweep_data,
-        list(range(len(data_set._data.sweep_numbers)))
-    ))  # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
+    sweep_datas = map(data_set.get_sweep_data,
+        data_set._data.sweep_numbers.tolist())
+    # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
     thumbs = make_plots(nwb_file=nwb_file, sweep_datas=sweep_datas)
 
     qc_pipe[1].close()
@@ -295,7 +293,8 @@ if __name__ == '__main__':
     time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
 
     load_methods = ('qc_worker-slow', 'qc_worker-fast',
-                  'plot_worker-slow', 'plot_worker-fast')
+                    'plot_worker-slow', 'plot_worker-fast')
+
     times = [
         {str(files[x]): dict.fromkeys(
             load_methods
@@ -322,13 +321,13 @@ if __name__ == '__main__':
             for index, file in enumerate(files):
                 nwb_file = str(base_dir.joinpath(file))
 
-                qc_0 = main(
-                    nwb_file=nwb_file, load_method=0
-                )
-                print(f"{load_methods[0]}: {file} took {qc_0} time to load")
-                times[trial][str(files[index])][load_methods[0]] = qc_0
-                with open(time_file, 'w') as save_loc:
-                    json.dump(times, save_loc, indent=4)
+                # qc_0 = main(
+                #     nwb_file=nwb_file, load_method=0
+                # )
+                # print(f"{load_methods[0]}: {file} took {qc_0} time to load")
+                # times[trial][str(files[index])][load_methods[0]] = qc_0
+                # with open(time_file, 'w') as save_loc:
+                #     json.dump(times, save_loc, indent=4)
 
                 qc_1 = main(
                     nwb_file=nwb_file, load_method=1
@@ -338,13 +337,13 @@ if __name__ == '__main__':
                 with open(time_file, 'w') as save_loc:
                     json.dump(times, save_loc, indent=4)
 
-                qc_2 = main(
-                    nwb_file=nwb_file, load_method=2
-                )
-                print(f"{load_methods[2]}: {file} took {qc_2} time to load")
-                times[trial][str(files[index])][load_methods[2]] = qc_2
-                with open(time_file, 'w') as save_loc:
-                    json.dump(times, save_loc, indent=4)
+                # qc_2 = main(
+                #     nwb_file=nwb_file, load_method=2
+                # )
+                # print(f"{load_methods[2]}: {file} took {qc_2} time to load")
+                # times[trial][str(files[index])][load_methods[2]] = qc_2
+                # with open(time_file, 'w') as save_loc:
+                #     json.dump(times, save_loc, indent=4)
 
                 qc_3 = main(
                     nwb_file=nwb_file, load_method=3

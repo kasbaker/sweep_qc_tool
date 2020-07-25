@@ -4,6 +4,7 @@ import copy
 from typing import Optional, List, Dict, Any
 import ipfx
 from PyQt5.QtCore import QObject, pyqtSignal
+from multiprocessing import Pipe, Process
 
 from ipfx.ephys_data_set import EphysDataSet
 from ipfx.qc_feature_extractor import cell_qc_features, sweep_qc_features
@@ -15,6 +16,8 @@ from ipfx.sweep_props import drop_tagged_sweeps
 from error_handling import exception_message
 from marshmallow import ValidationError
 from schemas import PipelineParameters
+from qc_operator import run_auto_qc
+from sweep_plotter import SweepPlotter, SweepPlotConfig
 
 
 class PreFxData(QObject):
@@ -32,7 +35,7 @@ class PreFxData(QObject):
 
     status_message = pyqtSignal(str, name="status_message")
 
-    def __init__(self):
+    def __init__(self, plot_config: SweepPlotConfig):
         """ Main data store for all data upstream of feature extraction. This
         includes:
             - the EphysDataSet
@@ -42,6 +45,8 @@ class PreFxData(QObject):
             - the qc results
         """
         super(PreFxData, self).__init__()
+
+        self.plot_config = plot_config
 
         # Nwb related data
         self.data_set: Optional[EphysDataSet] = None
@@ -223,8 +228,11 @@ class PreFxData(QObject):
                 raise ValueError("must set qc criteria before loading a data set!")
 
             self.status_message.emit("Running extraction and auto qc...")
-            self.run_extraction_and_auto_qc(
-                path, self.stimulus_ontology, self.qc_criteria, commit=True
+            # self.run_extraction_and_auto_qc(
+            #     path, self.stimulus_ontology, self.qc_criteria, commit=True
+            # )
+            self.run_auto_qc_and_make_plots(
+                path, self.stimulus_ontology, self.qc_criteria
             )
             self.status_message.emit("Done running extraction and auto qc")
         except Exception as err:
@@ -274,6 +282,27 @@ class PreFxData(QObject):
                 f'Unable to write to file {filepath}',
                 ioerr
             )
+
+    def run_auto_qc_and_make_plots(self, nwb_path, stimulus_ontology, qc_criteria):
+        self.status_message.emit("Starting auto-QC...")
+        qc_pipe = Pipe(duplex=False)
+        qc_worker = Process(
+            name="qc_worker", target=run_auto_qc,
+            args=(nwb_path, stimulus_ontology, qc_criteria, qc_pipe[1])
+        )
+        qc_worker.daemon = True
+        qc_worker.start()
+
+        data_set = create_ephys_data_set(nwb_path)
+        plotter = SweepPlotter(data_set=data_set, config=self.plot_config)
+        sweep_plots = []
+        for sweep_num in data_set._data.sweep_numbers:
+            sweep_plots.append(plotter.advance(int(sweep_num)))
+
+        qc_pipe[1].close()
+        qc_results, sweep_table_data = qc_pipe[0].recv()
+        qc_worker.join()
+        qc_worker.terminate()
 
     def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
         """ Creates a data set from the nwb path;
@@ -494,7 +523,6 @@ class PreFxData(QObject):
                                self.stimulus_ontology,
                                self.sweep_features,
                                self.cell_features)
-
 
 def extract_qc_features(data_set):
     """ Extracts QC information for the cell and the sweeps using ipfx.

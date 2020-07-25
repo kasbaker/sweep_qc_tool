@@ -1,0 +1,102 @@
+[
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "qc_worker-slow": 7.5107116,
+            "qc_worker-fast": 4.463193599999999,
+            "plot_worker-slow": 6.594685999999999,
+            "plot_worker-fast": 6.262542
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "qc_worker-slow": 7.794280200000003,
+            "qc_worker-fast": 4.4568173999999985,
+            "plot_worker-slow": 6.348578500000002,
+            "plot_worker-fast": 6.3327332
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "qc_worker-slow": 11.222361499999998,
+            "qc_worker-fast": 5.694013400000003,
+            "plot_worker-slow": 9.75861359999999,
+            "plot_worker-fast": 6.974766900000006
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "qc_worker-slow": 18.0927583,
+            "qc_worker-fast": 7.2472721000000035,
+            "plot_worker-slow": 16.64681999999999,
+            "plot_worker-fast": 8.892632199999994
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        }
+    },
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "qc_worker-slow": null,
+            "qc_worker-fast": null,
+            "plot_worker-slow": null,
+            "plot_worker-fast": null
+        }
+    }
+]

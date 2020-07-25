@@ -1,0 +1,52 @@
+[
+    {
+        "data\\nwb\\Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "qc_worker-slow": 7.4925261999999995,
+            "qc_worker-fast": 6.1831281,
+            "plot_worker-slow": 6.617210899999998,
+            "plot_worker-fast": 6.279141199999998
+        },
+        "data\\nwb\\Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "qc_worker-slow": 7.756246900000001,
+            "qc_worker-fast": 6.227260800000003,
+            "plot_worker-slow": 6.354822600000006,
+            "plot_worker-fast": 6.267278900000001
+        },
+        "data\\nwb\\H20.03.302.11.52.01.03.nwb": {
+            "qc_worker-slow": 11.132808699999998,
+            "qc_worker-fast": 6.873893699999996,
+            "plot_worker-slow": 9.773183000000003,
+            "plot_worker-fast": 6.970178300000001
+        },
+        "data\\nwb\\Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "qc_worker-slow": 17.736541700000004,
+            "qc_worker-fast": 9.046739799999997,
+            "plot_worker-slow": 16.8019173,
+            "plot_worker-fast": 8.840626600000007
+        },
+        "data\\nwb\\Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "qc_worker-slow": 40.61275860000001,
+            "qc_worker-fast": 20.844768399999992,
+            "plot_worker-slow": 39.74105019999999,
+            "plot_worker-fast": 20.72516920000001
+        },
+        "data\\nwb\\Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "qc_worker-slow": 15.372163399999977,
+            "qc_worker-fast": 11.097705099999985,
+            "plot_worker-slow": 14.157541900000012,
+            "plot_worker-fast": 11.221916599999986
+        },
+        "data\\nwb\\Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "qc_worker-slow": 19.924543900000003,
+            "qc_worker-fast": 12.066889899999978,
+            "plot_worker-slow": 18.8768422,
+            "plot_worker-fast": 12.106570499999975
+        },
+        "data\\nwb\\Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "qc_worker-slow": 7.638580699999977,
+            "qc_worker-fast": 6.511133599999994,
+            "plot_worker-slow": 6.387354599999981,
+            "plot_worker-fast": 6.4944765999999845
+        }
+    }
+]

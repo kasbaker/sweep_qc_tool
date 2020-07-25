@@ -292,7 +292,7 @@ class Application(object):
         self.pre_fx_controller: PreFxController = PreFxController()
 
         # TODO create qc_worker process and give to PreFxData
-        self.pre_fx_data: PreFxData = PreFxData()
+        self.pre_fx_data: PreFxData = PreFxData(sweep_plot_config)
 
         # TODO create fx_worker process and give to FxData
         self.fx_data: FxData = FxData()

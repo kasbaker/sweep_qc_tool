@@ -1,11 +1,8 @@
-from pathlib import Path
-from timeit import default_timer
-from warnings import filterwarnings
-import datetime as dt
 import logging
 from copy import copy, deepcopy
-import json
-from multiprocessing import Process
+from multiprocessing.connection import Connection
+from warnings import filterwarnings
+from typing import List
 
 import numpy as np
 from pynwb.icephys import (
@@ -13,7 +10,6 @@ from pynwb.icephys import (
     VoltageClampSeries, VoltageClampStimulusSeries,
     IZeroClampSeries
 )
-from ipfx.qc_feature_extractor import cell_qc_features, sweep_qc_features
 from ipfx.qc_feature_evaluator import qc_experiment, DEFAULT_QC_CRITERIA_FILE
 from ipfx.dataset.create import create_ephys_data_set
 import ipfx.epochs as ep
@@ -33,57 +29,38 @@ class QCOperator(object):
         '_series_iter', '_data_iter', '_qc_criteria', '_ontology'
     ]
 
-    def __init__(self, nwb_file: str, ontology_file=None, qc_criteria=None):
-        super().__init__( )
+    def __init__(
+            self, nwb_file: str, ontology: StimulusOntology,
+            qc_criteria: dict, warnings="ignore"
+    ):
         self.nwb_file = nwb_file
+        self._ontology = ontology
         self._qc_criteria = qc_criteria
-        self.ontology_file = ontology_file
-        self.ontology = ontology_file
+
         self._data_set = None
         self._series_iter = None
         self._data_iter = None
 
-    @property
-    def qc_criteria(self):
-        return self._qc_criteria
-
-    @qc_criteria.setter
-    def qc_criteria(self, filename=None):
-        if filename:
-            with open(filename, "r") as path:
-                self._qc_criteria = json.load(path)
-        else:
-            with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
-                self._qc_criteria = json.load(path)
+        if not warnings:
+            filterwarnings(warnings)
 
     @property
     def ontology(self):
         return self._ontology
 
-    @ontology.setter
-    def ontology(self, filename=None):
-        if filename:
-            with open(filename, "r") as path:
-                self._ontology = StimulusOntology(json.load(path))
-        else:
-            with open(StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE, "r")\
-                    as path:
-                self._ontology = StimulusOntology(json.load(path))
+    @property
+    def qc_criteria(self):
+        return self._qc_criteria
 
     @property
     def data_set(self):
-        return self._data_set
-
-    @data_set.setter
-    def data_set(self, nwb_file):
-        if nwb_file:
-            self._data_set = create_ephys_data_set(
-                nwb_file=nwb_file, ontology=self.ontology_file
-            )
+        if self._data_set:
+            return self._data_set
         else:
             self._data_set = create_ephys_data_set(
-                nwb_file=self.nwb_file, ontology=self.ontology_file
+                nwb_file=self.nwb_file, ontology=self.ontology
             )
+            return self._data_set
 
     def _extract_series_data(self, series):
         sweep_number = series[0].sweep_number
@@ -188,7 +165,8 @@ class QCOperator(object):
         for sweep in sweep_gen:
             sweep_num = sweep['sweep_number']
             sweep_features = {
-                'sweep_number': sweep_num, 'stimulus_code': sweep['stimulus_code'],
+                'sweep_number': sweep_num,
+                'stimulus_code': sweep['stimulus_code'],
                 'stimulus_name': sweep['stimulus_name']
             }
             is_ramp = False
@@ -214,7 +192,6 @@ class QCOperator(object):
         return sweep_qc_results
 
     def fast_experiment_qc(self):
-        self.data_set = self.nwb_file
         sweep_table = self.data_set._data.nwb.sweep_table
 
         # number of sweeps is half the shape of the sweep table here because
@@ -222,41 +199,86 @@ class QCOperator(object):
         num_sweeps = sweep_table.series.shape[0]//2
         sweep_range = range(num_sweeps)
 
-        sweep_table_info = [[swp_num] for swp_num in sweep_range]
+        # initialize a list of dictionaries to be used in sweep table model
+        sweep_table_data = [{
+            'sweep_number': idx, 'stimulus_code': "", 'stimulus_name': "",
+            'auto_qc_state': "n/a", 'manual_qc_state': "default", 'tags': []
+        } for idx in sweep_range]
 
         self._series_iter = map(sweep_table.get_series, sweep_range)
         # iterator with all the necessary sweep data
         self._data_iter = map(self._extract_series_data, self._series_iter)
 
-        sweep_types = self.get_sweep_types()
+        # get sweep_types and update sweep table data
+        sweep_types, sweep_table_data = self.get_sweep_types_and_info(sweep_table_data)
 
         cell_features, cell_tags = self.fast_cell_qc(sweep_types)
         cell_features = deepcopy(cell_features)
 
-        sweep_features = self.fast_sweep_qc(sweep_types)
-        sweep_features = deepcopy(sweep_features)
-        drop_tagged_sweeps(sweep_features)
+        pre_qc_sweep_features = self.fast_sweep_qc(sweep_types)
+        post_qc_sweep_features = deepcopy(pre_qc_sweep_features)
+        drop_tagged_sweeps(post_qc_sweep_features)
 
         cell_state, sweep_states = qc_experiment(
             ontology=self.ontology,
             cell_features=cell_features,
-            sweep_features=sweep_features,
+            sweep_features=post_qc_sweep_features,
             qc_criteria=self.qc_criteria
         )
         qc_summary(
-            sweep_features=sweep_features,
+            sweep_features=post_qc_sweep_features,
             sweep_states=sweep_states,
             cell_features=cell_features,
             cell_state=cell_state
         )
 
-        qc_results = (
-            cell_features, cell_tags, sweep_features, cell_state, sweep_states
+        sweep_table_data = self.populate_qc_info(
+            sweep_table_data=sweep_table_data,
+            pre_qc_sweep_features=pre_qc_sweep_features,
+            post_qc_sweep_features=post_qc_sweep_features,
+            sweep_states=sweep_states
         )
 
-        return qc_results
 
-    def get_sweep_types(self):
+        qc_results = (
+            cell_features, cell_tags, pre_qc_sweep_features, cell_state, sweep_states
+        )
+
+        return qc_results, sweep_table_data
+
+    def populate_qc_info(
+        self,
+        sweep_table_data: List[dict],
+        pre_qc_sweep_features: List[dict],
+        post_qc_sweep_features: List[dict],
+        sweep_states: List[dict]
+    ):
+        """ foo
+        """
+
+        for idx, state in enumerate(sweep_states):
+            if state['passed']:
+                sweep_table_data[state['sweep_number']]['auto_qc_state'] = "passed"
+            else:
+                sweep_table_data[state['sweep_number']]['auto_qc_state'] = "failed"
+
+            sweep_table_data[state['sweep_number']]['tags'].append(
+                post_qc_sweep_features[idx]['tags'] + state['reasons']
+            )
+
+        for feature in pre_qc_sweep_features:
+            if sweep_table_data[feature['sweep_number']]['auto_qc_state'] \
+                    not in ("passed", "failed"):
+                sweep_table_data[feature['sweep_number']]['auto_qc_state'] = "failed"
+            sweep_table_data[feature['sweep_number']]['tags'].append(feature['tags'])
+
+        for idx, feature in enumerate(sweep_table_data):
+            if sweep_table_data[idx]['auto_qc_state'] not in ("passed", "failed"):
+                sweep_table_data[idx]['tags'].append(["no auto qc"])
+
+        return sweep_table_data
+
+    def get_sweep_types_and_info(self, sweep_table_data):
         sweep_keys = (
             'v_clamps', 'i_clamps', 'blowouts', 'baths', 'seals', 'breakins',
             'ramps', 'long_squares', 'coarse_long_squares', 'short_square_triples',
@@ -267,7 +289,7 @@ class QCOperator(object):
 
         ontology = self.data_set.ontology
 
-        for sweep in self._data_iter:
+        for idx, sweep in enumerate(self._data_iter):
 
             stim_unit = sweep['stimulus_unit']
 
@@ -276,8 +298,14 @@ class QCOperator(object):
             if stim_unit == "Amps":
                 sweep_types['i_clamps'].append(sweep)
 
+            # find stim code and add it to list of sweep table data
             stim_code = sweep['stimulus_code']
+            sweep_table_data[idx]['stimulus_code'] = stim_code
+
+            # find stim name and append it to list of sweep table data
             stim_name = sweep['stimulus_name']
+            sweep_table_data[idx]['stimulus_name'] = stim_name
+
             if stim_name in ontology.extp_names or ontology.extp_names[0] in stim_code:
                 sweep_types['extps'].append(sweep)
             if stim_name in ontology.test_names:
@@ -304,9 +332,7 @@ class QCOperator(object):
             if stim_name in ontology.search_names:
                 sweep_types['searches'].append(sweep)
 
-
-
-        return sweep_types
+        return sweep_types, sweep_table_data
 
     @staticmethod
     def fast_extract_blowout(blowout_sweeps, tags):
@@ -484,123 +510,12 @@ class QCOperator(object):
         }
 
 
-def slow_qc(nwb_file: str, return_data_set = False):
-    """ Does Auto QC and makes plots using single process.
+def run_auto_qc(nwb_file: str, ontology: StimulusOntology, qc_criteria: dict,
+                output_conn: Connection):
 
-    Parameters:
-        nwb_file (str): string of nwb path
-
-    Returns:
-        thumbs (list[QByteArray]): a list of plot thumbnails
-
-        qc_results (tuple): cell_features, cell_tags,
-            sweep_features, cell_state, sweep_states
-
-    """
-
-    with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
-        qc_criteria = json.load(path)
-
-    with open(StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE, "r") as path:
-        stimulus_ontology = StimulusOntology(json.load(path))
-
-    data_set = create_ephys_data_set(nwb_file=nwb_file)
-
-    # cell QC worker
-    cell_features, cell_tags = cell_qc_features(data_set)
-    cell_features = deepcopy(cell_features)
-
-    # sweep QC worker
-    sweep_features = sweep_qc_features(data_set)
-    sweep_features = deepcopy(sweep_features)
-    drop_tagged_sweeps(sweep_features)
-
-    # experiment QC worker
-    cell_state, sweep_states = qc_experiment(
-        ontology=stimulus_ontology,
-        cell_features=cell_features,
-        sweep_features=sweep_features,
-        qc_criteria=qc_criteria
-    )
-
-    qc_summary(
-        sweep_features=sweep_features,
-        sweep_states=sweep_states,
-        cell_features=cell_features,
-        cell_state=cell_state
-    )
-
-    qc_results = (
-        cell_features, cell_tags, sweep_features, cell_state, sweep_states
-    )
-    if return_data_set:
-        return qc_results, data_set
-    else:
-        return qc_results
+    qc_operator = QCOperator(nwb_file=nwb_file, ontology=ontology, qc_criteria=qc_criteria)
+    qc_results = qc_operator.fast_experiment_qc()
+    output_conn.send(qc_results)
+    output_conn.close()
 
 
-if __name__ == "__main__":
-
-    num_trials = 1
-
-    # ignore warnings during loading .nwb files
-    filterwarnings('ignore')
-
-    files = list(Path("data/nwb").glob("*.nwb"))
-    base_dir = Path(__file__).parent
-
-    today = dt.datetime.now().strftime('%y%m%d')
-    now = dt.datetime.now().strftime('%H.%M.%S')
-
-    profile_dir = base_dir.joinpath(f'fast_qc_profiles/{today}_{now}')
-    # profile_dir.mkdir(parents=True)
-
-    time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
-
-    times = [
-        {str(files[x]): dict.fromkeys(['slow_qc', 'fast_qc']) for x in range(len(files))}
-        for _ in range(num_trials)
-    ]
-    for trial in range(num_trials):
-        print(f"-----------------TRIAL {trial}-----------------")
-        for index, file in enumerate(files):
-            nwb_file = str(base_dir.joinpath(file))
-
-            start_time = default_timer()
-            qc_operator = QCOperator(nwb_file=nwb_file)
-            fast_qc_results = qc_operator.fast_experiment_qc()
-            fast_qc_time = default_timer()-start_time
-            print(f'Fast QC: {file} took {fast_qc_time} to load')
-            times[trial][str(files[index])]['fast_qc'] = fast_qc_time
-
-            start_time = default_timer()
-            slow_qc_results = slow_qc(nwb_file=nwb_file)
-            slow_qc_time = default_timer()-start_time
-            print(f'Slow QC: {file} took {slow_qc_time} to load')
-            times[trial][str(files[index])]['slow_qc'] = slow_qc_time
-
-            print(f"Cell features difference? "
-                  f"{set(slow_qc_results[0]).symmetric_difference(fast_qc_results[0])}")
-            print(f"Cell tags difference? "
-                  f"{set(slow_qc_results[1]).symmetric_difference(fast_qc_results[1])}")
-            print(f"Cell state difference?"
-                  f" {set(slow_qc_results[3]).symmetric_difference(fast_qc_results[3])}")
-            print(f"Sweep_states equal? "
-                  f"{slow_qc_results[4] == fast_qc_results[4]}")
-            print('----------------------------------------------------------')
-
-            with open(time_file, 'w') as save_loc:
-                json.dump(times, save_loc, indent=4)
-
-    for file in times[0]:
-        print(f"Elapsed times for {file}")
-        for qc_mode in times[0][file].keys():
-            print(f"    {qc_mode} times: ")
-            temp_time = 0
-            for trial in range(num_trials):
-                try:
-                    temp_time += times[trial][file][qc_mode]
-                    print(f"            {times[trial][file][qc_mode]}")
-                except TypeError:
-                    print(f"            N/A")
-            print(f"       avg: {temp_time/num_trials}")
