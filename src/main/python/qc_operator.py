@@ -239,7 +239,6 @@ class QCOperator(object):
             sweep_states=sweep_states
         )
 
-
         qc_results = (
             cell_features, cell_tags, pre_qc_sweep_features, cell_state, sweep_states
         )

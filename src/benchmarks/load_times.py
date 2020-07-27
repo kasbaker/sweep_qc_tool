@@ -20,10 +20,18 @@ from ipfx.qc_feature_evaluator import qc_experiment, DEFAULT_QC_CRITERIA_FILE
 from ipfx.bin.run_qc import qc_summary
 from ipfx.sweep_props import drop_tagged_sweeps
 from ipfx.stimulus import StimulusOntology
-from benchmarks.fast_qc import QCOperator, slow_qc
+from benchmarks.fast_qc import QCOperator, slow_qc, DataExtractorLite, QCOperatorLite
 
 # ignore warnings during loading .nwb files
 filterwarnings('ignore')
+
+
+with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
+    QC_CRITERIA = json.load(path)
+
+with open(StimulusOntology.DEFAULT_STIMULUS_ONTOLOGY_FILE, "r") \
+        as path:
+    ONTOLOGY = StimulusOntology(json.load(path))
 
 
 def svg_from_mpl_axes(fig) -> QByteArray:
@@ -63,46 +71,62 @@ class MockPlotter:
         return thumbnail
 
 
-def run_auto_qc(nwb_file: str, experiment_qc_pipe: mp.Pipe, fast_qc: bool):
+def run_auto_qc(nwb_file: str, qc_output):
 
-    if fast_qc:
-        qc_operator = QCOperator(nwb_file=nwb_file)
-        qc_results = qc_operator.fast_experiment_qc()
-    else:
-        qc_results = slow_qc(nwb_file, return_data_set=False)
+    data_extractor = DataExtractorLite(nwb_file, ONTOLOGY)
+    recording_date = data_extractor.recording_date
+    sweep_data_list = list(data_extractor.data_iter)
 
-    _, qc_out = experiment_qc_pipe
+    qc_operator = QCOperatorLite(sweep_data_list, ONTOLOGY, QC_CRITERIA, recording_date)
+    qc_results = qc_operator.fast_experiment_qc()
+
+    qc_out = qc_output
     qc_out.send(qc_results)
     qc_out.close()
 
 
-def make_plots(nwb_file: str, thumb_pipe: mp.Pipe = None, sweep_datas=None):
+def run_auto_qc_pickle(
+        sweep_data_list, ontology, qc_criteria, recording_date, qc_output
+):
+    qc_operator = QCOperatorLite(
+        sweep_data_list, ontology, qc_criteria, recording_date
+    )
+    qc_results = qc_operator.fast_experiment_qc()
+
+    qc_out = qc_output
+    qc_out.send(qc_results)
+    qc_out.close()
+
+
+def run_plot_worker(nwb_file: str, thumb_out):
+    data_set = create_ephys_data_set(nwb_file)
+    sweep_datas = map(data_set.get_sweep_data,
+        data_set._data.sweep_numbers.tolist())
+    # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
+    thumbs = make_plots(sweep_datas=sweep_datas)
+
+    # connection to send thumbnails out
+    thumb_out.send(thumbs)
+    thumb_out.close()
+
+
+def run_plot_worker_pickle(sweep_data_list, thumb_out):
+    thumbs = make_plots(sweep_datas=sweep_data_list)
+
+    # connection to send thumbnails out
+    thumb_out.send(thumbs)
+    thumb_out.close()
+
+
+def make_plots(sweep_datas):
     """ Generate thumbnail plots for all sweeps. """
-    if sweep_datas:
-        sweep_datas = sweep_datas
-    else:
-        data_set = create_ephys_data_set(nwb_file=nwb_file)
-        sweep_datas = list(map(
-            data_set.get_sweep_data,
-            list(range(len(data_set._data.sweep_numbers)))
-        ))  # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
 
     # initialize a plotter
     plotter = MockPlotter()
     thumbs = list(map(plotter.make_plot, sweep_datas))
+    return thumbs
 
-    if thumb_pipe:
-        # pipe to send thumbnails out
-        _, thumb_out = thumb_pipe
-        thumb_out.send(thumbs)
-        thumb_out.close()
-        # print(f"plotting took {default_timer() - start_time} seconds")
-    else:
-        # print(f"plotting took {default_timer() - start_time} seconds")
-        return thumbs
-
-
-def plot_process(nwb_file: str):
+def plot_process(nwb_file: str, series_iter):
     """ Makes plots using single process.
 
     Parameters:
@@ -112,69 +136,100 @@ def plot_process(nwb_file: str):
         thumbs (list[QByteArray]): a list of plot thumbnails
 
     """
+    series_iter = series_iter
     plot_pipe = mp.Pipe(duplex=False)
     plot_worker = mp.Process(
-        name="plot_worker", target=make_plots, args=(nwb_file, plot_pipe)
+        name="plot_worker", target=make_plots, args=(nwb_file, plot_pipe, series_iter)
     )
     return plot_pipe, plot_worker
 
 
-def single_process(nwb_file: str, fast_qc: bool):
-    """ Does Auto QC and makes plots using single process.
-
-    Parameters:
-        nwb_file (str): string of nwb path
-
-    Returns:
-        thumbs (list[QByteArray]): a list of plot thumbnails
-
-        qc_results (tuple): cell_features, cell_tags,
-            sweep_features, cell_state, sweep_states
-
-    """
-    if fast_qc:
-        qc_operator = QCOperator(nwb_file=nwb_file)
-        qc_results = qc_operator.fast_experiment_qc()
-        data_set = qc_operator.data_set
-    else:
-        qc_results, data_set = slow_qc(nwb_file=nwb_file, return_data_set=True)
-
-    sweep_datas = list(map(
-        data_set.get_sweep_data,
-        list(range(len(data_set._data.sweep_numbers)))
-    ))  # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
-
-    thumbs = make_plots(nwb_file=nwb_file, sweep_datas=sweep_datas)
-
-    return thumbs, qc_results
-
-
-def plot_worker(nwb_file: str, fast_qc: bool):
-    plot_pipe, plot_worker = plot_process(nwb_file=nwb_file)
-    plot_worker.daemon = True
-
-    plot_worker.start()
-    if fast_qc:
-        qc_operator = QCOperator(nwb_file=nwb_file)
-        qc_results = qc_operator.fast_experiment_qc()
-    else:
-        qc_results = slow_qc(nwb_file=nwb_file, return_data_set=False)
-
-    plot_pipe[1].close()
-    thumbs = plot_pipe[0].recv()
-    plot_worker.join()
-    plot_worker.terminate()
-
-    return thumbs, qc_results
+# def single_process(nwb_file: str, fast_qc: bool):
+#     """ Does Auto QC and makes plots using single process.
+#
+#     Parameters:
+#         nwb_file (str): string of nwb path
+#
+#     Returns:
+#         thumbs (list[QByteArray]): a list of plot thumbnails
+#
+#         qc_results (tuple): cell_features, cell_tags,
+#             sweep_features, cell_state, sweep_states
+#
+#     """
+#     if fast_qc:
+#         qc_operator = QCOperator(nwb_file=nwb_file)
+#         qc_results = qc_operator.fast_experiment_qc()
+#         data_set = qc_operator.data_set
+#     else:
+#         qc_results, data_set = slow_qc(nwb_file=nwb_file, return_data_set=True)
+#
+#     sweep_datas = list(map(
+#         data_set.get_sweep_data,
+#         list(range(len(data_set._data.sweep_numbers)))
+#     ))  # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
+#
+#     thumbs = make_plots(sweep_datas=sweep_datas)
+#
+#     return thumbs, qc_results
 
 
-def qc_worker(nwb_file: str, fast_qc: bool):
+# def dual_process(nwb_file: str, fast_qc: bool):
+#     """ Does Auto QC and makes plot using two processes.
+#
+#     Parameters:
+#         nwb_file (str): string of nwb path
+#
+#     Returns:
+#         thumbs (list[QByteArray]): a list of plot thumbnails
+#
+#         qc_results (tuple): cell_features, cell_tags,
+#             sweep_features, cell_state, sweep_states
+#
+#     """
+#
+#     # spawn qc pipe and worker
+#     # pipe for qc data
+#     qc_pipe = mp.Pipe(duplex=False)
+#     # worker to do auto-qc
+#     qc_worker = mp.Process(
+#         name="qc_worker",
+#         target=run_auto_qc, args=(nwb_file, qc_pipe, fast_qc)
+#     )
+#
+#     # spawn plot pipe and worker
+#     plot_pipe, plot_worker = plot_process(nwb_file=nwb_file)
+#
+#     # start workers
+#     qc_worker.start()
+#     plot_worker.start()
+#
+#     # close pipes
+#     qc_pipe[1].close()
+#     plot_pipe[1].close()
+#
+#     # receive datas
+#     thumbs = plot_pipe[0].recv()
+#     qc_results = qc_pipe[0].recv()
+#
+#     # join workers
+#     qc_worker.join()
+#     plot_worker.join()
+#
+#     # kill workers
+#     qc_worker.terminate()
+#     plot_worker.terminate()
+#
+#     return thumbs, qc_results
+
+
+def qc_worker(nwb_file: str):
 
     qc_pipe = mp.Pipe(duplex=False)
     # worker to do auto-qc
     qc_worker = mp.Process(
         name="qc_worker",
-        target=run_auto_qc, args=(nwb_file, qc_pipe, fast_qc)
+        target=run_auto_qc, args=(nwb_file, qc_pipe[1])
     )
     qc_worker.daemon = True
 
@@ -184,7 +239,7 @@ def qc_worker(nwb_file: str, fast_qc: bool):
     sweep_datas = map(data_set.get_sweep_data,
         data_set._data.sweep_numbers.tolist())
     # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
-    thumbs = make_plots(nwb_file=nwb_file, sweep_datas=sweep_datas)
+    thumbs = make_plots(sweep_datas=sweep_datas)
 
     qc_pipe[1].close()
     qc_results = qc_pipe[0].recv()
@@ -194,72 +249,105 @@ def qc_worker(nwb_file: str, fast_qc: bool):
     return thumbs, qc_results
 
 
-def dual_process(nwb_file: str, fast_qc: bool):
-    """ Does Auto QC and makes plot using two processes.
+def qc_worker_pickle(nwb_file):
+    data_extractor = DataExtractorLite(nwb_file=nwb_file, ontology=ONTOLOGY)
+    sweep_data_iter = data_extractor.data_iter
+    sweep_data_list = list(sweep_data_iter)
+    recording_date = data_extractor.recording_date
 
-    Parameters:
-        nwb_file (str): string of nwb path
-
-    Returns:
-        thumbs (list[QByteArray]): a list of plot thumbnails
-
-        qc_results (tuple): cell_features, cell_tags,
-            sweep_features, cell_state, sweep_states
-
-    """
-
-    # spawn qc pipe and worker
-    # pipe for qc data
     qc_pipe = mp.Pipe(duplex=False)
     # worker to do auto-qc
     qc_worker = mp.Process(
         name="qc_worker",
-        target=run_auto_qc, args=(nwb_file, qc_pipe, fast_qc)
+        target=run_auto_qc_pickle, args=(
+            sweep_data_list, ONTOLOGY, QC_CRITERIA, recording_date, qc_pipe[1]
+            )
     )
+    qc_worker.daemon = True
 
-    # spawn plot pipe and worker
-    plot_pipe, plot_worker = plot_process(nwb_file=nwb_file)
-
-    # start workers
     qc_worker.start()
+
+    # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
+    thumbs = make_plots(sweep_datas=sweep_data_iter)
+
+    qc_pipe[1].close()
+    qc_results = qc_pipe[0].recv()
+    qc_worker.join()
+    qc_worker.terminate()
+
+    return thumbs, qc_results
+
+
+def plot_worker(nwb_file: str):
+    plot_pipe = mp.Pipe(duplex=False)
+    # worker to do make thumbnails
+    plot_worker = mp.Process(
+        name="qc_worker",
+        target=run_plot_worker, args=(nwb_file, plot_pipe[1])
+    )
+    plot_worker.daemon = True
     plot_worker.start()
 
-    # close pipes
-    qc_pipe[1].close()
+    data_extractor = DataExtractorLite(nwb_file, ONTOLOGY)
+    recording_date = data_extractor.recording_date
+    sweep_data_list = list(data_extractor.data_iter)
+
+    qc_operator = QCOperatorLite(sweep_data_list, ONTOLOGY, QC_CRITERIA, recording_date)
+    qc_results = qc_operator.fast_experiment_qc()
+
     plot_pipe[1].close()
-
-    # receive datas
     thumbs = plot_pipe[0].recv()
-    qc_results = qc_pipe[0].recv()
-
-    # join workers
-    qc_worker.join()
     plot_worker.join()
-
-    # kill workers
-    qc_worker.terminate()
     plot_worker.terminate()
 
     return thumbs, qc_results
 
 
-def main(nwb_file, load_method: int, dual=False, fast_qc=False):
+def plot_worker_pickle(nwb_file: str):
+    data_extractor = DataExtractorLite(nwb_file=nwb_file, ontology=ONTOLOGY)
+    sweep_data_iter = data_extractor.data_iter
+    sweep_data_list = list(sweep_data_iter)
+
+    plot_pipe = mp.Pipe(duplex=False)
+    # worker to do make thumbnails
+    plot_worker = mp.Process(
+        name="qc_worker",
+        target=run_plot_worker_pickle, args=(sweep_data_list, plot_pipe[1])
+    )
+    plot_worker.daemon = True
+
+    plot_worker.start()
+
+    recording_date = data_extractor.recording_date
+
+    qc_operator = QCOperatorLite(sweep_data_list, ONTOLOGY, QC_CRITERIA, recording_date)
+    qc_results = qc_operator.fast_experiment_qc()
+
+    plot_pipe[1].close()
+    thumbs = plot_pipe[0].recv()
+    plot_worker.join()
+    plot_worker.terminate()
+
+    return thumbs, qc_results
+
+
+def main(nwb_file, load_method: int):
     start_time = default_timer()
 
     if load_method == 0:
-        thumbs, qc_results = qc_worker(nwb_file=nwb_file, fast_qc=False)
+        thumbs, qc_results = qc_worker(nwb_file=nwb_file)
         elapsed_time = default_timer() - start_time
     elif load_method == 1:
-        thumbs, qc_results = qc_worker(nwb_file=nwb_file, fast_qc=True)
+        thumbs, qc_results = qc_worker_pickle(nwb_file=nwb_file)
         elapsed_time = default_timer() - start_time
     elif load_method == 2:
-        thumbs, qc_results = plot_worker(nwb_file=nwb_file, fast_qc=False)
+        thumbs, qc_results = plot_worker(nwb_file=nwb_file)
         elapsed_time = default_timer() - start_time
     elif load_method == 3:
-        thumbs, qc_results = plot_worker(nwb_file=nwb_file, fast_qc=True)
+        thumbs, qc_results = plot_worker_pickle(nwb_file=nwb_file)
         elapsed_time = default_timer() - start_time
     else:
-        thumbs, qc_results = single_process(nwb_file, fast_qc=fast_qc)
+    #     thumbs, qc_results = single_process(nwb_file)
         elapsed_time = default_timer() - start_time
 
     # if dual:
@@ -292,8 +380,8 @@ if __name__ == '__main__':
 
     time_file = base_dir.joinpath(f'qc_times/{today}_{now}.json')
 
-    load_methods = ('qc_worker-slow', 'qc_worker-fast',
-                    'plot_worker-slow', 'plot_worker-fast')
+    load_methods = ('qc_worker', 'qc_worker_pickle',
+                    'plot_worker', 'plot_worker_pickle')
 
     times = [
         {str(files[x]): dict.fromkeys(
@@ -321,13 +409,13 @@ if __name__ == '__main__':
             for index, file in enumerate(files):
                 nwb_file = str(base_dir.joinpath(file))
 
-                # qc_0 = main(
-                #     nwb_file=nwb_file, load_method=0
-                # )
-                # print(f"{load_methods[0]}: {file} took {qc_0} time to load")
-                # times[trial][str(files[index])][load_methods[0]] = qc_0
-                # with open(time_file, 'w') as save_loc:
-                #     json.dump(times, save_loc, indent=4)
+                qc_0 = main(
+                    nwb_file=nwb_file, load_method=0
+                )
+                print(f"{load_methods[0]}: {file} took {qc_0} time to load")
+                times[trial][str(files[index])][load_methods[0]] = qc_0
+                with open(time_file, 'w') as save_loc:
+                    json.dump(times, save_loc, indent=4)
 
                 qc_1 = main(
                     nwb_file=nwb_file, load_method=1
@@ -337,13 +425,13 @@ if __name__ == '__main__':
                 with open(time_file, 'w') as save_loc:
                     json.dump(times, save_loc, indent=4)
 
-                # qc_2 = main(
-                #     nwb_file=nwb_file, load_method=2
-                # )
-                # print(f"{load_methods[2]}: {file} took {qc_2} time to load")
-                # times[trial][str(files[index])][load_methods[2]] = qc_2
-                # with open(time_file, 'w') as save_loc:
-                #     json.dump(times, save_loc, indent=4)
+                qc_2 = main(
+                    nwb_file=nwb_file, load_method=2
+                )
+                print(f"{load_methods[2]}: {file} took {qc_2} time to load")
+                times[trial][str(files[index])][load_methods[2]] = qc_2
+                with open(time_file, 'w') as save_loc:
+                    json.dump(times, save_loc, indent=4)
 
                 qc_3 = main(
                     nwb_file=nwb_file, load_method=3
