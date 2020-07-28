@@ -367,7 +367,7 @@ def main(nwb_file, load_method: int):
 
 if __name__ == '__main__':
 
-    num_trials = 2
+    num_trials = 10
     profile = False
 
     files = list(Path("data/nwb").glob("*.nwb"))
