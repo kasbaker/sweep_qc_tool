@@ -1,8 +1,6 @@
 import io
-import os
 from pathlib import Path
 import multiprocessing as mp
-from copy import deepcopy
 import datetime as dt
 import json
 from warnings import filterwarnings
@@ -15,12 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from ipfx.dataset.create import create_ephys_data_set
-from ipfx.qc_feature_extractor import cell_qc_features, sweep_qc_features
-from ipfx.qc_feature_evaluator import qc_experiment, DEFAULT_QC_CRITERIA_FILE
-from ipfx.bin.run_qc import qc_summary
-from ipfx.sweep_props import drop_tagged_sweeps
+from ipfx.qc_feature_evaluator import DEFAULT_QC_CRITERIA_FILE
 from ipfx.stimulus import StimulusOntology
-from benchmarks.fast_qc import QCOperator, slow_qc, DataExtractorLite, QCOperatorLite
+from benchmarks.fast_qc import DataExtractorLite, QCOperatorLite
 
 # ignore warnings during loading .nwb files
 filterwarnings('ignore')
@@ -126,6 +121,7 @@ def make_plots(sweep_datas):
     thumbs = list(map(plotter.make_plot, sweep_datas))
     return thumbs
 
+
 def plot_process(nwb_file: str, series_iter):
     """ Makes plots using single process.
 
@@ -144,85 +140,6 @@ def plot_process(nwb_file: str, series_iter):
     return plot_pipe, plot_worker
 
 
-# def single_process(nwb_file: str, fast_qc: bool):
-#     """ Does Auto QC and makes plots using single process.
-#
-#     Parameters:
-#         nwb_file (str): string of nwb path
-#
-#     Returns:
-#         thumbs (list[QByteArray]): a list of plot thumbnails
-#
-#         qc_results (tuple): cell_features, cell_tags,
-#             sweep_features, cell_state, sweep_states
-#
-#     """
-#     if fast_qc:
-#         qc_operator = QCOperator(nwb_file=nwb_file)
-#         qc_results = qc_operator.fast_experiment_qc()
-#         data_set = qc_operator.data_set
-#     else:
-#         qc_results, data_set = slow_qc(nwb_file=nwb_file, return_data_set=True)
-#
-#     sweep_datas = list(map(
-#         data_set.get_sweep_data,
-#         list(range(len(data_set._data.sweep_numbers)))
-#     ))  # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
-#
-#     thumbs = make_plots(sweep_datas=sweep_datas)
-#
-#     return thumbs, qc_results
-
-
-# def dual_process(nwb_file: str, fast_qc: bool):
-#     """ Does Auto QC and makes plot using two processes.
-#
-#     Parameters:
-#         nwb_file (str): string of nwb path
-#
-#     Returns:
-#         thumbs (list[QByteArray]): a list of plot thumbnails
-#
-#         qc_results (tuple): cell_features, cell_tags,
-#             sweep_features, cell_state, sweep_states
-#
-#     """
-#
-#     # spawn qc pipe and worker
-#     # pipe for qc data
-#     qc_pipe = mp.Pipe(duplex=False)
-#     # worker to do auto-qc
-#     qc_worker = mp.Process(
-#         name="qc_worker",
-#         target=run_auto_qc, args=(nwb_file, qc_pipe, fast_qc)
-#     )
-#
-#     # spawn plot pipe and worker
-#     plot_pipe, plot_worker = plot_process(nwb_file=nwb_file)
-#
-#     # start workers
-#     qc_worker.start()
-#     plot_worker.start()
-#
-#     # close pipes
-#     qc_pipe[1].close()
-#     plot_pipe[1].close()
-#
-#     # receive datas
-#     thumbs = plot_pipe[0].recv()
-#     qc_results = qc_pipe[0].recv()
-#
-#     # join workers
-#     qc_worker.join()
-#     plot_worker.join()
-#
-#     # kill workers
-#     qc_worker.terminate()
-#     plot_worker.terminate()
-#
-#     return thumbs, qc_results
-
-
 def qc_worker(nwb_file: str):
 
     qc_pipe = mp.Pipe(duplex=False)
@@ -235,11 +152,14 @@ def qc_worker(nwb_file: str):
 
     qc_worker.start()
 
-    data_set = create_ephys_data_set(nwb_file)
-    sweep_datas = map(data_set.get_sweep_data,
-        data_set._data.sweep_numbers.tolist())
+    data_extractor = DataExtractorLite(nwb_file=nwb_file, ontology=ONTOLOGY)
+    sweep_data_iter = data_extractor.data_iter
+
+    # data_set = create_ephys_data_set(nwb_file)
+    # sweep_datas = map(data_set.get_sweep_data,
+    #     data_set._data.sweep_numbers.tolist())
     # grab sweep numbers from ._data.sweep_numbers (impolite, but fast)
-    thumbs = make_plots(sweep_datas=sweep_datas)
+    thumbs = make_plots(sweep_datas=sweep_data_iter)
 
     qc_pipe[1].close()
     qc_results = qc_pipe[0].recv()
@@ -261,7 +181,7 @@ def qc_worker_pickle(nwb_file):
         name="qc_worker",
         target=run_auto_qc_pickle, args=(
             sweep_data_list, ONTOLOGY, QC_CRITERIA, recording_date, qc_pipe[1]
-            )
+        )
     )
     qc_worker.daemon = True
 
@@ -367,7 +287,7 @@ def main(nwb_file, load_method: int):
 
 if __name__ == '__main__':
 
-    num_trials = 10
+    num_trials = 2
     profile = False
 
     files = list(Path("data/nwb").glob("*.nwb"))

@@ -16,8 +16,10 @@ from ipfx.sweep_props import drop_tagged_sweeps
 from error_handling import exception_message
 from marshmallow import ValidationError
 from schemas import PipelineParameters
-from qc_operator import run_auto_qc
 from sweep_plotter import SweepPlotter, SweepPlotConfig
+from qc_operator import run_auto_qc
+from data_extractor import DataExtractor
+# from benchmarks.sweep_plotter_lite import  SweepPlotterLite
 
 
 class PreFxData(QObject):
@@ -32,7 +34,7 @@ class PreFxData(QObject):
     end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
 
     # signal to send data to the sweep table once auto qc and plotting is done
-    sweep_table_data_ready = pyqtSignal(list, list, name="data_ready")
+    sweep_table_data_ready = pyqtSignal(list, name="data_ready")
 
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
 
@@ -288,13 +290,20 @@ class PreFxData(QObject):
 
     def run_auto_qc_and_make_plots(self, nwb_path, stimulus_ontology, qc_criteria):
         """" foo"""
-        self.status_message.emit("Starting auto-QC...")
+        self.status_message.emit("Extracting EPhys Data...")
+        data_extractor = DataExtractor(nwb_file=nwb_path, ontology=stimulus_ontology)
+        sweep_data_iter = data_extractor.data_iter
+        sweep_data_list = list(sweep_data_iter)
+        recording_date = data_extractor.recording_date
+
         qc_pipe = Pipe(duplex=False)
         qc_worker = Process(
-            name="qc_worker", target=run_auto_qc,
-            args=(nwb_path, stimulus_ontology, qc_criteria, qc_pipe[1])
+            name="qc_worker", target=run_auto_qc, args=(
+                sweep_data_list, stimulus_ontology, qc_criteria, recording_date, qc_pipe[1]
+            )
         )
         qc_worker.daemon = True
+        self.status_message.emit("Starting auto-QC...")
         qc_worker.start()
 
         data_set = create_ephys_data_set(nwb_path)
@@ -307,7 +316,19 @@ class PreFxData(QObject):
         qc_results, sweep_table_data = qc_pipe[0].recv()
         qc_worker.join()
         qc_worker.terminate()
-        self.sweep_table_data_ready.emit(sweep_table_data, sweep_plots)
+
+        new_data = [[
+            index,
+            row['stimulus_code'],
+            row['stimulus_name'],
+            row['auto_qc_state'],
+            row['manual_qc_state'],
+            format_fail_tags(row['tags']),  # fail tags
+            sweep_plots[index][0],
+            sweep_plots[index][1]
+        ] for index, row in enumerate(sweep_table_data)]
+
+        self.sweep_table_data_ready.emit(new_data)
 
     def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
         """ Creates a data set from the nwb path;
@@ -608,3 +629,21 @@ def run_qc(stimulus_ontology, cell_features, sweep_features, qc_criteria):
     )
 
     return cell_state, cell_features, sweep_states, post_qc_sweep_features
+
+
+def format_fail_tags(tags: List[str]) -> str:
+    """ Joins lists of strings containing information about the qc state
+    for each sweep and joins them together in a nice readable format.
+
+    Parameters
+    ----------
+    tags: List[str]
+        a list of strings containing tags related to qc states
+
+    Returns
+    -------
+    formatted_tags : str
+        a single string containing the tags passed into this function
+
+    """
+    return "\n\n".join(tags)
