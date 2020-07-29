@@ -232,11 +232,10 @@ class FixedPlots(NamedTuple):
     full: PopupPlotter
 
 
-
-
 class SweepPlotterLite(object):
 
-    def __init__(self, data_iter, config: SweepPlotConfig):
+    def __init__(self, sweep_data_iter: map, config: SweepPlotConfig,
+                 show_tp_codes: set):
         """ Generate plots for each sweep in an experiment
 
         Parameters
@@ -250,11 +249,16 @@ class SweepPlotterLite(object):
         self.fig, self.ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
         self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
-        self._data_iter = data_iter
+        self._sweep_data_iter = sweep_data_iter
         self.config = config
+        self.store_tp_codes = show_tp_codes
+
         self.tp_baseline_samples = config.test_pulse_baseline_samples
         self.exp_baseline_samples = config.experiment_baseline_start_index - \
                                     config.experiment_baseline_end_index
+
+
+        # self._plot_data_iter = map(self.get_plot_data, self._sweep_data_iter)
 
         # initial and previous test pulse data for current clamp
         self.initial_vclamp_data: Optional[PlotData] = None
@@ -264,11 +268,53 @@ class SweepPlotterLite(object):
         self.initial_iclamp_data: Optional[PlotData] = None
         self.previous_iclamp_data: Optional[PlotData] = None
 
-    def get_plot_datas(self):
+    def get_plot_data(
+            self,
+            sweep_data: dict,
+    ):
+        exp_epoch = sweep_data['epochs']['experiment']
+        if exp_epoch and exp_epoch[0] > 0:
+            tp_start_idx = 0
+            tp_end_idx = sweep_data['epochs']['test'][1]
+            exp_start_idx = tp_end_idx
+            exp_end_idx = len(sweep_data['stimulus']) - 1
+        else:
+            tp_start_idx = 0
+            tp_end_idx = len(sweep_data['stimulus']) - 1
+            exp_start_idx = tp_start_idx
+            exp_end_idx = tp_end_idx
+        num_tp_pts = tp_end_idx - tp_start_idx
+        tp_plot_data = PlotData(
+            stimulus=sweep_data['stimulus'][tp_start_idx:tp_end_idx],
+            response=sweep_data['response'][tp_start_idx:tp_end_idx] - np.mean(
+                sweep_data['response'][0: self.tp_baseline_samples]
+            ),
+            time=np.linspace(
+                tp_start_idx / sweep_data['sampling_rate'],
+                (tp_start_idx + num_tp_pts) / sweep_data['sampling_rate'],
+                num_tp_pts
+            )
+        )
 
-        # take 'test
-        plot_data_iter = map(self.get_plot_data, self._data_iter)
+        num_expt_pts = exp_end_idx - exp_start_idx
+        exp_plot_data = PlotData(
+            stimulus=sweep_data['stimulus'][tp_start_idx:tp_end_idx],
+            response=sweep_data['response'][tp_start_idx:tp_end_idx] - np.mean(
+                sweep_data['response'][0: self.exp_baseline_samples]
+            ),
+            time=np.linspace(
+                exp_start_idx / sweep_data['sampling_rate'],
+                (exp_start_idx + num_tp_pts) / sweep_data['sampling_rate'],
+                num_expt_pts
+            )
+        )
 
+        return tp_plot_data, exp_plot_data
+
+    # def gen_plots(self):
+    #     for sweep in self._sweep_data_iter:
+    #         if any(substring in sweep['stimulus_code'] for substring in self.store_tp_codes):
+    #         yield FixedPlots('foo')
 
 
     def make_test_pulse_plots(
@@ -408,49 +454,6 @@ class SweepPlotterLite(object):
         #     self.make_experiment_plots(sweep_number, sweep_data, y_label)
         # )
 
-    def get_plot_data(
-            self,
-            sweep_data: dict,
-    ):
-
-        exp_epoch = sweep_data['epochs']['experiment']
-        if exp_epoch and exp_epoch[0] > 0:
-            tp_start_idx = 0
-            tp_end_idx = sweep_data['epochs']['test'][1]
-            exp_start_idx = tp_end_idx
-            exp_end_idx = len(sweep_data['stimulus']) - 1
-        else:
-            tp_start_idx = 0
-            tp_end_idx = len(sweep_data['stimulus']) - 1
-            exp_start_idx = tp_start_idx
-            exp_end_idx = tp_end_idx
-        num_tp_pts = tp_end_idx - tp_start_idx
-        tp_plot_data = PlotData(
-            stimulus=sweep_data['stimulus'][tp_start_idx:tp_end_idx],
-            response=sweep_data['response'][tp_start_idx:tp_end_idx] - np.mean(
-                sweep_data['response'][0: self.tp_baseline_samples]
-            ),
-            time= np.linspace(
-                tp_start_idx / sweep_data['sampling_rate'],
-                (tp_start_idx + num_tp_pts) / sweep_data['sampling_rate'],
-                num_tp_pts
-            )
-        )
-
-        num_expt_pts = exp_end_idx - exp_start_idx
-        exp_plot_data = PlotData(
-            stimulus=sweep_data['stimulus'][tp_start_idx:tp_end_idx],
-            response=sweep_data['response'][tp_start_idx:tp_end_idx] - np.mean(
-                sweep_data['response'][0: self.exp_baseline_samples]
-            ),
-            time=np.linspace(
-                exp_start_idx / sweep_data['sampling_rate'],
-                (exp_start_idx + num_tp_pts) / sweep_data['sampling_rate'],
-                num_expt_pts
-            )
-        )
-
-        return tp_plot_data, exp_plot_data
 
 
 

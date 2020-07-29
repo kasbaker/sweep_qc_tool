@@ -306,6 +306,9 @@ class PreFxData(QObject):
         self.status_message.emit("Starting auto-QC...")
         qc_worker.start()
 
+        # store_tp_codes = {"EXTPGGAEND", }
+
+
         data_set = create_ephys_data_set(nwb_path)
         plotter = SweepPlotter(data_set=data_set, config=self.plot_config)
         sweep_plots = []
@@ -316,6 +319,7 @@ class PreFxData(QObject):
         qc_results, sweep_table_data = qc_pipe[0].recv()
         qc_worker.join()
         qc_worker.terminate()
+
 
         new_data = [[
             index,
