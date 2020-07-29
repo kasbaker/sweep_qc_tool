@@ -234,8 +234,12 @@ class FixedPlots(NamedTuple):
 
 class SweepPlotterLite(object):
 
-    def __init__(self, sweep_data_iter: map, config: SweepPlotConfig,
-                 show_tp_codes: set):
+    DEFAULT_TP_EXCLUDE = {
+        "EXTPBLWOUT", "EXTPBREAKN", "EXTPCllATT", "EXTPEXPEND", "EXTPINBATH",
+        "EXTPRSCHEK", "EXTPSAFETY", "EXTPSMOKET", "Search"
+    }
+
+    def __init__(self, sweep_data_iter: map, config: SweepPlotConfig):
         """ Generate plots for each sweep in an experiment
 
         Parameters
@@ -251,12 +255,11 @@ class SweepPlotterLite(object):
 
         self._sweep_data_iter = sweep_data_iter
         self.config = config
-        self.store_tp_codes = show_tp_codes
+        self.tp_exclude = self.DEFAULT_TP_EXCLUDE
 
         self.tp_baseline_samples = config.test_pulse_baseline_samples
         self.exp_baseline_samples = config.experiment_baseline_start_index - \
                                     config.experiment_baseline_end_index
-
 
         # self._plot_data_iter = map(self.get_plot_data, self._sweep_data_iter)
 
@@ -308,14 +311,19 @@ class SweepPlotterLite(object):
                 num_expt_pts
             )
         )
-
         return tp_plot_data, exp_plot_data
 
-    # def gen_plots(self):
-    #     for sweep in self._sweep_data_iter:
-    #         if any(substring in sweep['stimulus_code'] for substring in self.store_tp_codes):
-    #         yield FixedPlots('foo')
+    def gen_plots(self):
+        for sweep in self._sweep_data_iter:
+            tp_plot_data, exp_plot_data = self.get_plot_data(sweep)
+            if any(substring in sweep['stimulus_code'] for substring in self.tp_exclude):
+                # don't save test pulse if stim code contains excluded strings
+                ...
+            else:
+                # save the test pulse
+                ...
 
+            yield FixedPlots('testpulse'), FixedPlots('experiment')
 
     def make_test_pulse_plots(
             self,
