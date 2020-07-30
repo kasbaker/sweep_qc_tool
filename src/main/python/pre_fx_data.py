@@ -19,6 +19,7 @@ from schemas import PipelineParameters
 from sweep_plotter import SweepPlotter, SweepPlotConfig
 from qc_operator import run_auto_qc
 from data_extractor import DataExtractor
+from benchmarks.sweep_plotter_lite import SweepPlotterLite
 # from benchmarks.sweep_plotter_lite import  SweepPlotterLite
 
 
@@ -288,12 +289,30 @@ class PreFxData(QObject):
                 ioerr
             )
 
-    def run_auto_qc_and_make_plots(self, nwb_path, stimulus_ontology, qc_criteria):
-        """" foo"""
+    def run_auto_qc_and_make_plots(
+            self, nwb_path: str,
+            stimulus_ontology: StimulusOntology, qc_criteria: list
+    ):
+        """" Extract ephys data and obtain sweep data iterator. Generate a list
+        from this sweep data iterator, pickle it, then send it through a pipe
+        to a QC_worker process. Simultaneously generate thumbnail-popup plot
+        pairs. Close the pipe, receive the qc results, join, and terminate the
+        QC worker process. Send the new sweep table data to the sweep table
+        model.
+
+        Parameters
+        ----------
+        nwb_path : str
+            path of the .nwb file to extract the data from
+        stimulus_ontology : StimulusOntology
+            stimulus ontology object used in data extraction
+        qc_criteria : list
+            list containing the criteria for auto-qc
+
+        """
         self.status_message.emit("Extracting EPhys Data...")
         data_extractor = DataExtractor(nwb_file=nwb_path, ontology=stimulus_ontology)
-        sweep_data_iter = data_extractor.data_iter
-        sweep_data_list = list(sweep_data_iter)
+        sweep_data_list = list(data_extractor.data_iter)
         recording_date = data_extractor.recording_date
 
         qc_pipe = Pipe(duplex=False)
@@ -306,14 +325,9 @@ class PreFxData(QObject):
         self.status_message.emit("Starting auto-QC...")
         qc_worker.start()
 
-        # store_tp_codes = {"EXTPGGAEND", }
-
-
-        data_set = create_ephys_data_set(nwb_path)
-        plotter = SweepPlotter(data_set=data_set, config=self.plot_config)
-        sweep_plots = []
-        for sweep_num in data_set._data.sweep_numbers:
-            sweep_plots.append(plotter.advance(int(sweep_num)))
+        # creating plots
+        plotter = SweepPlotterLite(sweep_data_list=sweep_data_list, config=self.plot_config)
+        sweep_plots = list(plotter.gen_plots())
 
         qc_pipe[1].close()
         qc_results, sweep_table_data = qc_pipe[0].recv()
