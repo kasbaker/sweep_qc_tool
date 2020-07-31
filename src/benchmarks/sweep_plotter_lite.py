@@ -239,7 +239,7 @@ class SweepPlotterLite(object):
         "EXTPRSCHEK", "EXTPSAFETY", "EXTPSMOKET", "EXTPGGAEND", "Search"  # save GGAEND to test seal?
     }
 
-    def __init__(self, sweep_data_list: list, config: SweepPlotConfig):
+    def __init__(self, sweep_data_tuple: tuple, config: SweepPlotConfig):
         """ Generate plots for each sweep in an experiment
 
         Parameters
@@ -253,7 +253,7 @@ class SweepPlotterLite(object):
         self.fig, self.ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
         self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
-        self._sweep_data_list = sweep_data_list
+        self._sweep_data_tuple = sweep_data_tuple
         self.config = config
         self.tp_exclude_codes = self.DEFAULT_TP_EXCLUDE
 
@@ -334,7 +334,7 @@ class SweepPlotterLite(object):
 
     def gen_plots(self):
         """ Generate a pair of fixed plots for sweeps in sweep data iterator. """
-        for sweep in self._sweep_data_list:
+        for sweep in self._sweep_data_tuple:
             # split up test pulse and experiment epochs
             tp_plot_data, exp_plot_data, exp_baseline_mean = self.get_plot_data(sweep)
 

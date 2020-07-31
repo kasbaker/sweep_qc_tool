@@ -68,6 +68,9 @@ class DataExtractor(object):
         return self._data_iter
 
     def _extract_series_data(self, series):
+        # series is broken here for new nwb2 files saved by WSE. There are 4
+        # series associated with all sweeps before GGAEND. GGAEND and NucVC
+        # sweeps have only 2 series associated with them, as usual
         sweep_number = series[0].sweep_number
 
         stimulus_code = ""

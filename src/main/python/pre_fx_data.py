@@ -312,13 +312,13 @@ class PreFxData(QObject):
         """
         self.status_message.emit("Extracting EPhys Data...")
         data_extractor = DataExtractor(nwb_file=nwb_path, ontology=stimulus_ontology)
-        sweep_data_list = list(data_extractor.data_iter)
+        sweep_data_tuple = tuple(data_extractor.data_iter)
         recording_date = data_extractor.recording_date
 
         qc_pipe = Pipe(duplex=False)
         qc_worker = Process(
             name="qc_worker", target=run_auto_qc, args=(
-                sweep_data_list, stimulus_ontology, qc_criteria, recording_date, qc_pipe[1]
+                sweep_data_tuple, stimulus_ontology, qc_criteria, recording_date, qc_pipe[1]
             )
         )
         qc_worker.daemon = True
@@ -326,14 +326,13 @@ class PreFxData(QObject):
         qc_worker.start()
 
         # creating plots
-        plotter = SweepPlotterLite(sweep_data_list=sweep_data_list, config=self.plot_config)
-        sweep_plots = list(plotter.gen_plots())
+        plotter = SweepPlotterLite(sweep_data_tuple=sweep_data_tuple, config=self.plot_config)
+        sweep_plots = tuple(plotter.gen_plots())
 
         qc_pipe[1].close()
         qc_results, sweep_table_data = qc_pipe[0].recv()
         qc_worker.join()
         qc_worker.terminate()
-
 
         new_data = [[
             index,
