@@ -15,7 +15,7 @@ import numpy as np
 from ipfx.dataset.create import create_ephys_data_set
 from ipfx.qc_feature_evaluator import DEFAULT_QC_CRITERIA_FILE
 from ipfx.stimulus import StimulusOntology
-from benchmarks.fast_qc import DataExtractorLite, QCOperatorLite
+from optimization.fast_qc import DataExtractorLite, QCOperatorLite
 
 # ignore warnings during loading .nwb files
 filterwarnings('ignore')

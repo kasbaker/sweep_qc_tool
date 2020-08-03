@@ -19,8 +19,8 @@ from schemas import PipelineParameters
 from sweep_plotter import SweepPlotter, SweepPlotConfig
 from qc_operator import run_auto_qc
 from data_extractor import DataExtractor
-from benchmarks.sweep_plotter_lite import SweepPlotterLite
-# from benchmarks.sweep_plotter_lite import  SweepPlotterLite
+from optimization.sweep_plotter_lite import SweepPlotterLite
+# from optimization.sweep_plotter_lite import  SweepPlotterLite
 
 
 class PreFxData(QObject):

@@ -25,7 +25,7 @@ def autolabel(rects, xpos='center'):
 
 
 if __name__ == "__main__":
-    # path = r'C:\Users\Katie\GitHub\sweep_qc_tool\src\benchmarks\process_times\200713_21.11.13.json'
+    # path = r'C:\Users\Katie\GitHub\sweep_qc_tool\src\optimization\process_times\200713_21.11.13.json'
     path = r'C:\Users\Katie\GitHub\sweep_qc_tool\src\benchmarks\qc_times\200721_16.55.53.json'
     with open(path, 'r') as file:
         load_times = json.load(file)
