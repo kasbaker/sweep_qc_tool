@@ -3,8 +3,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from tkinter import Tk
-from tkinter import filedialog
+# from tkinter import Tk
+# from tkinter import filedialog
 
 
 def autolabel(rects, xpos='center'):
@@ -28,16 +28,24 @@ def autolabel(rects, xpos='center'):
 
 
 if __name__ == "__main__":
-    root = Tk()
-    root.withdraw()
+    # root = Tk()
+    # root.withdraw()
 
     base_dir = Path(__file__).parent
 
-    file_selected = filedialog.askopenfile()
+    # file_selected = filedialog.askopenfile()
 
-    # path = r'C:\Users\Katie\GitHub\sweep_qc_tool\src\benchmarks\qc_times\200724_11.50.34.json'
+    # path = '/home/katie/GitHub/sweep_qc_tool/src/benchmarks/qc_times/200803_00.18.30.json'  # ubuntu pen drive
+    # path = '/home/katie/GitHub/sweep_qc_tool/src/benchmarks/qc_times/200730_14.37.02.json'  # rig 1
+    # path = '/home/katie/GitHub/sweep_qc_tool/src/benchmarks/qc_times/200727_22.24.04.json' # laptop netflix
 
-    with open(str(file_selected.name), 'r') as file:
+    path = '/home/katie/GitHub/sweep_qc_tool/src/benchmarks/qc_times/200727_21.32.23.json'
+
+    # path = '/home/katie/GitHub/sweep_qc_tool/src/benchmarks/qc_times/200727_12.49.13.json'  # home windows rig
+
+
+    # with open(str(file_selected.name), 'r') as file:
+    with open(path, 'r') as file:
         load_times = json.load(file)
 
     num_trials = len(load_times)
@@ -92,7 +100,9 @@ if __name__ == "__main__":
     ax.set_title(f'Load times by processes and QC method (N={num_trials})')
 
     ax.set_xticks(ind)
-    ax.set_xticklabels((f"file {x}" for x in range(1, len(file_names)+1))) #, rotation='vertical')
+
+    path_list = [Path(file) for file in file_names]
+    ax.set_xticklabels((str(path.stem)[-15:] for path in path_list)) #, rotation='vertical')
     ax.legend()
 
     autolabel(rects1)   #, "left")
