@@ -4,7 +4,7 @@ import pathlib
 # from tkinter import Tk
 # from tkinter import filedialog
 
-from optimization.comparison_plotter import ComparisonPlotter
+from optimization.grouped_bar_plotter import GroupedBarPlotter
 
 if __name__ == "__main__":
     # root = Tk()
@@ -33,5 +33,5 @@ if __name__ == "__main__":
     num_trials = len(load_times)
     bar_data = [{group_names[idx]: load_times[trial][key] for idx, key in enumerate(file_names)} for trial in range(num_trials)]
 
-    comparison_plotter = ComparisonPlotter()
+    comparison_plotter = GroupedBarPlotter()
     comparison_plotter.plot_bars(bar_data, f"Load times for Linux pen drive desktop", 'time (s)')

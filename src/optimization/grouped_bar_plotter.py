@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-class ComparisonPlotter(object):
+class GroupedBarPlotter(object):
     def __init__(self, fig_size: Tuple[float, float] = (16, 9)):
         """ A plotter which automatically creates and labels grouped bar graphs 
         
@@ -17,7 +17,7 @@ class ComparisonPlotter(object):
         self.fig, self.ax = plt.subplots()
         self.fig.set_size_inches(fig_size)
 
-    def label_bar_means(self, bars: plt.Axes, yerr: np.ndarray):
+    def label_bars(self, bars: plt.Axes, yerr: np.ndarray):
         """ Takes an axes object containing a bar chart and places a label
         at the top of each bar displaying the mean.
         
@@ -78,21 +78,20 @@ class ComparisonPlotter(object):
 
         # names of groups
         group_names = [group for group in data[0]]
-        # number of groups
-        num_grouops = len(group_names)
 
         # list of methods
         methods = list(data[0][group_names[0]].keys())
 
-
         # array of indicies for methods
         num_groups = len(group_names)
+
+        # spacing of indices should be: np.arrange(n) - .5n + .5
         group_idx = np.arange(num_groups)
 
         num_methods = len(methods)
         method_nums = np.arange(num_methods)
 
-        # spacing of indices: np.arrange(n) - .5n + .5
+        # one extra bar width in between each group
         bar_width = 1/(num_methods+1)
 
         for idx, method in enumerate(methods):
@@ -110,7 +109,7 @@ class ComparisonPlotter(object):
                 x=group_idx - spacing, height=method_means,
                 width=bar_width, yerr=method_errs, label=method
             )
-            self.label_bar_means(bars, yerr=method_errs)
+            self.label_bars(bars, yerr=method_errs)
 
         # set title and y label
         self.ax.set_title(f"{title} (N={num_trials})")
