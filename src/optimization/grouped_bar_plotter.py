@@ -112,7 +112,7 @@ class GroupedBarPlotter(object):
             self.label_bars(bars, yerr=method_errs)
 
         # set title and y label
-        self.ax.set_title(f"{title} (N={num_trials})")
+        self.ax.set_title(title)
         self.ax.set_ylabel(y_label)
 
         # set x ticks and group labels
