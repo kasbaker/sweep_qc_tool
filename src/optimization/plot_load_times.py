@@ -14,8 +14,10 @@ if __name__ == "__main__":
 
     # file_selected = filedialog.askopenfile()
 
-    path = 'qc_times/200803_00.18.30.json'  # ubuntu pen drive
+    # path = 'qc_times/200803_00.18.30.json'  # ubuntu pen drive
+    
     # path = 'qc_times/200730_14.37.02.json'  # rig 1
+    path = 'qc_times/200804_14.27.08.json'  # rig 1 no onboard video
 
     # path = 'qc_times/200727_21.32.23.json'    # laptop
     # path = 'qc_times/200727_22.24.04.json'  # laptop netflix

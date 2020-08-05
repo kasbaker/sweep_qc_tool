@@ -17,13 +17,14 @@ if __name__ == "__main__":
 
     rig_files = {
         'rig1': "qc_times/200730_14.37.02.json",
-        'ubuntu': "qc_times/200803_00.18.30.json",
-        'windows': "qc_times/200727_12.49.13.json",
+        'rig1_no_onboard': "qc_times/200804_14.27.08.json",
+        # 'ubuntu': "qc_times/200803_00.18.30.json",
+        # 'windows': "qc_times/200727_12.49.13.json",
         # 'laptop': "qc_times/200727_21.32.23.json",
         # 'laptop_streaming': "qc_times/200727_22.24.04.json"
     }
 
-    method = "plot_worker_pickle"
+    method = "qc_worker_pickle"
 
     rig_names = rig_files.keys()
 
@@ -66,4 +67,4 @@ if __name__ == "__main__":
                 data[trial][group][rig] = rig_times[rig][trial][group][rig]
 
     comparison_plotter = GroupedBarPlotter()
-    comparison_plotter.plot_bars(data, f"Rig comparison for {method}", 'time (s)')
+    comparison_plotter.plot_bars(data, f"Rig comparison for {method} (N=10)", 'time (s)')
