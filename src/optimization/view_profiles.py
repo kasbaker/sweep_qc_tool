@@ -1,7 +1,7 @@
 from pathlib import Path
 import datetime as dt
 import subprocess
-import multiprocessing as mp
+from multiprocessing import Pool
 
 from tkinter import filedialog
 from tkinter import *
@@ -20,7 +20,5 @@ if __name__ == '__main__':
 
     commands = list(map("snakeviz {}".format, files))
 
-    pool = mp.Pool(processes=len(commands))
-    pool.map(subprocess.run, commands)
-    pool.close()
-    pool.join()
+    with Pool(processes=len(commands)) as pool:
+        pool.map(subprocess.run, commands)

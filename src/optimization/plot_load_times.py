@@ -33,7 +33,14 @@ if __name__ == "__main__":
     group_names = [str(pathlib.PureWindowsPath(file).stem[0:7]) for file in file_names]
 
     num_trials = len(load_times)
-    bar_data = [{group_names[idx]: load_times[trial][key] for idx, key in enumerate(file_names)} for trial in range(num_trials)]
+    bar_data = [
+        {
+            group_names[idx]: load_times[trial][key]
+            for idx, key in enumerate(file_names)
+        } for trial in range(num_trials)
+    ]
 
     comparison_plotter = GroupedBarPlotter()
-    comparison_plotter.plot_bars(bar_data, f"Load times for Linux pen drive desktop", 'time (s)')
+    comparison_plotter.plot_bars(
+        bar_data, f"Load times for Linux pen drive desktop", 'time (s)'
+    )

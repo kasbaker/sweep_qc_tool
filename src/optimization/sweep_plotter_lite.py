@@ -9,10 +9,12 @@ from pyqtgraph import PlotWidget, mkPen
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from scipy.signal import decimate
 
 from ipfx.ephys_data_set import EphysDataSet
-from ipfx.sweep import Sweep
-from ipfx.epochs import get_experiment_epoch, get_test_epoch
+from ipfx.epochs import get_first_stability_epoch
+# from ipfx.qc_features import measure_vm
+
 
 PLOT_FONTSIZE = 24
 DEFAULT_FIGSIZE = (8, 8)
@@ -34,6 +36,11 @@ class SweepPlotConfig(NamedTuple):
     experiment_baseline_start_index: int
     experiment_baseline_end_index: int
     thumbnail_step: int
+
+
+# class PlotConfigLite(NamedTuple):
+#     first_downsample_factor: int
+#     second_downsample_factor: int
 
 
 class PlotData(NamedTuple):
@@ -99,7 +106,7 @@ class ExperimentPopupPlotter(PopupPlotter):
     __slots__ = ['plot_data', 'baseline', 'sweep_number', 'y_label']
 
     def __init__(
-            self, plot_data: PlotData, baseline: float,
+            self, plot_data: PlotData, baseline: Optional[np.ndarray],
             sweep_number: int, y_label: str
     ):
         """ Displays an interactive plot of a sweep's experiment epoch, along
@@ -134,11 +141,12 @@ class ExperimentPopupPlotter(PopupPlotter):
         graph = PlotWidget()
         plot = self.initialize_plot(graph)
 
-        plot.addLine(
-            y=self.baseline,
-            pen=mkPen(color=EXP_PULSE_BASELINE_COLOR, width=2),
-            label="baseline"
-        )
+        if self.baseline:
+            plot.addLine(
+                y=self.baseline,
+                pen=mkPen(color=EXP_PULSE_BASELINE_COLOR, width=2),
+                label="baseline"
+            )
 
         plot.plot(
             self.plot_data.time, self.plot_data.response,
@@ -239,7 +247,7 @@ class SweepPlotterLite(object):
         "EXTPRSCHEK", "EXTPSAFETY", "EXTPSMOKET", "EXTPGGAEND", "Search"  # save GGAEND to test seal?
     }
 
-    def __init__(self, sweep_data_tuple: tuple, config: SweepPlotConfig):
+    def __init__(self, sweep_data_tuple: tuple, config: SweepPlotConfig,):
         """ Generate plots for each sweep in an experiment
 
         Parameters
@@ -255,6 +263,9 @@ class SweepPlotterLite(object):
 
         self._sweep_data_tuple = sweep_data_tuple
         self.config = config
+        self.ds1_factor = 4
+        self.ds2_factor = 4
+
         self.tp_exclude_codes = self.DEFAULT_TP_EXCLUDE
 
         self.tp_baseline_samples = config.test_pulse_baseline_samples
@@ -276,6 +287,8 @@ class SweepPlotterLite(object):
         PlotData for both of them."""
         # grab experiment epoch
         exp_epoch = sweep_data['epochs']['experiment']
+        # sampling rate in hz
+        hz = sweep_data['sampling_rate']
 
         # set test pulse start index to zero
         tp_start_idx = 0
@@ -307,34 +320,43 @@ class SweepPlotterLite(object):
             stimulus=sweep_data['stimulus'][tp_start_idx:tp_end_idx],
             response=sweep_data['response'][tp_start_idx:tp_end_idx] - tp_baseline_mean,
             time=np.linspace(
-                tp_start_idx / sweep_data['sampling_rate'],
-                (tp_start_idx + num_tp_pts) / sweep_data['sampling_rate'],
+                tp_start_idx / hz,
+                (tp_start_idx + num_tp_pts) / hz,
                 num_tp_pts
             )
         )
-
         # number of experiment points to be used for generating time vector
         num_expt_pts = exp_end_idx - exp_start_idx
         # calculate baseline mean for experiment
-        exp_baseline_mean = np.nanmean(
-                sweep_data['response'][0: self.exp_baseline_samples]
-        )
+        if sweep_data['epochs']['stim']:
+            stability_epoch = get_first_stability_epoch(sweep_data['epochs']['stim'][0], hz)
+            exp_baseline_mean = np.nanmean(
+                    sweep_data['response'][stability_epoch[0]:stability_epoch[1]]
+            )
+        else:
+            stability_epoch = None
+            exp_baseline_mean = None
+
         # plot data for baseline subtracted experiment epoch
         exp_plot_data = PlotData(
             stimulus=sweep_data['stimulus'][exp_start_idx:exp_end_idx],
             response=sweep_data['response'][exp_start_idx:exp_end_idx],
             time=np.linspace(
-                exp_start_idx / sweep_data['sampling_rate'],
-                (exp_start_idx + num_tp_pts) / sweep_data['sampling_rate'],
+                exp_start_idx / hz,
+                (exp_start_idx + num_tp_pts) / hz,
                 num_expt_pts
             )
         )
 
-        return tp_plot_data, exp_plot_data, float(exp_baseline_mean)
+        return tp_plot_data, exp_plot_data, exp_baseline_mean
 
     def gen_plots(self):
         """ Generate a pair of fixed plots for sweeps in sweep data iterator. """
         for sweep in self._sweep_data_tuple:
+            # if sweep['stimulus_name'] == "Search":
+            #     continue
+                # yield None, None
+
             # split up test pulse and experiment epochs
             tp_plot_data, exp_plot_data, exp_baseline_mean = self.get_plot_data(sweep)
 
@@ -349,6 +371,7 @@ class SweepPlotterLite(object):
             if any(substring in sweep['stimulus_code']
                    for substring in self.tp_exclude_codes):
                 store_tp = False
+
                 # handle voltage clamp previous and initial test pulses
             if sweep['stimulus_unit'] == "Volts":
                 # set label for sweep response
@@ -400,7 +423,7 @@ class SweepPlotterLite(object):
                 thumbnail=self.make_experiment_plot(
                     sweep_number=sweep_num, plot_data=exp_plot_data,
                     exp_baseline=exp_baseline_mean, y_label=y_label,
-                    step=self.config.thumbnail_step, labels=False
+                    step=self.config.thumbnail_step, labels=False, #stability_epoch=stability_epoch
                 ),
                 full=ExperimentPopupPlotter(
                     plot_data=exp_plot_data, baseline=exp_baseline_mean,
@@ -449,24 +472,29 @@ class SweepPlotterLite(object):
             a matplotlib figure containing the plot to be turned into a thumbnail
 
         """
-        time_lim = [plot_data.time[0], plot_data.time[-1]]
-        y_lim = [min(plot_data.response), max(plot_data.response)]
+
+        ds1 = self.ds1_factor
+        ds2 = self.ds2_factor
+        step = ds1*ds2
 
         if initial is not None:
-            self.ax.plot(initial.time[::step], initial.response[::step], linewidth=1,
+            ds_initial = decimate(decimate(initial.response, ds1), ds2)
+            self.ax.plot(initial.time[::step], ds_initial, linewidth=1,
                          label=f"initial",
                          color=TEST_PULSE_INIT_COLOR)
 
         if previous is not None:
-            self.ax.plot(previous.time[::step], previous.response[::step], linewidth=1,
+            ds_previous = decimate(decimate(previous.response, ds1), ds2)
+            self.ax.plot(previous.time[::step], ds_previous, linewidth=1,
                          label=f"previous",
                          color=TEST_PULSE_PREV_COLOR)
 
-        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+        ds_response = decimate(decimate(plot_data.response, ds1), ds2)
+        self.ax.plot(plot_data.time[::step], ds_response, linewidth=1,
                      label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
 
+        time_lim = (plot_data.time[0], plot_data.time[-1])
         self.ax.set_xlim(time_lim)
-        self.ax.set_ylim(y_lim)
 
         # ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
@@ -488,10 +516,11 @@ class SweepPlotterLite(object):
             self,
             sweep_number: int,
             plot_data: PlotData,
-            exp_baseline: float,
+            exp_baseline: Optional[np.ndarray],
             y_label: str,
             step: int = 1,
-            labels: bool = True
+            labels: bool = True,
+            # stability_epoch = None
     ) -> mpl.figure.Figure:
         """ Make a (static) plot of the response to a single sweep's stimulus
 
@@ -517,20 +546,30 @@ class SweepPlotterLite(object):
             a matplotlib figure containing the plot to be turned into a thumbnail
 
         """
+        ds1 = self.ds1_factor
+        ds2 = self.ds2_factor
+        step = ds1*ds2
+
+        ds_response = decimate(decimate(plot_data.response, ds1), ds2)
 
         time_lim = [plot_data.time[0], plot_data.time[-1]]
-        y_lim = [min(plot_data.response), max(plot_data.response)]
+        y_lim = [min(ds_response), max(ds_response)]
 
-        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+        self.ax.plot(plot_data.time[::step], ds_response, linewidth=1,
                      color=EXP_PULSE_CURRENT_COLOR,
                      label=f"sweep {sweep_number}")
 
-        self.ax.hlines(exp_baseline, *time_lim, linewidth=1,
-                       color=EXP_PULSE_BASELINE_COLOR,
-                       label="baseline")
+        if exp_baseline:
+            self.ax.hlines(exp_baseline, *time_lim, linewidth=1,
+                           color=EXP_PULSE_BASELINE_COLOR,
+                           label="baseline")
+        # if stability_epoch:
+        #     self.ax.vlines(stability_epoch[0]//step, *y_lim, linewidth=1,
+        #                    color=EXP_PULSE_BASELINE_COLOR,)
+        #     self.ax.vlines(stability_epoch[1]//step, *y_lim, linewidth=1,
+        #                    color=EXP_PULSE_BASELINE_COLOR,)
 
         self.ax.set_xlim(time_lim)
-        self.ax.set_ylim(y_lim)
 
         # self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
         self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
