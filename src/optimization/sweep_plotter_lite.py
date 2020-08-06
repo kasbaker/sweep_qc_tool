@@ -286,28 +286,34 @@ class SweepPlotterLite(object):
         """ Split sweep data into test pulse and experiment epochs then return
         PlotData for both of them."""
         # grab experiment epoch
-        exp_epoch = sweep_data['epochs']['experiment']
+        # exp_epoch = sweep_data['epochs']['experiment']
+        # test_epoch = sweep_data['epochs']['test']
         # sampling rate in hz
         hz = sweep_data['sampling_rate']
 
         # set test pulse start index to zero
         tp_start_idx = 0
-        # if the experiment epoch exists, split up the epochs like this
-        if exp_epoch:
-            # set test pulse end index to 5000
-            tp_end_idx = sweep_data['epochs']['test'][1]
-            # set experiment start index to be the and of the test pulse end index
-            exp_start_idx = tp_end_idx
-            # set the experiment end index to be the end of the sweep
-            exp_end_idx = len(sweep_data['stimulus']) - 1
+        tp_end_idx = sweep_data['epochs']['test'][1]
+        # tp_end_idx = sweep_data['epochs']['test'][1]
+        exp_start_idx = tp_end_idx
+        exp_end_idx = len(sweep_data['stimulus']) - 1
 
-        # if the experiment epoch doesn't exist, then take the whole sweep
-        else:
-            # set the end index to be the end of the sweep
-            tp_end_idx = len(sweep_data['stimulus']) - 1
-            # set the experiment start and end to be the same as the test pulse
-            exp_start_idx = tp_start_idx
-            exp_end_idx = tp_end_idx
+        # if the experiment epoch exists, split up the epochs like this
+        # if exp_epoch:
+        #     # set test pulse end index to 5000
+        #     tp_end_idx = sweep_data['epochs']['test'][1]
+        #     # set experiment start index to be the and of the test pulse end index
+        #     exp_start_idx = tp_end_idx
+        #     # set the experiment end index to be the end of the sweep
+        #     exp_end_idx = len(sweep_data['stimulus']) - 1
+        #
+        # # if the experiment epoch doesn't exist, then take the whole sweep
+        # else:
+        #     # set the end index to be the end of the sweep
+        #     tp_end_idx = len(sweep_data['stimulus']) - 1
+        #     # set the experiment start and end to be the same as the test pulse
+        #     exp_start_idx = tp_start_idx
+        #     exp_end_idx = tp_end_idx
 
         # number of test pulse points to be used for generating time vector
         num_tp_pts = tp_end_idx - tp_start_idx
@@ -329,12 +335,19 @@ class SweepPlotterLite(object):
         num_expt_pts = exp_end_idx - exp_start_idx
         # calculate baseline mean for experiment
         if sweep_data['epochs']['stim']:
-            stability_epoch = get_first_stability_epoch(sweep_data['epochs']['stim'][0], hz)
+            # get the stability epoch for calculating baseline
+            stability_start_idx, stability_end_idx = get_first_stability_epoch(
+                sweep_data['epochs']['stim'][0], hz
+            )
+            # if start of stability epoch is less than start of test epoch then
+            # take the end of the test epoch as the start of the stability epoch
+            if stability_start_idx < tp_end_idx:
+                stability_start_idx = tp_end_idx
+            # take the mean of the stability epoch as experiment baseline
             exp_baseline_mean = np.nanmean(
-                    sweep_data['response'][stability_epoch[0]:stability_epoch[1]]
+                    sweep_data['response'][stability_start_idx:stability_end_idx]
             )
         else:
-            stability_epoch = None
             exp_baseline_mean = None
 
         # plot data for baseline subtracted experiment epoch
@@ -353,9 +366,8 @@ class SweepPlotterLite(object):
     def gen_plots(self):
         """ Generate a pair of fixed plots for sweeps in sweep data iterator. """
         for sweep in self._sweep_data_tuple:
-            # if sweep['stimulus_name'] == "Search":
-            #     continue
-                # yield None, None
+            if sweep['stimulus_name'] == "Search":
+                continue
 
             # split up test pulse and experiment epochs
             tp_plot_data, exp_plot_data, exp_baseline_mean = self.get_plot_data(sweep)
@@ -404,12 +416,13 @@ class SweepPlotterLite(object):
             else:
                 y_label = "unknown"
 
+            thumbnail_step = self.config.thumbnail_step
             # test pulse thumb-popup pair
             tp_plots = FixedPlots(
                 thumbnail=self.make_test_pulse_plot(
                     sweep_number=sweep_num, plot_data=tp_plot_data,
                     previous=previous, initial=initial, y_label=y_label,
-                    step=self.config.thumbnail_step, labels=False
+                    step=thumbnail_step, labels=False
                 ),
                 full=PulsePopupPlotter(
                     plot_data=tp_plot_data,
@@ -423,7 +436,7 @@ class SweepPlotterLite(object):
                 thumbnail=self.make_experiment_plot(
                     sweep_number=sweep_num, plot_data=exp_plot_data,
                     exp_baseline=exp_baseline_mean, y_label=y_label,
-                    step=self.config.thumbnail_step, labels=False, #stability_epoch=stability_epoch
+                    step=thumbnail_step, labels=False
                 ),
                 full=ExperimentPopupPlotter(
                     plot_data=exp_plot_data, baseline=exp_baseline_mean,
@@ -431,7 +444,7 @@ class SweepPlotterLite(object):
                 )
             )
 
-            yield tp_plots, exp_plots
+            yield int(sweep_num), tp_plots, exp_plots
 
     def make_test_pulse_plot(
             self,
@@ -473,24 +486,24 @@ class SweepPlotterLite(object):
 
         """
 
-        ds1 = self.ds1_factor
-        ds2 = self.ds2_factor
-        step = ds1*ds2
+        # ds1 = self.ds1_factor
+        # ds2 = self.ds2_factor
+        # step = ds1*ds2
 
         if initial is not None:
-            ds_initial = decimate(decimate(initial.response, ds1), ds2)
-            self.ax.plot(initial.time[::step], ds_initial, linewidth=1,
+            # ds_initial = decimate(decimate(initial.response, ds1), ds2)
+            self.ax.plot(initial.time[::step], initial.response[::step], linewidth=1,
                          label=f"initial",
                          color=TEST_PULSE_INIT_COLOR)
 
         if previous is not None:
-            ds_previous = decimate(decimate(previous.response, ds1), ds2)
-            self.ax.plot(previous.time[::step], ds_previous, linewidth=1,
+            # ds_previous = decimate(decimate(previous.response, ds1), ds2)
+            self.ax.plot(previous.time[::step], previous.response[::step], linewidth=1,
                          label=f"previous",
                          color=TEST_PULSE_PREV_COLOR)
 
-        ds_response = decimate(decimate(plot_data.response, ds1), ds2)
-        self.ax.plot(plot_data.time[::step], ds_response, linewidth=1,
+        # ds_response = decimate(decimate(plot_data.response, ds1), ds2)
+        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
                      label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
 
         time_lim = (plot_data.time[0], plot_data.time[-1])
@@ -520,7 +533,6 @@ class SweepPlotterLite(object):
             y_label: str,
             step: int = 1,
             labels: bool = True,
-            # stability_epoch = None
     ) -> mpl.figure.Figure:
         """ Make a (static) plot of the response to a single sweep's stimulus
 
@@ -546,16 +558,16 @@ class SweepPlotterLite(object):
             a matplotlib figure containing the plot to be turned into a thumbnail
 
         """
-        ds1 = self.ds1_factor
-        ds2 = self.ds2_factor
-        step = ds1*ds2
-
-        ds_response = decimate(decimate(plot_data.response, ds1), ds2)
+        # ds1 = self.ds1_factor
+        # ds2 = self.ds2_factor
+        # step = ds1*ds2
+        #
+        # ds_response = decimate(plot_data.response, step)
 
         time_lim = [plot_data.time[0], plot_data.time[-1]]
-        y_lim = [min(ds_response), max(ds_response)]
+        # y_lim = [min(ds_response), max(ds_response)]
 
-        self.ax.plot(plot_data.time[::step], ds_response, linewidth=1,
+        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
                      color=EXP_PULSE_CURRENT_COLOR,
                      label=f"sweep {sweep_number}")
 
