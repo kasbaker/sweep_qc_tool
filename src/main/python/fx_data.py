@@ -67,12 +67,16 @@ class FxData(QObject):
 
         self.status_message.emit("Computing features, please wait.")
         drop_failed_sweeps(self.sweep_info)
-        data_set = create_ephys_data_set(sweep_info=self.sweep_info,
-                                   nwb_file=self.input_nwb_file,
-                                   ontology=self.ontology)
+        data_set = create_ephys_data_set(
+            sweep_info=self.sweep_info,
+            nwb_file=self.input_nwb_file,
+            ontology=self.ontology
+        )
         try:
-            cell_features, sweep_features, cell_record, sweep_records = \
-                extract_data_set_features(data_set)
+            (
+                cell_features, sweep_features, cell_record,
+                sweep_records, cell_state, feature_states
+             ) = extract_data_set_features(data_set)
 
             cell_state = {"failed_fx": False, "fail_fx_message": None}
 

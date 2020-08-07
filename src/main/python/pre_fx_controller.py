@@ -119,6 +119,7 @@ class PreFxController(QWidget):
         pre_fx_data.qc_criteria_unset.connect(self.on_qc_criteria_unset)
 
         pre_fx_data.end_commit_calculated.connect(self.on_data_set_set)
+        pre_fx_data.model_data_ready.connect(self.on_data_set_set)
 
         fx_data.state_outdated.connect(self.on_fx_results_outdated)
         fx_data.new_state_set.connect(self.on_new_fx_results)

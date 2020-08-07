@@ -71,7 +71,7 @@ class SweepTableModel(QAbstractTableModel):
         """
 
         data.end_commit_calculated.connect(self.on_new_data)
-        data.sweep_table_data_ready.connect(self.build_sweep_table)
+        data.model_data_ready.connect(self.build_sweep_table)
         self.qc_state_updated.connect(data.on_manual_qc_state_updated)
 
     def build_sweep_table(self, new_data):
@@ -86,6 +86,7 @@ class SweepTableModel(QAbstractTableModel):
         self.beginInsertRows(QModelIndex(), 0, len(new_data) - 1)
         self._data = new_data
         self.endInsertRows()
+
         self.new_data.emit()
 
     def on_new_data(

@@ -290,13 +290,22 @@ class SweepPlotterLite(object):
         # test_epoch = sweep_data['epochs']['test']
         # sampling rate in hz
         hz = sweep_data['sampling_rate']
+        # number of points in the full sweep
+        # num_pts = len(sweep_data['stimulus'])
+        time = np.arange(len(sweep_data['stimulus'])) / hz
 
         # set test pulse start index to zero
-        tp_start_idx = 0
-        tp_end_idx = sweep_data['epochs']['test'][1]
-        # tp_end_idx = sweep_data['epochs']['test'][1]
+        # tp_start_idx = 0
+        # if the test epoch exists grab that number, otherwise set it to backup
+        if sweep_data['epochs']['test']:
+            tp_end_idx = sweep_data['epochs']['test'][1]
+        else:
+            tp_end_idx = self.config.backup_experiment_start_index
+
+        # start experiment epoch epoch at end of test pulse
         exp_start_idx = tp_end_idx
-        exp_end_idx = len(sweep_data['stimulus']) - 1
+        # set
+        # exp_end_idx = num_pts - 1
 
         # if the experiment epoch exists, split up the epochs like this
         # if exp_epoch:
@@ -315,24 +324,17 @@ class SweepPlotterLite(object):
         #     exp_start_idx = tp_start_idx
         #     exp_end_idx = tp_end_idx
 
-        # number of test pulse points to be used for generating time vector
-        num_tp_pts = tp_end_idx - tp_start_idx
         # calculate baseline mean for test pulse
         tp_baseline_mean = np.nanmean(
-            sweep_data['response'][0: self.tp_baseline_samples]
+            sweep_data['response'][:self.tp_baseline_samples]
         )
         # plot data for baseline subtracted test pulse epoch
         tp_plot_data = PlotData(
-            stimulus=sweep_data['stimulus'][tp_start_idx:tp_end_idx],
-            response=sweep_data['response'][tp_start_idx:tp_end_idx] - tp_baseline_mean,
-            time=np.linspace(
-                tp_start_idx / hz,
-                (tp_start_idx + num_tp_pts) / hz,
-                num_tp_pts
-            )
+            stimulus=sweep_data['stimulus'][:tp_end_idx],
+            response=sweep_data['response'][:tp_end_idx] - tp_baseline_mean,
+            time=time[:tp_end_idx]
         )
-        # number of experiment points to be used for generating time vector
-        num_expt_pts = exp_end_idx - exp_start_idx
+
         # calculate baseline mean for experiment
         if sweep_data['epochs']['stim']:
             # get the stability epoch for calculating baseline
@@ -352,13 +354,9 @@ class SweepPlotterLite(object):
 
         # plot data for baseline subtracted experiment epoch
         exp_plot_data = PlotData(
-            stimulus=sweep_data['stimulus'][exp_start_idx:exp_end_idx],
-            response=sweep_data['response'][exp_start_idx:exp_end_idx],
-            time=np.linspace(
-                exp_start_idx / hz,
-                (exp_start_idx + num_tp_pts) / hz,
-                num_expt_pts
-            )
+            stimulus=sweep_data['stimulus'][exp_start_idx:],
+            response=sweep_data['response'][exp_start_idx:],
+            time=time[exp_start_idx:]
         )
 
         return tp_plot_data, exp_plot_data, exp_baseline_mean
@@ -486,10 +484,6 @@ class SweepPlotterLite(object):
 
         """
 
-        # ds1 = self.ds1_factor
-        # ds2 = self.ds2_factor
-        # step = ds1*ds2
-
         if initial is not None:
             # ds_initial = decimate(decimate(initial.response, ds1), ds2)
             self.ax.plot(initial.time[::step], initial.response[::step], linewidth=1,
@@ -508,8 +502,6 @@ class SweepPlotterLite(object):
 
         time_lim = (plot_data.time[0], plot_data.time[-1])
         self.ax.set_xlim(time_lim)
-
-        # ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
         self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
 
@@ -558,11 +550,6 @@ class SweepPlotterLite(object):
             a matplotlib figure containing the plot to be turned into a thumbnail
 
         """
-        # ds1 = self.ds1_factor
-        # ds2 = self.ds2_factor
-        # step = ds1*ds2
-        #
-        # ds_response = decimate(plot_data.response, step)
 
         time_lim = [plot_data.time[0], plot_data.time[-1]]
         # y_lim = [min(ds_response), max(ds_response)]
@@ -575,15 +562,9 @@ class SweepPlotterLite(object):
             self.ax.hlines(exp_baseline, *time_lim, linewidth=1,
                            color=EXP_PULSE_BASELINE_COLOR,
                            label="baseline")
-        # if stability_epoch:
-        #     self.ax.vlines(stability_epoch[0]//step, *y_lim, linewidth=1,
-        #                    color=EXP_PULSE_BASELINE_COLOR,)
-        #     self.ax.vlines(stability_epoch[1]//step, *y_lim, linewidth=1,
-        #                    color=EXP_PULSE_BASELINE_COLOR,)
 
         self.ax.set_xlim(time_lim)
 
-        # self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
         self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
 
         if labels:

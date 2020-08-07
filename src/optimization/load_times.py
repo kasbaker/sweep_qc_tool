@@ -15,7 +15,8 @@ import numpy as np
 from ipfx.dataset.create import create_ephys_data_set
 from ipfx.qc_feature_evaluator import DEFAULT_QC_CRITERIA_FILE
 from ipfx.stimulus import StimulusOntology
-from optimization.fast_qc import DataExtractorLite, QCOperatorLite
+from data_extractor import DataExtractor
+from optimization.fast_qc import QCOperatorLite
 
 # ignore warnings during loading .nwb files
 filterwarnings('ignore')
@@ -152,7 +153,7 @@ def qc_worker(nwb_file: str):
 
     qc_worker.start()
 
-    data_extractor = DataExtractorLite(nwb_file=nwb_file, ontology=ONTOLOGY)
+    data_extractor = DataExtractor(nwb_file=nwb_file, ontology=ONTOLOGY)
     sweep_data_iter = data_extractor.data_iter
 
     # data_set = create_ephys_data_set(nwb_file)
@@ -170,7 +171,7 @@ def qc_worker(nwb_file: str):
 
 
 def qc_worker_pickle(nwb_file):
-    data_extractor = DataExtractorLite(nwb_file=nwb_file, ontology=ONTOLOGY)
+    data_extractor = DataExtractor(nwb_file=nwb_file, ontology=ONTOLOGY)
     sweep_data_iter = data_extractor.data_iter
     sweep_data_list = list(sweep_data_iter)
     recording_date = data_extractor.recording_date
@@ -208,7 +209,7 @@ def plot_worker(nwb_file: str):
     plot_worker.daemon = True
     plot_worker.start()
 
-    data_extractor = DataExtractorLite(nwb_file, ONTOLOGY)
+    data_extractor = DataExtractor(nwb_file, ONTOLOGY)
     recording_date = data_extractor.recording_date
     sweep_data_list = list(data_extractor.data_iter)
 
@@ -224,7 +225,7 @@ def plot_worker(nwb_file: str):
 
 
 def plot_worker_pickle(nwb_file: str):
-    data_extractor = DataExtractorLite(nwb_file=nwb_file, ontology=ONTOLOGY)
+    data_extractor = DataExtractor(nwb_file=nwb_file, ontology=ONTOLOGY)
     sweep_data_iter = data_extractor.data_iter
     sweep_data_list = list(sweep_data_iter)
 

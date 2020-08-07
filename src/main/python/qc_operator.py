@@ -1,7 +1,7 @@
 import logging
 from copy import deepcopy
 from multiprocessing.connection import Connection
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict, Union, NamedTuple
 
 import numpy as np
 from ipfx.qc_feature_evaluator import qc_experiment
@@ -13,6 +13,14 @@ from ipfx.qc_feature_extractor import compute_input_access_resistance_ratio
 from ipfx.sweep_props import drop_tagged_sweeps
 from ipfx.bin.run_qc import qc_summary
 from ipfx.stimulus import StimulusOntology
+
+
+class QCResults(NamedTuple):
+    cell_features: dict
+    cell_tags: list
+    cell_state: dict
+    sweep_features: List[dict]
+    sweep_states: List[dict]
 
 
 class QCOperator(object):
@@ -118,8 +126,12 @@ class QCOperator(object):
             sweep_states=sweep_states
         )
 
-        qc_results = (
-            cell_features, cell_tags, post_qc_sweep_features, cell_state, sweep_states
+        qc_results = QCResults(
+            cell_features=cell_features,
+            cell_tags=cell_tags,
+            cell_state=cell_state,
+            sweep_features=post_qc_sweep_features,
+            sweep_states=sweep_states
         )
 
         return qc_results, sweep_table_data, sweep_types

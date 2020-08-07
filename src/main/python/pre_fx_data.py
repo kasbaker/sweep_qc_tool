@@ -35,7 +35,7 @@ class PreFxData(QObject):
     end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
 
     # signal to send data to the sweep table once auto qc and plotting is done
-    sweep_table_data_ready = pyqtSignal(list, name="data_ready")
+    model_data_ready = pyqtSignal(list, name="data_ready")
 
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
 
@@ -325,15 +325,22 @@ class PreFxData(QObject):
         self.status_message.emit("Starting auto-QC...")
         qc_worker.start()
 
-        # creating plots
+        # initialize sweep table and generate plots for sweep table
         plotter = SweepPlotterLite(sweep_data_tuple=sweep_data_tuple, config=self.plot_config)
+
+        self.status_message.emit("Generating plots...")
         sweep_plots = tuple(plotter.gen_plots())
 
+        # close the qc pipe output and receive qc operator's output
+        self.status_message.emit("Waiting on QC results...")
         qc_pipe[1].close()
         qc_results, sweep_table_data, sweep_types = qc_pipe[0].recv()
+        # join and terminate qc worker
         qc_worker.join()
         qc_worker.terminate()
 
+        # create list of data to send to sweep table model, exclude 'Search' sweeps
+        self.status_message.emit("Preparing data for sweep page...")
         new_data = [[
             sweep_num,
             sweep_table_data[sweep_num]['stimulus_code'],
@@ -346,7 +353,31 @@ class PreFxData(QObject):
         ] for sweep_num, tp_plot, exp_plot in sweep_plots
             if sweep_table_data[sweep_num]['stimulus_name'] != "Search"]
 
-        self.sweep_table_data_ready.emit(new_data)
+        self.status_message.emit("Finalizing results")
+
+        # finalize nwb path, stimulus ontology, and qc criteria
+        self.nwb_path = nwb_path
+        self.stimulus_ontology = stimulus_ontology
+        self.qc_criteria = qc_criteria
+        self.data_set = data_extractor.data_set
+
+        # assign qc results to self
+        self.cell_features = qc_results.cell_features
+        self.cell_tags = qc_results.cell_tags
+        self.cell_state = qc_results.cell_state
+        self.sweep_features = qc_results.sweep_features
+        self.sweep_states = qc_results.sweep_states
+
+        # create a copy of initial features and states if state changed back to default
+        self.initial_sweep_features = copy.deepcopy(qc_results.sweep_features)
+        self.initial_sweep_states = copy.deepcopy(qc_results.sweep_features)
+
+        # send new data to the sweep table model
+        self.model_data_ready.emit(new_data)
+        self.data_changed.emit(
+            self.nwb_path, self.stimulus_ontology, self.sweep_features, self.cell_features
+        )
+
 
     def run_extraction_and_auto_qc(self, nwb_path, stimulus_ontology, qc_criteria, commit=True):
         """ Creates a data set from the nwb path;
