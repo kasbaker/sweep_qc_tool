@@ -4,7 +4,7 @@ import sys
 from multiprocessing import Pool
 
 from PyQt5.QtCore import QModelIndex
-from PyQt5.QtWidgets import QWidget, QApplication, QMainWindow, QHeaderView
+from PyQt5.QtWidgets import QApplication, QHeaderView
 from ipfx.qc_feature_evaluator import DEFAULT_QC_CRITERIA_FILE
 from ipfx.stimulus import StimulusOntology
 
@@ -13,7 +13,7 @@ from sweep_plotter import SweepPlotConfig
 from sweep_table_model import SweepTableModel
 from sweep_table_view import SweepTableView
 from optimization.sweep_plotter_lite import SweepPlotterLite
-from optimization.fast_qc import DataExtractorLite
+from data_extractor import DataExtractor
 
 
 with open(DEFAULT_QC_CRITERIA_FILE, "r") as path:
@@ -47,7 +47,7 @@ def initialize_sweep_table_and_model():
 
 
 def extract_data(nwb_path):
-    data_extractor = DataExtractorLite(nwb_file=nwb_path, ontology=ONTOLOGY)
+    data_extractor = DataExtractor(nwb_file=nwb_path, ontology=ONTOLOGY)
     return tuple(data_extractor.data_iter)
 
 

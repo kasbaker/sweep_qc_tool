@@ -428,4 +428,3 @@ def run_auto_qc(sweep_data_list: list, ontology: StimulusOntology,
     qc_out = qc_output
     qc_out.send(qc_results)
     qc_out.close()
-

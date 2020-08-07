@@ -384,7 +384,7 @@ class SweepPlotterLite(object):
                    for substring in self.tp_exclude_codes):
                 store_tp = False
 
-                # handle voltage clamp previous and initial test pulses
+            # handle voltage clamp previous and initial test pulses
             if sweep['stimulus_unit'] == "Volts":
                 # set label for sweep response
                 y_label = "holding current (pA)"
