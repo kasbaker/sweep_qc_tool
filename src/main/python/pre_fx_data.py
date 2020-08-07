@@ -330,20 +330,21 @@ class PreFxData(QObject):
         sweep_plots = tuple(plotter.gen_plots())
 
         qc_pipe[1].close()
-        qc_results, sweep_table_data = qc_pipe[0].recv()
+        qc_results, sweep_table_data, sweep_types = qc_pipe[0].recv()
         qc_worker.join()
         qc_worker.terminate()
 
         new_data = [[
-            index,
-            row['stimulus_code'],
-            row['stimulus_name'],
-            row['auto_qc_state'],
-            row['manual_qc_state'],
-            format_fail_tags(row['tags']),  # fail tags
-            sweep_plots[index][0],
-            sweep_plots[index][1]
-        ] for index, row in enumerate(sweep_table_data)]
+            sweep_num,
+            sweep_table_data[sweep_num]['stimulus_code'],
+            sweep_table_data[sweep_num]['stimulus_name'],
+            sweep_table_data[sweep_num]['auto_qc_state'],
+            sweep_table_data[sweep_num]['manual_qc_state'],
+            format_fail_tags(sweep_table_data[sweep_num]['tags']),  # fail tags
+            tp_plot,
+            exp_plot
+        ] for sweep_num, tp_plot, exp_plot in sweep_plots
+            if sweep_table_data[sweep_num]['stimulus_name'] != "Search"]
 
         self.sweep_table_data_ready.emit(new_data)
 

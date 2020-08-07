@@ -140,7 +140,7 @@ class QCOperatorLite(object):
         )
 
         qc_results = (
-            cell_features, cell_tags, pre_qc_sweep_features, cell_state, sweep_states
+            cell_features, cell_tags, post_qc_sweep_features, cell_state, sweep_states
         )
 
         return qc_results, sweep_table_data, sweep_types
@@ -540,8 +540,7 @@ if __name__ == "__main__":
     for trial in range(num_trials):
         print(f"-----------------TRIAL {trial}-----------------")
         for index, file in enumerate(files):
-            # nwb_file = str(base_dir.joinpath(file))
-            nwb_file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/H20.03.302.11.52.01.03.nwb"
+            nwb_file = str(base_dir.joinpath(file))
 
             start_time = default_timer()
             data_extractor = DataExtractor(nwb_file=nwb_file, ontology=ONTOLOGY)
@@ -563,11 +562,6 @@ if __name__ == "__main__":
             print(f'Slow QC: {file} took {slow_qc_time} to load')
             times[trial][str(files[index])]['slow_qc'] = slow_qc_time
 
-
-            for idx, sweep_dict in enumerate(qc_results[2]):
-                if len(sweep_dict) < 15:
-                    qc_results[2].pop(idx)
-
             fast_qc_keys = set(qc_results[2][0].keys())
             slow_qc_keys = set(slow_qc_results[2][0].keys())
             pop_keys = fast_qc_keys.symmetric_difference(slow_qc_keys)
@@ -575,7 +569,6 @@ if __name__ == "__main__":
             for idx, sweep in enumerate(slow_qc_results[2]):
                 for key in pop_keys:
                     slow_qc_results[2][idx].pop(key)
-
 
             print(f"Cell features difference? "
                   f"{set(slow_qc_results[0]).symmetric_difference(qc_results[0])}")
