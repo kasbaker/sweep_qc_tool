@@ -335,7 +335,7 @@ class Application(object):
             ###################################################################
             # Connect data_changed to kill the main window for benchmarking #
             # TODO remove this before merging with master
-            self.pre_fx_data.data_changed.connect(self.main_window.deleteLater)
+            # self.pre_fx_data.data_changed.connect(self.main_window.deleteLater)
             self.pre_fx_controller.selected_data_set_path.emit(initial_nwb_path)
 
     def run(self):

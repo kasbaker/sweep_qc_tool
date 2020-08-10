@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from PyQt5.QtCore import QObject, pyqtSignal
 from ipfx.sweep_props import drop_failed_sweeps
 from ipfx.dataset.create import create_ephys_data_set
@@ -23,7 +25,7 @@ class FxData(QObject):
         self.input_nwb_file = None
         self.ontology = None
         self.sweep_info = None
-        self.cell_info = None
+        # self.cell_info = None
         self.feature_data = None
 
     def out_of_date(self):
@@ -43,7 +45,7 @@ class FxData(QObject):
                           nwb_path,
                           ontology,
                           sweep_info,
-                          cell_info,
+                          # cell_info,
                           ):
         """ Updates information to used for intrinsic property feature
         extraction when data or qc states change.
@@ -52,12 +54,12 @@ class FxData(QObject):
         self.out_of_date()
         self.input_nwb_file = nwb_path
         self.ontology = ontology
-        self.sweep_info = sweep_info
-        self.cell_info = cell_info
+        self.sweep_info = deepcopy(sweep_info)
+        # self.cell_info = cell_info
 
     def connect(self, pre_fx_data):
         """ Connect signal indicating data has changed to self. """
-        pre_fx_data.data_changed.connect(self.set_fx_parameters)
+        pre_fx_data.update_fx_sweep_info.connect(self.set_fx_parameters)
 
     def run_feature_extraction(self):
         """ Runs intrinsic property feature extraction on sweeps that have
@@ -95,6 +97,3 @@ class FxData(QObject):
             exception_message(
                 "Feature extraction error", f"failed feature extraction", ferr
             )
-
-
-

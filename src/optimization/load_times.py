@@ -69,7 +69,7 @@ class MockPlotter:
 
 def run_auto_qc(nwb_file: str, qc_output):
 
-    data_extractor = DataExtractorLite(nwb_file, ONTOLOGY)
+    data_extractor = DataExtractor(nwb_file, ONTOLOGY)
     recording_date = data_extractor.recording_date
     sweep_data_list = list(data_extractor.data_iter)
 

@@ -24,6 +24,95 @@ class QCResults(NamedTuple):
 
 
 class QCOperator(object):
+    """ Docstrings copy/pasted from pre_fx_data:
+
+    def run_qc(stimulus_ontology, cell_features, sweep_features, qc_criteria):
+        Adds qc status to sweep features and outputs a qc summary to the log.
+
+        Parameters
+        ----------
+        stimulus_ontology : StimulusOntology
+            stimulus ontology used for this data set
+        cell_features : dict
+            dictionary of qc info for the cell (overall experiment level info)
+        sweep_features : list[dict]
+            a list of dictionaries containing qc info for each individual sweep
+        qc_criteria : dict
+            a dictionary containing the criteria used for auto QC
+
+        Returns
+        -------
+        cell_state : dict
+            a dictionary of qc states for various cell level qc criteria
+        cell_features : dict
+            dictionary of qc info for the cell (overall experiment level info)
+        sweep_states : List[dict]
+            a list of dictionaries containing auto QC states
+        post_qc_sweep_features : List[dict]
+            similar to sweep_features input, but with rows removed for most sweeps
+            that failed auto QC and new column containing the auto QC states
+
+    def extract_qc_features(data_set):
+        extracts QC information for the cell and the sweeps using ipfx.
+
+        Parameters
+        ----------
+        data_set : EphysDataSet
+            raw data used in qc feature extraction
+
+        Returns
+        -------
+        cell_features : dict
+            dictionary of qc info for the cell (overall experiment level info)
+        cell_tags : list
+            a list of qc tags for the cell (e.g. 'Blowout is not available')
+        sweep_features : list[dict]
+            a list of dictionaries containing qc info for each individual sweep
+
+    def populate_qc_info(
+        self,
+        sweep_table,
+        pre_qc_sweep_features: List[dict],
+        post_qc_sweep_features: List[dict],
+        auto_qc_states: List[dict]
+    ):
+        Uses pre and post sweep qc features to populate initial and current
+        sweep QC features and states. Sweep features and states use values of
+        True, False, or None to indicate their auto QC states.
+
+         For sweep_features['passed']:
+            True = Passed all auto qc
+            False = Failed in second round of auto qc when run_qc() was called.
+                These sweeps exist in post_qc_sweep_features
+            None = Dropped in first round of auto qc due to having a fail tag
+                or no auto QC was performed.
+                Sweeps with None in this column are dropped before feature
+                extraction so that extract_data_set_features() doesn't break.
+                These sweeps exist in pre_qc_sweep_features, but do not exist
+                in post_qc_sweep_features.
+
+        For sweep_states['passed']:
+            True = Passed all auto qc
+            False = Failed in first or second round of auto qc.
+            None = No auto QC. These sweeps exist in the sweep table, but do
+                not exist in pre_qc_sweep_features or post_qc_sweep_features
+
+        Parameters
+        ----------
+        pre_qc_sweep_features : List[dict]
+            Contains sweep features that went through qc feature extraction.
+            The ['passed'] column does not exist in this list.
+        post_qc_sweep_features : List[dict]
+            Contains sweep features that went through the second round of
+            auto QC. Sweeps that had a fail tag in pre_qc_sweep_features are
+            dropped and not present in this list.
+        sweep_states : List[dict]
+            Contains auto QC states obtained in the second round of auto QC
+            Again, sweeps that were dropped because they had a fail tag
+            are not present in this list.
+
+    """
+
     __slots__ = [
         '_sweep_data_tuple', '_ontology', '_qc_criteria', '_recording_date'
     ]
@@ -112,15 +201,19 @@ class QCOperator(object):
             cell_state=cell_state
         )
 
-        sweep_table_data = [{
+        # todo add qc features and MCC settings to this
+        full_sweep_qc_info = [{
             'sweep_number': sweep['sweep_number'],
             'stimulus_code': sweep['stimulus_code'],
             'stimulus_name': sweep['stimulus_name'],
-            'auto_qc_state': "n/a", 'manual_qc_state': "default", 'tags': []
+            'auto_qc_state': "n/a",
+            'manual_qc_state': "default",
+            'passed': None,
+            'tags': []
         } for sweep in self.sweep_data_tuple]
 
-        sweep_table_data = self.get_sweep_table_data(
-            sweep_table_data=sweep_table_data,
+        full_sweep_qc_info = self.get_full_sweep_qc_info(
+            full_sweep_qc_info=full_sweep_qc_info,
             pre_qc_sweep_features=pre_qc_sweep_features,
             post_qc_sweep_features=post_qc_sweep_features,
             sweep_states=sweep_states
@@ -134,7 +227,7 @@ class QCOperator(object):
             sweep_states=sweep_states
         )
 
-        return qc_results, sweep_table_data, sweep_types
+        return qc_results, full_sweep_qc_info, sweep_types
 
     def get_sweep_types(self):
         sweep_keys = (
@@ -414,35 +507,50 @@ class QCOperator(object):
         }
 
     @staticmethod
-    def get_sweep_table_data(
-            sweep_table_data: List[dict],
+    def get_full_sweep_qc_info(
+            full_sweep_qc_info: List[dict],
             pre_qc_sweep_features: List[dict],
             post_qc_sweep_features: List[dict],
             sweep_states: List[dict]
     ):
+        # TODO write docstring
         """ foo
         """
 
+        # loop through sweep states and assign auto qc states to sweep_table_data
         for idx, state in enumerate(sweep_states):
+            # cache sweep number
+            sweep_num = state['sweep_number']
+            # it state is auto passed, update table data appropriately
             if state['passed']:
-                sweep_table_data[state['sweep_number']]['auto_qc_state'] = "passed"
+                full_sweep_qc_info[sweep_num]['passed'] = True
+                full_sweep_qc_info[sweep_num]['auto_qc_state'] = "passed"
             else:
-                sweep_table_data[state['sweep_number']]['auto_qc_state'] = "failed"
+                full_sweep_qc_info[sweep_num]['passed'] = False
+                full_sweep_qc_info[sweep_num]['auto_qc_state'] = "failed"
+            # update tags
+            full_sweep_qc_info[sweep_num]['tags'] += post_qc_sweep_features[idx]['tags']
+            full_sweep_qc_info[sweep_num]['tags'] += state['reasons']
 
-            sweep_table_data[state['sweep_number']]['tags'] += post_qc_sweep_features[idx]['tags']
-            sweep_table_data[state['sweep_number']]['tags'] += state['reasons']
-
+        # loop through sweeps that got dropped due to having fail tags update table data
         for feature in pre_qc_sweep_features:
-            if sweep_table_data[feature['sweep_number']]['auto_qc_state'] \
-                    not in {"passed", "failed"}:
-                sweep_table_data[feature['sweep_number']]['auto_qc_state'] = "failed"
-            sweep_table_data[feature['sweep_number']]['tags'] += feature['tags']
+            # cache sweep number
+            sweep_num = feature['sweep_number']
+            # skip over sweeps that were processed in above step
+            if full_sweep_qc_info[sweep_num]['passed'] not in {True, False}:
+                full_sweep_qc_info[sweep_num]['passed'] = False
+                full_sweep_qc_info[sweep_num]['auto_qc_state'] = "failed"
+            # update tags
+            full_sweep_qc_info[sweep_num]['tags'] += feature['tags']
 
-        for idx, feature in enumerate(sweep_table_data):
-            if sweep_table_data[idx]['auto_qc_state'] not in ("passed", "failed"):
-                sweep_table_data[idx]['tags'] += ["no auto qc"]
+        # loop through all the other sweeps not included in auto qc
+        for sweep_num in range(len(full_sweep_qc_info)):
+            # only handle sweeps that were not processed in previous two steps
+            if full_sweep_qc_info[sweep_num]['passed'] not in {True, False}:
+                # these sweeps have no auto qc, so update tags appropriately
+                full_sweep_qc_info[sweep_num]['tags'] += ["no auto qc"]
 
-        return sweep_table_data
+        return full_sweep_qc_info
 
 
 def run_auto_qc(sweep_data_tuple: tuple, ontology: StimulusOntology,
@@ -451,8 +559,8 @@ def run_auto_qc(sweep_data_tuple: tuple, ontology: StimulusOntology,
     qc_operator = QCOperator(
         sweep_data_tuple, ontology, qc_criteria, recording_date
     )
-    qc_results, sweep_table_data, sweep_types = qc_operator.fast_experiment_qc()
+    qc_results, full_sweep_qc_info, sweep_types = qc_operator.fast_experiment_qc()
 
     qc_out = qc_output
-    qc_out.send((qc_results, sweep_table_data, sweep_types))
+    qc_out.send((qc_results, full_sweep_qc_info, sweep_types))
     qc_out.close()
