@@ -1,0 +1,137 @@
+HS#0:Fast compensation capacitance: 0.00 F
+HS#0:Slow compensation capacitance: 0.00 F
+HS#0:Fast compensation time: 0.00 s
+HS#0:Slow compensation time: 0.00 s
+HS#0:Headstage Active: On
+HS#1:Headstage Active: Off
+HS#2:Headstage Active: Off
+HS#3:Headstage Active: Off
+HS#4:Headstage Active: Off
+HS#5:Headstage Active: Off
+HS#6:Headstage Active: Off
+HS#7:Headstage Active: Off
+HS#0:DAC: 0.00 
+HS#0:ADC: 0.00 
+HS#0:Clamp Mode: Off
+TP Baseline Fraction: 0.45 
+TP Amplitude VC: 10.00 
+TP Amplitude IC: 50.00 
+TP Pulse Duration: 10.00 ms
+HS#0:Stim Scale Factor: 1.00 
+HS#0:DA Gain: 20.00 
+HS#0:AD Gain: 0.00 
+HS#0:Set Sweep Count: 0.00 
+TP Insert Checkbox: On
+Inter-trial interval: 0.00 s
+Delay onset user: 0.00 ms
+Delay onset auto: 100.00 ms
+Delay termination: 0.00 ms
+Delay distributed DAQ: 0.00 ms
+Distributed DAQ: Off
+Repeat Sets: 1.00 
+Scaling zero: Off
+Indexing: Off
+Locked indexing: Off
+Repeated Acquisition: On
+Random Repeated Acquisition: Off
+Sampling interval: 0.00 ms
+Sampling interval multiplier: 1.00 
+HS#0:Stim set length: 46000.00 a. u.
+oodDAQ Pre Feature: 0.00 ms
+oodDAQ Post Feature: 0.00 ms
+oodDAQ Resolution: 0.00 ms
+Optimized Overlap dDAQ: Off
+HS#0:Delay onset oodDAQ: 0.00 ms
+Repeated Acq Cycle ID: 3347268.00 
+HS#0:Stim Wave Checksum: 351995424.00 
+Multi Device mode: On
+Background Testpulse: On
+Background DAQ: On
+TP buffer size: 1.00 a. u.
+TP during ITI: On
+Amplifier change via I=0: Off
+Skip analysis functions: Off
+Repeat sweep on async alarm: Off
+HS#0:Set Cycle Count: 0.00 a. u.
+HS#0:Stimset Acq Cycle ID: 3272828.00 a. u.
+Digitizer Hardware Type: 0.00 a. u.
+Igor Pro bitness: On
+HS#0:DA ChannelType: 1.00 a. u.
+HS#0:AD ChannelType: 1.00 a. u.
+HS#0:oodDAQ member: Off
+HS#0:V-Clamp Holding Enable: Off
+HS#0:V-Clamp Holding Level: -69.99 mV
+HS#0:Osc Killer Enable: Off
+HS#0:RsComp Bandwidth: 1.02 Hz
+HS#0:RsComp Correction: 0.00 %
+HS#0:RsComp Enable: Off
+HS#0:RsComp Prediction: 0.00 %
+HS#0:Whole Cell Comp Enable: Off
+HS#0:Whole Cell Comp Cap: 1.00 pF
+HS#0:Whole Cell Comp Resist: 0.40 MOhm
+HS#0:Serial Number: 834064.00 
+HS#0:Channel ID: 1.00 
+HS#0:ComPort ID: 0.00 
+HS#0:AxoBus ID: 0.00 
+HS#0:Operating Mode: 0.00 
+HS#0:Scaled Out Signal: 0.00 
+HS#0:Alpha: 1.00 
+HS#0:Scale Factor: 0.50 
+HS#0:Scale Factor Units: 0.00 
+HS#0:LPF Cutoff: 10000.00 
+HS#0:Membrane Cap: 0.00 pF
+HS#0:Ext Cmd Sens: 0.02 
+HS#0:Raw Out Signal: 11.00 
+HS#0:Raw Scale Factor: 10.00 
+HS#0:Raw Scale Factor Units: 0.00 
+HS#0:Hardware Type: 1.00 
+HS#0:Secondary Alpha: 1.00 
+HS#0:Secondary LPF Cutoff: 10000.00 
+HS#0:Series Resistance: 0.00 MOhms
+HS#0:Pipette Offset: 0.00 mV
+HS#0:Async 0 On/Off: On
+Async 0 On/Off: On
+HS#0:Async 1 On/Off: On
+Async 1 On/Off: On
+HS#0:Async 0 Gain: 0.01 
+Async 0 Gain: 0.01 
+HS#0:Async 1 Gain: 0.01 
+Async 1 Gain: 0.01 
+HS#0:Async Alarm 0 On/Off: On
+Async Alarm 0 On/Off: On
+HS#0:Async Alarm 1 On/Off: On
+Async Alarm 1 On/Off: On
+HS#0:Async Alarm 0 Min: 0.00 
+Async Alarm 0 Min: 0.00 
+HS#0:Async Alarm 1 Min: -1.00 
+Async Alarm 1 Min: -1.00 
+HS#0:Async Alarm  0 Max: 0.00 
+Async Alarm  0 Max: 0.00 
+HS#0:Async Alarm  1 Max: 34.00 
+Async Alarm  1 Max: 34.00 
+HS#0:Async AD 0: Set Temperature: 0.44 degC
+Async AD 0: Set Temperature: 0.44 degC
+HS#0:Async AD 1: Bath Temperature: 0.06 degC
+Async AD 1: Bath Temperature: 0.06 degC
+
+HS#0:DA unit: mV
+HS#0:AD unit: pA
+HS#0:Electrode: 0
+High precision sweep start: 2019-11-05T21:20:11.821Z
+Digitizer Hardware Name: ITC18USB
+Digitizer Serial Numbers: Master:0X948548,Secondary:0,Host:0X948678
+HS#0:OperatingModeString: V-Clamp
+HS#0:ScaledOutSignalString: Membrane Current
+HS#0:ScaleFactorUnitsString: V/nA
+HS#0:RawOutSignalString: Membrane Potential
+HS#0:RawScaleFactorUnitsString: V/V
+HS#0:HardwareTypeString: MultiClamp 700B
+HS#0:Async AD0 Title: Set Temperature
+Async AD0 Title: Set Temperature
+HS#0:Async AD1 Title: Bath Temperature
+Async AD1 Title: Bath Temperature
+HS#0:Async AD0 Unit: degC
+Async AD0 Unit: degC
+HS#0:Async AD1 Unit: degC
+Async AD1 Unit: degC
+

@@ -128,7 +128,15 @@ if __name__ == "__main__":
 
     # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb"
     # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Vip-IRES-Cre;Ai14-331294.04.01.01.nwb"
-    # main(file)
 
-    with Pool(processes=len(files)) as pool:
-        pool.map(main, tuple(map(str, files)))
+    # channel recording with no rs comp / cap comp for this cell? --- series is broken?
+    # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb"
+
+    file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb"
+
+    # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb"
+
+    main(file)
+
+    # with Pool(processes=len(files)) as pool:
+    #     pool.map(main, tuple(map(str, files)))

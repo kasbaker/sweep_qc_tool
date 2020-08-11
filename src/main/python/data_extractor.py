@@ -100,8 +100,8 @@ class DataExtractor(object):
                     stimulus_unit = unit
 
         if stimulus_unit == "Volts":
-            stimulus = stimulus * 1.0e3
-            response = response * 1.0e12
+            stimulus = stimulus * 1.0e3   # should use stim_series.conversion ** -1 here?
+            response = response * 1.0e12  # should use series.conversion ** -1 here?
         elif stimulus_unit == "Amps":
             stimulus = stimulus * 1.0e12
             response = response * 1.0e3

@@ -1,0 +1,63 @@
+HS#0:Stim Scale Factor: -30.00 
+HS#0:DA Gain: 400.00 
+HS#0:AD Gain: 0.05 
+Indexing: On
+Sampling interval multiplier: 4.00 
+HS#0:Stim set length: 175000.00 a. u.
+Repeated Acq Cycle ID: 5164966.00 
+HS#0:Stim Wave Checksum: 2390421504.00 
+TP buffer size: 1.00 a. u.
+HS#0:Stimset Acq Cycle ID: 5278415.00 a. u.
+HS#0:I-Clamp Holding Enable: On
+HS#0:I-Clamp Holding Level: -17.96 pA
+HS#0:Neut Cap Enabled: On
+HS#0:Neut Cap Value: 4.00 pF
+HS#0:Bridge Bal Enable: On
+HS#0:Bridge Bal Value: 16.00 MOhm
+HS#0:Operating Mode: 1.00 
+HS#0:Scaled Out Signal: 20.00 
+HS#0:Alpha: 5.00 
+HS#0:Scale Factor: 10.00 
+HS#0:Ext Cmd Sens: 0.00 
+HS#0:Raw Out Signal: 31.00 
+HS#0:Raw Scale Factor: 0.50 
+HS#0:Raw Scale Factor Units: 6.00 
+HS#0:Pipette Offset: 64.14 mV
+HS#0:Slow current injection: Off
+HS#0:Slow current injection level: -0.06 V
+HS#0:Slow current injection settling time: 0.10 s
+HS#0:Autobias Vcom: -60.00 mV
+HS#0:Autobias Vcom variance: 0.50 mV
+HS#0:Autobias Ibias max: 100.00 pA
+HS#0:Autobias: On
+HS#0:Async AD 0: Set Temperature: -303.19 degC
+Async AD 0: Set Temperature: -303.19 degC
+HS#0:USER_DA Scale Chk0 S-RMS QC: On
+HS#0:USER_DA Scale Chk0 L-RMS QC: On
+HS#0:USER_DA Scale Chk0 T-V BL QC: On
+USER_DA Scale Chk0 BL QC: On
+HS#0:USER_DA Scale Chk1 S-RMS QC: On
+HS#0:USER_DA Scale Chk1 L-RMS QC: On
+HS#0:USER_DA Scale Chk1 T-V BL QC: Off
+USER_DA Scale Chk1 BL QC: Off
+HS#0:USER_DA Scale Chk2 S-RMS QC: On
+HS#0:USER_DA Scale Chk2 L-RMS QC: On
+HS#0:USER_DA Scale Chk2 T-V BL QC: Off
+USER_DA Scale Chk2 BL QC: Off
+USER_DA Scale Sweep QC: Off
+HS#0:USER_DA Scale Chk3 S-RMS QC: On
+HS#0:USER_DA Scale Chk3 L-RMS QC: On
+HS#0:USER_DA Scale Chk3 T-V BL QC: Off
+USER_DA Scale Chk3 BL QC: Off
+
+HS#0:DA unit: pA
+HS#0:AD unit: mV
+HS#0:Generic function: PSQ_DAScale
+HS#0:Function params: OperationMode:string=Sub,DAScales:wave=-30|-50|-70|-90|-110|,SamplingMultiplier:variable=4,
+High precision sweep start: 2019-12-06T21:29:04.791Z
+HS#0:OperatingModeString: I-Clamp
+HS#0:ScaledOutSignalString: Membrane Potential
+HS#0:ScaleFactorUnitsString: V/V
+HS#0:RawOutSignalString: Membrane Current
+HS#0:RawScaleFactorUnitsString: V/nA
+
