@@ -175,33 +175,39 @@ class SweepTableView(QTableView):
 
         """
         # temporary variable of visible sweeps
-        visible_sweeps = set()
+        sweep_nums_to_show = set()
+        # cache sweep types
+        sweep_types = self.model().sweep_types
         # add checked view options to set of visible sweeps
         # all sweeps
         if self.view_all_sweeps.isChecked():
-            visible_sweeps.update(self.model().sweep_types['all_sweeps'])
+            sweep_nums_to_show.update(sweep_types['all_sweeps'])
         # pipeline sweeps
         if self.view_pipeline.isChecked():
-            visible_sweeps.update(self.model().sweep_types['pipeline'])
+            sweep_nums_to_show.update(sweep_types['pipeline'])
         # channel recording sweeps
         if self.view_nuc_vc.isChecked():
-            visible_sweeps.update(self.model().sweep_types['nuc_vc'])
+            sweep_nums_to_show.update(sweep_types['nuc_vc'])
 
         # set view pipeline to checked if it is a subset of visible sweeps
         self.view_pipeline.setChecked(
-            self.model().sweep_types['pipeline'].issubset(visible_sweeps)
+            sweep_types['pipeline'].issubset(sweep_nums_to_show)
         )
         # set view nuc vc to checked if it is a subset of visible sweeps
         self.view_nuc_vc.setChecked(
-            self.model().sweep_types['nuc_vc'].issubset(visible_sweeps)
+            sweep_types['nuc_vc'].issubset(sweep_nums_to_show)
         )
 
-        # remove 'Search' sweeps from visible sweeps
-        visible_sweeps = visible_sweeps - self.model().sweep_types['search']
+        # cache key to translate sweep numbers to table model indexes
+        swp_idx_key = self.model().sweep_num_to_idx_key
+        # translate sweep numbers to show into table model indexes to show
+        sweep_idx_to_show = {
+            swp_idx_key[sweep_num] for sweep_num in sweep_nums_to_show
+        }
 
-        # loop through rows of table model and show only visible sweeps
+        # loop through rows of table model and show only visible sweep indexes
         for index in range(self.model().rowCount()):
-            if index in visible_sweeps:
+            if index in sweep_idx_to_show:
                 self.showRow(index)
             else:
                 self.hideRow(index)

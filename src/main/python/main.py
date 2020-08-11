@@ -97,41 +97,41 @@ class SweepPage(QWidget):
 
         """
         # connect model to default checkbox states for view menu
-        self.sweep_model.new_data.connect(self.set_default_filter_states)
+        self.sweep_model.sweep_types_ready.connect(self.set_default_filter_states)
         # TODO connect sweep types to view through here
         # connect model to raw data
         self.sweep_model.connect(data)
 
     def set_default_filter_states(self):
         """ Sets the default checkbox states when a new data set is loaded """
-        ...
-        # # initialize set of all sweeps
-        # # self.sweep_view.all_sweeps = set(range(self.sweep_model.rowCount()))
-        #
-        # # enable checkboxes when data is loaded
-        # self.sweep_view.view_all_sweeps.setEnabled(True)
-        #
-        # # set default check states
-        # self.sweep_view.view_nuc_vc.setChecked(False)
-        #
-        # # check if sweeps of certain types exist and enable appropriate actions
-        # if self.sweep_model.sweep_types['pipeline']:
-        #     self.sweep_view.view_pipeline.setEnabled(True)
-        #     self.sweep_view.view_pipeline.setChecked(True)
-        #     # set all sweeps unchecked if pipeline sweep exist
-        #     self.sweep_view.view_all_sweeps.setChecked(False)
-        # else:
-        #     self.sweep_view.view_pipeline.setEnabled(False)
-        #     # set all sweeps checked if no pipeline sweeps
-        #     self.sweep_view.view_all_sweeps.setChecked(True)
-        #
-        # if self.sweep_model.sweep_types['nuc_vc']:
-        #     self.sweep_view.view_nuc_vc.setEnabled(True)
-        # else:
-        #     self.sweep_view.view_nuc_vc.setEnabled(False)
-        #
-        # # trigger view pipeline sweeps
-        # self.sweep_view.filter_sweeps()
+
+        # initialize set of all sweeps
+        # self.sweep_view.all_sweeps = set(range(self.sweep_model.rowCount()))
+
+        # enable checkboxes when data is loaded
+        self.sweep_view.view_all_sweeps.setEnabled(True)
+
+        # set default check states
+        self.sweep_view.view_nuc_vc.setChecked(False)
+
+        # check if sweeps of certain types exist and enable appropriate actions
+        if self.sweep_model.sweep_types['pipeline']:
+            self.sweep_view.view_pipeline.setEnabled(True)
+            self.sweep_view.view_pipeline.setChecked(True)
+            # set all sweeps unchecked if pipeline sweep exist
+            self.sweep_view.view_all_sweeps.setChecked(False)
+        else:
+            self.sweep_view.view_pipeline.setEnabled(False)
+            # set all sweeps checked if no pipeline sweeps
+            self.sweep_view.view_all_sweeps.setChecked(True)
+
+        if self.sweep_model.sweep_types['nuc_vc']:
+            self.sweep_view.view_nuc_vc.setEnabled(True)
+        else:
+            self.sweep_view.view_nuc_vc.setEnabled(False)
+
+        # trigger view pipeline sweeps
+        self.sweep_view.filter_sweeps()
 
 
 class PlotPage(QWidget):

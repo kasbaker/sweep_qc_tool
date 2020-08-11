@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Any, Sequence
+from typing import Optional, Dict, List, Any, Set, Sequence
 
 from PyQt5.QtCore import (
     QAbstractTableModel, QModelIndex, pyqtSignal
@@ -26,7 +26,7 @@ class SweepTableModel(QAbstractTableModel):
 
     """
     qc_state_updated = pyqtSignal(int, str, name="qc_state_updated")
-    new_data = pyqtSignal(name="new_data")
+    sweep_types_ready = pyqtSignal(name="table_model_data_loaded")
 
     FAIL_BGCOLOR = QColor(255, 225, 225)
 
@@ -51,11 +51,14 @@ class SweepTableModel(QAbstractTableModel):
         self.column_map = {colname: idx for idx, colname in enumerate(colnames)}
         self._data: List[List[Any]] = []
 
-        self.plot_config = plot_config
-        self.sweep_features: Optional[list] = None
-        self.sweep_states: Optional[list] = None
-        self.manual_qc_states: Optional[list] = None
+        # self.plot_config = plot_config
+        # self.sweep_features: Optional[list] = None
+        # self.sweep_states: Optional[list] = None
+        # self.manual_qc_states: Optional[list] = None
 
+        # dictionary translating between sweep numbers and table model row indexes
+        self.sweep_num_to_idx_key: Optional[Dict[int, int]] = None
+        # dictionary of sets of sweep numbers classified in various ways
         self.sweep_types: Optional[Dict[str, set]] = None
     
     def connect(self, data: PreFxData):
@@ -71,10 +74,10 @@ class SweepTableModel(QAbstractTableModel):
         """
 
         data.end_commit_calculated.connect(self.on_new_data)
-        data.model_data_ready.connect(self.build_sweep_table)
+        data.table_model_data_ready.connect(self.build_sweep_table)
         self.qc_state_updated.connect(data.on_manual_qc_state_updated)
 
-    def build_sweep_table(self, new_data):
+    def build_sweep_table(self, table_model_data: List[list], sweep_types: Dict[str, Set[int]]):
         """ foobar """
 
         if self.rowCount() > 0:
@@ -83,11 +86,22 @@ class SweepTableModel(QAbstractTableModel):
             self._data = []
             self.endResetModel()
 
-        self.beginInsertRows(QModelIndex(), 0, len(new_data) - 1)
-        self._data = new_data
+        self.beginInsertRows(QModelIndex(), 0, len(table_model_data) - 1)
+        self._data = table_model_data
         self.endInsertRows()
 
-        self.new_data.emit()
+        # key for translating sweep numbers to table model indexes
+        sweep_num_to_idx_key = {
+            sweep[0]: idx for idx, sweep in enumerate(table_model_data)
+        }
+        # add set of all sweeps contained in the sweep table to sweep types
+        sweep_types['all_sweeps'] = set(sweep_num_to_idx_key.keys())
+
+        # implement sweep types and key, then emit signal saying they are ready
+        self.sweep_num_to_idx_key = sweep_num_to_idx_key
+        self.sweep_types = sweep_types
+        self.sweep_types_ready.emit()
+
 
     def on_new_data(
         self, 
@@ -215,13 +229,13 @@ class SweepTableModel(QAbstractTableModel):
 
         # grabbing sweep features, auto qc states, and manual qc states
         #   so that sweep table view can filter based on these values
-        self.sweep_features = sweep_features
-        self.sweep_states = sweep_states
-        self.manual_qc_states = manual_qc_states
-        self.sweep_types = sweep_types
+        # self.sweep_features = sweep_features
+        # self.sweep_states = sweep_states
+        # self.manual_qc_states = manual_qc_states
+        # self.sweep_types = sweep_types
 
         # emit signal indicating that the model now has new data in it
-        self.new_data.emit()
+        self.sweep_types_ready.emit()
 
     def rowCount(self, *args, **kwargs):
         """ The number of rows in the sweep table model, which should be the

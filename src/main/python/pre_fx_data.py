@@ -30,7 +30,7 @@ class PreFxData(QObject):
     end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
 
     # signal to send data to the sweep table once auto qc and plotting is done
-    model_data_ready = pyqtSignal(list, name="data_ready")
+    table_model_data_ready = pyqtSignal(list, dict, name="table_model_data_ready")
 
     update_fx_sweep_info = pyqtSignal(
         str, StimulusOntology, list, name="update_fx_sweep_info"
@@ -64,7 +64,7 @@ class PreFxData(QObject):
         # full list of sweep qc info used for qc-ing sweeps and feature extraction
         self._full_sweep_qc_info: Optional[list] = None
         # dictionary of sweep types, which can be used for filtering sweeps
-        self._sweep_types: Optional[dict] = None
+        # self._sweep_types: Optional[dict] = None
         # named tuple containing qc results obtained from auto-qc
         self._qc_results: Optional[QCResults] = None
 
@@ -332,7 +332,7 @@ class PreFxData(QObject):
         # create list of data to send to sweep table model, exclude 'Search' sweeps
         self.status_message.emit("Preparing data for sweep page...")
 
-        new_data = [[
+        table_model_data = [[
             sweep_num,
             full_sweep_qc_info[sweep_num]['stimulus_code'],
             full_sweep_qc_info[sweep_num]['stimulus_name'],
@@ -341,8 +341,7 @@ class PreFxData(QObject):
             format_fail_tags(full_sweep_qc_info[sweep_num]['tags']),  # fail tags
             tp_plot,    # test pulse plot
             exp_plot    # experiment plot
-        ] for sweep_num, tp_plot, exp_plot in sweep_plots
-            if full_sweep_qc_info[sweep_num]['stimulus_name'] != "Search"]
+        ] for sweep_num, tp_plot, exp_plot in sweep_plots]
 
         self.status_message.emit("Finalizing results")
 
@@ -355,14 +354,14 @@ class PreFxData(QObject):
         # update self with qc results, full sweep info, and sweep types
         self._full_sweep_qc_info = full_sweep_qc_info
         self._qc_results = qc_results
-        self._sweep_types = sweep_types
+        # self._sweep_types = sweep_types
 
         # update feature extractor with new info
         self.update_fx_sweep_info.emit(
             self.nwb_path, self.stimulus_ontology, self._full_sweep_qc_info
         )
         # send new sweep table data to
-        self.model_data_ready.emit(new_data)
+        self.table_model_data_ready.emit(table_model_data, sweep_types)
 
     def on_manual_qc_state_updated(self, index: int, new_state: str):
         """ Takes in new manual QC state and updates sweep_states and

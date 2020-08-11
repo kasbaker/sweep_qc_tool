@@ -151,19 +151,19 @@ class QCOperator(object):
         features = {}
         tags = []
 
-        features['blowout_mv'] = self.fast_extract_blowout(sweep_types['blowouts'], tags)
+        features['blowout_mv'] = self.fast_extract_blowout(sweep_types['blowout'], tags)
 
-        features['electrode_0_pa'] = self.fast_extract_electrode_0(sweep_types['baths'], tags)
+        features['electrode_0_pa'] = self.fast_extract_electrode_0(sweep_types['in_bath'], tags)
 
         if self.recording_date is None:
             tags.append("Recording date is missing")
         features['recording_date'] = self.recording_date
 
-        features["seal_gohm"] = self.fast_extract_clamp_seal(sweep_types['seals'], tags,
+        features["seal_gohm"] = self.fast_extract_clamp_seal(sweep_types['seal'], tags,
                                                         manual_values)
 
         input_resistance, access_resistance = \
-            self.fast_extract_input_and_acess_resistance(sweep_types['breakins'], tags)
+            self.fast_extract_input_and_acess_resistance(sweep_types['break_in'], tags)
 
         features['input_resistance_mohm'] = input_resistance
         features["initial_access_resistance_mohm"] = access_resistance
@@ -194,6 +194,10 @@ class QCOperator(object):
             sweep_features=post_qc_sweep_features,
             qc_criteria=self.qc_criteria
         )
+
+        # grab set of sweeps that made it through auto qc and add to sweep types
+        sweep_types['pipeline'] = {state['sweep_number'] for state in sweep_states}
+
         qc_summary(
             sweep_features=post_qc_sweep_features,
             sweep_states=sweep_states,
@@ -231,12 +235,13 @@ class QCOperator(object):
 
     def get_sweep_types(self):
         sweep_keys = (
-            'v_clamps', 'i_clamps', 'blowouts', 'baths', 'seals', 'breakins',
-            'ramps', 'long_squares', 'coarse_long_squares', 'short_square_triples',
-            'short_squares', 'searches', 'tests', 'extps'
+            'v_clamp', 'i_clamp', 'blowout', 'in_bath', 'seal', 'break_in',
+            'ramp', 'long_square', 'coarse_long_square', 'short_square_triple',
+            'short_square', 'search', 'test', 'ex_tp', 'nuc_vc'
         )
 
-        sweep_types = {key: [] for key in sweep_keys}
+        # todo add NucVC to this dictionary
+        sweep_types = {key: set() for key in sweep_keys}
 
         ontology = self.ontology
 
@@ -245,43 +250,51 @@ class QCOperator(object):
             stim_unit = sweep['stimulus_unit']
 
             if stim_unit == "Volts":
-                sweep_types['v_clamps'].append(sweep_num)
+                sweep_types['v_clamp'].add(sweep_num)
             if stim_unit == "Amps":
-                sweep_types['i_clamps'].append(sweep_num)
+                sweep_types['i_clamp'].add(sweep_num)
 
             stim_code = sweep['stimulus_code']
             stim_name = sweep['stimulus_name']
-            if stim_name in ontology.extp_names or ontology.extp_names[0] in stim_code:
-                sweep_types['extps'].append(sweep_num)
-            if stim_name in ontology.test_names:
-                sweep_types['tests'].append(sweep_num)
-            if stim_name in ontology.blowout_names or ontology.blowout_names[0] in stim_code:
-                sweep_types['blowouts'].append(sweep_num)
-            if stim_name in ontology.bath_names or ontology.bath_names[0] in stim_code:
-                sweep_types['baths'].append(sweep_num)
-            if stim_name in ontology.seal_names or ontology.seal_names[0] in stim_code:
-                sweep_types['seals'].append(sweep_num)
-            if stim_name in ontology.breakin_names or ontology.breakin_names[0] in stim_code:
-                sweep_types['breakins'].append(sweep_num)
 
+            # check ontology for a stim name match or check if stim code
+            # contains a partial match with first ontology name
+            if stim_name in ontology.extp_names or ontology.extp_names[0] in stim_code:
+                sweep_types['ex_tp'].add(sweep_num)
+            if stim_name in ontology.test_names:
+                sweep_types['test'].add(sweep_num)
+            if stim_name in ontology.blowout_names or ontology.blowout_names[0] in stim_code:
+                sweep_types['blowout'].add(sweep_num)
+            if stim_name in ontology.bath_names or ontology.bath_names[0] in stim_code:
+                sweep_types['in_bath'].add(sweep_num)
+            if stim_name in ontology.seal_names or ontology.seal_names[0] in stim_code:
+                sweep_types['seal'].add(sweep_num)
+            if stim_name in ontology.breakin_names or ontology.breakin_names[0] in stim_code:
+                sweep_types['break_in'].add(sweep_num)
+
+            # check ontology for exact match for these names
             if stim_name in ontology.ramp_names:
-                sweep_types['ramps'].append(sweep_num)
+                sweep_types['ramp'].add(sweep_num)
             if stim_name in ontology.long_square_names:
-                sweep_types['long_squares'].append(sweep_num)
+                sweep_types['long_square'].add(sweep_num)
             if stim_name in ontology.coarse_long_square_names:
-                sweep_types['coarse_long_squares'].append(sweep_num)
+                sweep_types['coarse_long_square'].add(sweep_num)
             if stim_name in ontology.short_square_triple_names:
-                sweep_types['short_square_triples'].append(sweep_num)
+                sweep_types['short_square_triple'].add(sweep_num)
             if stim_name in ontology.short_square_names:
-                sweep_types['short_squares'].append(sweep_num)
+                sweep_types['short_square'].add(sweep_num)
             if stim_name in ontology.search_names:
-                sweep_types['searches'].append(sweep_num)
+                sweep_types['search'].add(sweep_num)
+
+            # manual entry for channel recording 'NucVC' sweeps
+            if "NucVC" in stim_code:
+                sweep_types['nuc_vc'].add(sweep_num)
 
         return sweep_types
 
     def fast_extract_blowout(self, blowout_sweeps, tags):
         if blowout_sweeps:
-            last_blowout_sweep = self.sweep_data_tuple[blowout_sweeps[-1]]
+            last_blowout_sweep = self.sweep_data_tuple[max(blowout_sweeps)]
             blowout_mv = qcf.measure_blowout(
                 last_blowout_sweep['response'], last_blowout_sweep['epochs']['test'][1]
             )
@@ -292,7 +305,7 @@ class QCOperator(object):
 
     def fast_extract_electrode_0(self, bath_sweeps: list, tags):
         if bath_sweeps:
-            last_bath_sweep = self.sweep_data_tuple[bath_sweeps[-1]]
+            last_bath_sweep = self.sweep_data_tuple[max(bath_sweeps)]
             e0 = qcf.measure_electrode_0(last_bath_sweep['response'], last_bath_sweep['sampling_rate'])
         else:
             tags.append("Electrode 0 is not available")
@@ -301,15 +314,11 @@ class QCOperator(object):
 
     def fast_extract_clamp_seal(self, seal_sweeps: list, tags, manual_values=None):
         if seal_sweeps:
-            last_seal_sweep = self.sweep_data_tuple[seal_sweeps[-1]]
-
-            # num_pts = len(last_seal_sweep['stimulus'])
+            last_seal_sweep = self.sweep_data_tuple[max(seal_sweeps)]
 
             time = np.arange(
                 len(last_seal_sweep['stimulus'])
             ) / last_seal_sweep['sampling_rate']
-
-            # time = np.linspace(0, num_pts/last_seal_sweep['sampling_rate'], num_pts)
 
             seal_gohm = qcf.measure_seal(
                 last_seal_sweep['stimulus'], last_seal_sweep['response'], time
@@ -326,9 +335,8 @@ class QCOperator(object):
 
     def fast_extract_input_and_acess_resistance(self, breakin_sweeps: list, tags):
         if breakin_sweeps:
-            last_breakin_sweep = self.sweep_data_tuple[breakin_sweeps[-1]]
-            # num_pts = len(last_breakin_sweep['stimulus'])
-            # time = np.linspace(0, num_pts/last_breakin_sweep['sampling_rate'], num_pts)
+            last_breakin_sweep = self.sweep_data_tuple[max(breakin_sweeps)]
+
             time = np.arange(
                 len(last_breakin_sweep['stimulus'])
             ) / last_breakin_sweep['sampling_rate']
@@ -356,15 +364,15 @@ class QCOperator(object):
         return input_resistance, access_resistance
 
     def fast_sweep_qc(self, sweep_types):
-        if len(sweep_types['i_clamps']) == 0:
+        if len(sweep_types['i_clamp']) == 0:
             logging.warning("No current clamp sweeps available to compute QC features")
 
-        qc_sweeps = list(set(
-            sweep_types['i_clamps']).difference(
-            set(sweep_types['tests']), set(sweep_types['searches'])
-        ))
-        qc_sweeps.sort()
-        # qc_sweeps.sort()
+        qc_sweeps = sorted(
+            sweep_types['i_clamp'].difference(
+                sweep_types['test'], sweep_types['search']
+            )
+        )
+
         sweep_gen = (self.sweep_data_tuple[idx] for idx in qc_sweeps)
         sweep_qc_results = []
 
@@ -376,7 +384,7 @@ class QCOperator(object):
             }
             is_ramp = False
 
-            if sweep_num in sweep_types['ramps']:
+            if sweep_num in sweep_types['ramp']:
                 is_ramp = True
 
             tags = self.fast_check_sweep_integrity(sweep, is_ramp)
@@ -404,9 +412,6 @@ class QCOperator(object):
         hz = sweep['sampling_rate']
 
         time = np.arange(len(sweep['stimulus'])) / hz
-
-        # num_pts = len(i)
-        # t = np.linspace(0, num_pts/hz, num_pts)
 
         start_time, dur, amp, start_idx, end_idx = stf.get_stim_characteristics(i, time)
 
@@ -452,7 +457,7 @@ class QCOperator(object):
         _, qc_features["pre_noise_rms_mv"] = qcf.measure_vm(voltage[idx0:idx1])
 
         # measure mean and rms of Vm at end of recording
-        # do not check for ramps, because they do not have enough time to recover
+        # do not check for ramp, because they do not have enough time to recover
 
         rec_end_idx = sweep['epochs']['recording'][1]
         if not is_ramp:
