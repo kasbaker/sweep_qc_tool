@@ -15,12 +15,16 @@ from ipfx.epochs import (
 
 
 class DataExtractor(object):
+
     __slots__ = [
         'nwb_file', '_ontology', '_data_set', '_recording_date',
-        '_series_iter', '_data_iter', '_series_table', '_num_sweeps'
+        '_series_iter', '_data_iter', '_series_table', '_num_sweeps',
+        'v_clamp_settings_dict'
     ]
 
-    def __init__(self, nwb_file, ontology):
+    def __init__(self, nwb_file, ontology, v_clamp_settings_keys='default'):
+
+        # todo make settings keys 'default', False, or tuple-like
         self.nwb_file = nwb_file
         self._ontology = ontology
         self._data_set = None
@@ -29,6 +33,16 @@ class DataExtractor(object):
         self._num_sweeps = None
         self._series_iter = None
         self._data_iter = None
+        if v_clamp_settings_keys != 'default':
+            self.v_clamp_settings_dict = dict.fromkeys(v_clamp_settings_keys)
+        else:
+            # tuple of keys to use for v-clamp settings
+            default_v_clamp_settings_keys = (
+                "V-Clamp Holding Enable: ", "V-Clamp Holding Level: ",
+                "RsComp Enable: ", "RsComp Correction: ", "RsComp Prediction: ",
+                "Whole Cell Comp Enable: ", "Whole Cell Comp Cap: ", "Whole Cell Comp Resist: "
+            )
+            self.v_clamp_settings_dict = dict.fromkeys(default_v_clamp_settings_keys)
 
     @property
     def data_set(self):
@@ -64,18 +78,33 @@ class DataExtractor(object):
     @property
     def data_iter(self):
         if not self._data_iter:
+
             self._data_iter = map(self._extract_series_data, self.series_iter)
         return self._data_iter
 
     def _extract_series_data(self, series):
-        sweep_number = int(series[0].sweep_number)
 
+
+        # v_clamp_settings_keys = (
+        #     "V-Clamp Holding Enable: ", "V-Clamp Holding Level: ",
+        #     "RsComp Enable: ", "RsComp Correction: ", "RsComp Prediction: ",
+        #     "Whole Cell Comp Enable: ", "Whole Cell Comp Cap: ", "Whole Cell Comp Resist: "
+        # )
+        #
+        # v_clamp_settings_dict = dict.fromkeys(v_clamp_settings_keys)
+
+        # initialize empty variables
         stimulus_code = ""
         stimulus_name = ""
         response = None
         stimulus = None
         stimulus_unit = None
+
+        # grab sampling rate and sweep number from first series
         sampling_rate = float(series[0].rate)
+        sweep_number = int(series[0].sweep_number)
+
+        # initialize dictionary of amplifier settings to extract
 
         for s in series:
             if isinstance(s, (VoltageClampSeries, CurrentClampSeries, IZeroClampSeries)):
@@ -90,12 +119,20 @@ class DataExtractor(object):
             elif isinstance(s, (VoltageClampStimulusSeries, CurrentClampStimulusSeries)):
                 stimulus = copy(s.data[:] * float(s.conversion))
                 unit = s.unit
+                comment_str = s.comments
                 if not unit:
                     stimulus_unit = "Unknown"
                 elif unit in {"Amps", "A", "amps", "amperes"}:
                     stimulus_unit = "Amps"
                 elif unit in {"Volts", "V", "volts"}:
                     stimulus_unit = "Volts"
+                    # loop through keys in v_clamp settings and extract strings
+                    for key in self.v_clamp_settings_dict.keys():
+                        # partition comments by key and grab the part with value we want
+                        value_str = comment_str.partition(key)[2]
+                        if value_str:  # if this is not an empty string extract value
+                            value = value_str.splitlines()[0]  # chop off everything after newline
+                            self.v_clamp_settings_dict[key] = value  # add value to dict
                 else:
                     stimulus_unit = unit
 
@@ -117,6 +154,8 @@ class DataExtractor(object):
         epochs = get_epochs(
             sampling_rate=sampling_rate, stimulus=stimulus, response=response
         )
+
+        print(self.v_clamp_settings_dict)
 
         return {
             'sweep_number': sweep_number,
