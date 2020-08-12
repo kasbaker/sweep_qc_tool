@@ -134,7 +134,7 @@ class DataExtractor(object):
                 comment_str = s.comments
                 if not unit:
                     stimulus_unit = "Unknown"
-                # do this for current clamp
+                # do this for current clamp sweeps
                 elif unit in {"Amps", "A", "amps", "amperes"}:
                     stimulus_unit = "Amps"
                     for key in self.i_clamp_settings_dict.keys():
@@ -145,8 +145,8 @@ class DataExtractor(object):
                             value = value_str.splitlines()[0]
                             self.i_clamp_settings_dict[key] = value  # add value to dict
                     # store dictionary as temporary value
-                    patch_clamp_settings_dict = self.i_clamp_settings_dict
-                # do this for voltage clamp
+                    patch_clamp_settings_dict = copy(self.i_clamp_settings_dict)
+                # do this for voltage clamp sweeps
                 elif unit in {"Volts", "V", "volts"}:
                     stimulus_unit = "Volts"
                     # loop through keys in v_clamp settings and extract strings
@@ -158,7 +158,7 @@ class DataExtractor(object):
                             value = value_str.splitlines()[0]
                             self.v_clamp_settings_dict[key] = value  # add value to dict
                     # store dictionary as temporary value
-                    patch_clamp_settings_dict = self.v_clamp_settings_dict
+                    patch_clamp_settings_dict = copy(self.v_clamp_settings_dict)
                 else:
                     stimulus_unit = unit
 
@@ -181,7 +181,7 @@ class DataExtractor(object):
             sampling_rate=sampling_rate, stimulus=stimulus, response=response
         )
 
-        print(patch_clamp_settings_dict)
+        # print(patch_clamp_settings_dict)
 
         return {
             'sweep_number': sweep_number,
@@ -191,7 +191,8 @@ class DataExtractor(object):
             'response': response,
             'stimulus_unit': stimulus_unit,
             'sampling_rate': sampling_rate,
-            'epochs': epochs
+            'epochs': epochs,
+            'amp_settings': patch_clamp_settings_dict
         }
 
 
