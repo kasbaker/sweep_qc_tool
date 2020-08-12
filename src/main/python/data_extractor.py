@@ -1,5 +1,6 @@
 import logging
 from copy import copy
+from typing import Tuple
 
 import numpy as np
 from pynwb.icephys import (
@@ -19,10 +20,14 @@ class DataExtractor(object):
     __slots__ = [
         'nwb_file', '_ontology', '_data_set', '_recording_date',
         '_series_iter', '_data_iter', '_series_table', '_num_sweeps',
-        'v_clamp_settings_dict'
+        'v_clamp_settings_dict', 'i_clamp_settings_dict'
     ]
 
-    def __init__(self, nwb_file, ontology, v_clamp_settings_keys='default'):
+    def __init__(
+            self, nwb_file, ontology,
+            v_clamp_settings_keys: Tuple[str] = 'default',
+            i_clamp_settings_keys: Tuple[str] = 'default'
+    ):
 
         # todo make settings keys 'default', False, or tuple-like
         self.nwb_file = nwb_file
@@ -33,16 +38,33 @@ class DataExtractor(object):
         self._num_sweeps = None
         self._series_iter = None
         self._data_iter = None
+
+        # initialize dictionary of amplifier settings for voltage clamp
         if v_clamp_settings_keys != 'default':
             self.v_clamp_settings_dict = dict.fromkeys(v_clamp_settings_keys)
         else:
-            # tuple of keys to use for v-clamp settings
+            # tuple of strings to use as keys for v-clamp settings
             default_v_clamp_settings_keys = (
-                "V-Clamp Holding Enable: ", "V-Clamp Holding Level: ",
-                "RsComp Enable: ", "RsComp Correction: ", "RsComp Prediction: ",
-                "Whole Cell Comp Enable: ", "Whole Cell Comp Cap: ", "Whole Cell Comp Resist: "
+                "V-Clamp Holding Enable", "V-Clamp Holding Level",
+                "RsComp Enable", "RsComp Correction", "RsComp Prediction",
+                "Whole Cell Comp Enable", "Whole Cell Comp Cap", "Whole Cell Comp Resist",
+                "Pipette Offset"
             )
             self.v_clamp_settings_dict = dict.fromkeys(default_v_clamp_settings_keys)
+
+        # initialize dictionary of amplifier settings for current clamp
+        if i_clamp_settings_keys != 'default':
+            self.i_clamp_settings_dict = dict.fromkeys(i_clamp_settings_keys)
+        else:
+            # tuple of keys to use for v-clamp settings
+            default_i_clamp_settings_keys = (
+                "I-Clamp Holding Enable", "I-Clamp Holding Level",
+                "Neut Cap Enabled", "Neut Cap Value",
+                "Bridge Bal Enable", "Bridge Bal Value",
+                "Autobias", "Autobias Vcom", "Autobias Vcom variance",
+                "Pipette Offset"
+            )
+            self.i_clamp_settings_dict = dict.fromkeys(default_i_clamp_settings_keys)
 
     @property
     def data_set(self):
@@ -78,21 +100,10 @@ class DataExtractor(object):
     @property
     def data_iter(self):
         if not self._data_iter:
-
             self._data_iter = map(self._extract_series_data, self.series_iter)
         return self._data_iter
 
     def _extract_series_data(self, series):
-
-
-        # v_clamp_settings_keys = (
-        #     "V-Clamp Holding Enable: ", "V-Clamp Holding Level: ",
-        #     "RsComp Enable: ", "RsComp Correction: ", "RsComp Prediction: ",
-        #     "Whole Cell Comp Enable: ", "Whole Cell Comp Cap: ", "Whole Cell Comp Resist: "
-        # )
-        #
-        # v_clamp_settings_dict = dict.fromkeys(v_clamp_settings_keys)
-
         # initialize empty variables
         stimulus_code = ""
         stimulus_name = ""
@@ -105,6 +116,7 @@ class DataExtractor(object):
         sweep_number = int(series[0].sweep_number)
 
         # initialize dictionary of amplifier settings to extract
+        patch_clamp_settings_dict = None
 
         for s in series:
             if isinstance(s, (VoltageClampSeries, CurrentClampSeries, IZeroClampSeries)):
@@ -122,17 +134,31 @@ class DataExtractor(object):
                 comment_str = s.comments
                 if not unit:
                     stimulus_unit = "Unknown"
+                # do this for current clamp
                 elif unit in {"Amps", "A", "amps", "amperes"}:
                     stimulus_unit = "Amps"
+                    for key in self.i_clamp_settings_dict.keys():
+                        # partition comments by key and grab the last partition
+                        value_str = comment_str.partition(f"{key}: ")[2]
+                        if value_str:  # if this is not an empty string extract the value
+                            # grab value and chop off everything after newline
+                            value = value_str.splitlines()[0]
+                            self.i_clamp_settings_dict[key] = value  # add value to dict
+                    # store dictionary as temporary value
+                    patch_clamp_settings_dict = self.i_clamp_settings_dict
+                # do this for voltage clamp
                 elif unit in {"Volts", "V", "volts"}:
                     stimulus_unit = "Volts"
                     # loop through keys in v_clamp settings and extract strings
                     for key in self.v_clamp_settings_dict.keys():
                         # partition comments by key and grab the part with value we want
-                        value_str = comment_str.partition(key)[2]
-                        if value_str:  # if this is not an empty string extract value
-                            value = value_str.splitlines()[0]  # chop off everything after newline
+                        value_str = comment_str.partition(f"{key}: ")[2]
+                        if value_str:  # if this is not an empty string extract the value
+                            # chop off everything after newline and ": " at the start
+                            value = value_str.splitlines()[0]
                             self.v_clamp_settings_dict[key] = value  # add value to dict
+                    # store dictionary as temporary value
+                    patch_clamp_settings_dict = self.v_clamp_settings_dict
                 else:
                     stimulus_unit = unit
 
@@ -155,7 +181,7 @@ class DataExtractor(object):
             sampling_rate=sampling_rate, stimulus=stimulus, response=response
         )
 
-        print(self.v_clamp_settings_dict)
+        print(patch_clamp_settings_dict)
 
         return {
             'sweep_number': sweep_number,
