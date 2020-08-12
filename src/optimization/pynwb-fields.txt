@@ -17,9 +17,20 @@ series[1] # {VoltageClampStimulusSeries}
 .  '     '  series_resistance_comp  # None or ?
 .comments # A long string with labnotebook stuff? see .txt files in this dir
 ## important field from comments for vclamp holding level:
-'HS#0:Pipette Offset: 91.79 mV'
-'HS#0:V-Clamp Holding Enable: Off'
-'HS#0:V-Clamp Holding Level: -69.99 mV'
+HS#0:Pipette Offset: 91.79 mV
+'HS#0:V-Clamp Holding Enable: Off
+HS#0:V-Clamp Holding Level: -69.99 mV
+HS#0:Fast compensation capacitance: 0.00 F
+HS#0:Slow compensation capacitance: 0.00 F
+HS#0:Fast compensation time: 0.00 s
+HS#0:Slow compensation time: 0.00 s
+HS#0:RsComp Bandwidth: 1.02 Hz
+HS#0:RsComp Correction: 0.00 %
+HS#0:RsComp Enable: Off
+HS#0:RsComp Prediction: 0.00 %
+HS#0:Whole Cell Comp Enable: Off
+HS#0:Whole Cell Comp Cap: 1.00 pF
+HS#0:Whole Cell Comp Resist: 0.40 MOhm
 ### also very imporant: only values that change end up in this string
 # the comments field should be exactly the same in stim and response series
 
@@ -36,3 +47,4 @@ series[1]  # {CurrentClampStimulusSeries}
 'HS#0:Autobias Vcom variance: 0.50 mV'
 'HS#0:Autobias Ibias max: 100.00 pA'
 'HS#0:Autobias: On'
+

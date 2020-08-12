@@ -77,17 +77,6 @@ def make_plot_page(nwb_path):
     plotter = SweepPlotterLite(sweep_data_tuple=sweep_data_tuple, config=config)
     sweep_plots = tuple(plotter.gen_plots())
 
-    # model_data = [[
-    #     index,
-    #     row['stimulus_code'],
-    #     row['stimulus_name'],
-    #     'auto_qc_state',
-    #     'manual_qc_state',
-    #     'tags',  # fail tags
-    #     sweep_plots[index][0],
-    #     sweep_plots[index][1]
-    # ] for index, row in enumerate(sweep_data_tuple)]
-
     model_data = [[
         swp_num,
         sweep_data_tuple[swp_num]['stimulus_code'],
@@ -97,8 +86,7 @@ def make_plot_page(nwb_path):
         'tags',  # fail tags
         tp_plot,
         exp_plot
-    ] for swp_num, tp_plot, exp_plot in sweep_plots
-        if sweep_data_tuple[swp_num]['stimulus_name'] != "Search"]
+    ] for swp_num, tp_plot, exp_plot in sweep_plots]
 
     populate_model_data(model, model_data)
 
@@ -126,13 +114,13 @@ if __name__ == "__main__":
     files = list(Path("data/nwb").glob("*.nwb"))
     base_dir = Path(__file__).parent
 
-    file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb"
+    # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb"
     # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Vip-IRES-Cre;Ai14-331294.04.01.01.nwb"
 
     # channel recording with no rs comp / cap comp for this cell? --- series is broken?
     # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb"
 
-    # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb"
+    file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb"
 
     # file = "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb"
 
