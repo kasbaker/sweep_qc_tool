@@ -497,7 +497,7 @@ class SweepPlotter(object):
         time_lim = (plot_data.time[0], plot_data.time[-1])
         self.ax.set_xlim(time_lim)
 
-        self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
+        # self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
 
         if labels:
             self.ax.legend()
@@ -559,7 +559,7 @@ class SweepPlotter(object):
 
         self.ax.set_xlim(time_lim)
 
-        self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
+        # self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
 
         if labels:
             self.ax.legend()

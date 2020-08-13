@@ -1,6 +1,7 @@
 from typing import Optional
 
-from PyQt5.QtWidgets import QTableView, QDialog, QGridLayout, QWidget, QAction
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QTableView, QWidget, QAction, QHeaderView
 from PyQt5.QtCore import QModelIndex
 
 from delegates import SvgDelegate, ComboBoxDelegate
@@ -25,8 +26,10 @@ class SweepTableView(QTableView):
 
     def __init__(self, colnames):
         super().__init__()
-        self.colnames = colnames
 
+
+        self.colnames = colnames
+        self.setFont(QFont("Monospace"))
         # A list to store active popup plots
         self.popup_plots = []
 
@@ -34,11 +37,13 @@ class SweepTableView(QTableView):
         manual_qc_choices = ["default", "failed", "passed"]
         self.cb_delegate = ComboBoxDelegate(self, manual_qc_choices)
 
-        self.setItemDelegateForColumn(self.colnames.index("test epoch"), self.svg_delegate)
-        self.setItemDelegateForColumn(self.colnames.index("experiment epoch"), self.svg_delegate)
-        self.setItemDelegateForColumn(self.colnames.index("manual QC state"), self.cb_delegate)
+        self.setItemDelegateForColumn(self.colnames.index("Test Pulse Epoch"), self.svg_delegate)
+        self.setItemDelegateForColumn(self.colnames.index("Experiment Epoch"), self.svg_delegate)
+        self.setItemDelegateForColumn(self.colnames.index("Manual QC State"), self.cb_delegate)
 
         self.verticalHeader().setMinimumSectionSize(120)
+
+        # self.horizontalHeader().setSectionResizeMode()
 
         self.clicked.connect(self.on_clicked)
 
@@ -101,6 +106,31 @@ class SweepTableView(QTableView):
 
         self.resizeRowsToContents()
 
+        header = self.horizontalHeader()
+
+        for column in range(header.count()-2):
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+            width = header.sectionSize(column)
+            width = int(width*1.2 // 1)  # scale width up by 20% for prettiness
+            header.setSectionResizeMode(column, QHeaderView.Interactive)
+            header.resizeSection(column, width)
+
+        # set the last two thumbnail columns so they stretch
+        tp_col = header.count()-2   # column of test pulse thumbnail
+        header.setSectionResizeMode(tp_col, QHeaderView.Stretch)
+        width = header.sectionSize(tp_col)
+        header.setSectionResizeMode(tp_col, QHeaderView.Interactive)
+        header.resizeSection(tp_col, width)
+
+        # experiment epoch column
+        exp_col = header.count()-1  # column of experiment plot thumbnail
+        header.setSectionResizeMode(exp_col, QHeaderView.Stretch)
+        width = header.sectionSize(exp_col)
+        header.setSectionResizeMode(exp_col, QHeaderView.Interactive)
+        header.resizeSection(exp_col, width)
+        # set last section so it that it stretches takes up the whole page
+        header.setStretchLastSection(True)
+
     def resizeEvent(self, *args, **kwargs):
         """ Makes sure that we resize the rows to their contents when the user
         resizes the window
@@ -119,7 +149,7 @@ class SweepTableView(QTableView):
 
         """
 
-        column = self.colnames.index("manual QC state")
+        column = self.colnames.index("Manual QC State")
 
         for row in range(self.model().rowCount()):
             self.openPersistentEditor(self.model().index(row, column))
@@ -134,8 +164,8 @@ class SweepTableView(QTableView):
 
         """
 
-        test_column = self.get_column_index("test epoch")
-        exp_column = self.get_column_index("experiment epoch")
+        test_column = self.get_column_index("Test Pulse Epoch")
+        exp_column = self.get_column_index("Experiment Epoch")
 
         if not index.column() in {test_column, exp_column}:
             return

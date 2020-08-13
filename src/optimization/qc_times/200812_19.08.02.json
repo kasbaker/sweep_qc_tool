@@ -1,0 +1,36 @@
+[
+    {
+        "data/nwb/Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb": {
+            "slow_qc": 5.419155594001495,
+            "fast_qc": 2.142777742999897
+        },
+        "data/nwb/Pvalb-IRES-Cre;Ai14(IVSCC)-165172.05.02.nwb": {
+            "slow_qc": 34.5054212540017,
+            "fast_qc": 16.358832976002304
+        },
+        "data/nwb/Esr2-IRES2-Cre;Ai14-494673.04.02.03.nwb": {
+            "slow_qc": 5.649502742999175,
+            "fast_qc": 2.07692143100212
+        },
+        "data/nwb/Slc17a6-IRES-Cre;Ai14-443197.04.02.02.nwb": {
+            "slow_qc": 14.039501495997683,
+            "fast_qc": 3.664335740999377
+        },
+        "data/nwb/Vip-IRES-Cre;Ai14-331294.04.01.01.nwb": {
+            "slow_qc": 5.708809847001248,
+            "fast_qc": 2.5014447909998125
+        },
+        "data/nwb/Sncg-IRES2-FlpO-neo;Ai65F-499191.03.02.01.nwb": {
+            "slow_qc": 18.673213549998763,
+            "fast_qc": 5.0754210659979435
+        },
+        "data/nwb/Oxtr-T2A-Cre;Ai14-513094.08.06.03.nwb": {
+            "slow_qc": null,
+            "fast_qc": null
+        },
+        "data/nwb/H20.03.302.11.52.01.03.nwb": {
+            "slow_qc": null,
+            "fast_qc": null
+        }
+    }
+]

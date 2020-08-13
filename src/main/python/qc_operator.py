@@ -181,6 +181,12 @@ class QCOperator(object):
 
         sweep_types = self.get_sweep_types()
 
+        nuc_vc_features = self.nuc_vc_sweep_qc(sweep_types['nuc_vc'])
+
+        if nuc_vc_features:
+            for feature in nuc_vc_features:
+                print(feature)
+
         cell_features, cell_tags = self.fast_cell_qc(sweep_types)
         cell_features = deepcopy(cell_features)
 
@@ -205,22 +211,23 @@ class QCOperator(object):
             cell_state=cell_state
         )
 
-        # todo add qc features and MCC settings to this
+        # todo add qc features
         full_sweep_qc_info = [{
             'sweep_number': sweep['sweep_number'],
             'stimulus_code': sweep['stimulus_code'],
             'stimulus_name': sweep['stimulus_name'],
             'auto_qc_state': "n/a",
-            'manual_qc_state': "default",
             'passed': None,
-            'tags': []
+            'fail_tags': [],
+            'feature_tags': []
         } for sweep in self.sweep_data_tuple]
 
         full_sweep_qc_info = self.get_full_sweep_qc_info(
             full_sweep_qc_info=full_sweep_qc_info,
             pre_qc_sweep_features=pre_qc_sweep_features,
             post_qc_sweep_features=post_qc_sweep_features,
-            sweep_states=sweep_states
+            sweep_states=sweep_states,
+            nuc_vc_features=nuc_vc_features
         )
 
         qc_results = QCResults(
@@ -240,7 +247,6 @@ class QCOperator(object):
             'short_square', 'search', 'test', 'ex_tp', 'nuc_vc'
         )
 
-        # todo add NucVC to this dictionary
         sweep_types = {key: set() for key in sweep_keys}
 
         ontology = self.ontology
@@ -291,6 +297,22 @@ class QCOperator(object):
                 sweep_types['nuc_vc'].add(sweep_num)
 
         return sweep_types
+
+    def nuc_vc_sweep_qc(self, nuc_vc_sweeps):
+        if not nuc_vc_sweeps:
+            return None
+        nuc_vc_list = sorted(nuc_vc_sweeps)
+        nuc_vc_gen = (self.sweep_data_tuple[idx] for idx in nuc_vc_list)
+        nuc_vc_qc_results = [
+            {
+                'sweep_number': sweep['sweep_number'],
+                'seal_value': self.get_seal_from_test_pulse(
+                    sweep['stimulus'], sweep['response'],   # voltage and current
+                    np.arange(len(sweep['stimulus'])) / sweep['sampling_rate']  # time vector
+                )
+            } for sweep in nuc_vc_gen
+        ]
+        return nuc_vc_qc_results
 
     def fast_extract_blowout(self, blowout_sweeps, tags):
         if blowout_sweeps:
@@ -516,7 +538,8 @@ class QCOperator(object):
             full_sweep_qc_info: List[dict],
             pre_qc_sweep_features: List[dict],
             post_qc_sweep_features: List[dict],
-            sweep_states: List[dict]
+            sweep_states: List[dict],
+            nuc_vc_features: List[dict]
     ):
         # TODO write docstring
         """ foo
@@ -534,8 +557,8 @@ class QCOperator(object):
                 full_sweep_qc_info[sweep_num]['passed'] = False
                 full_sweep_qc_info[sweep_num]['auto_qc_state'] = "failed"
             # update tags
-            full_sweep_qc_info[sweep_num]['tags'] += post_qc_sweep_features[idx]['tags']
-            full_sweep_qc_info[sweep_num]['tags'] += state['reasons']
+            full_sweep_qc_info[sweep_num]['fail_tags'] += post_qc_sweep_features[idx]['tags']
+            full_sweep_qc_info[sweep_num]['fail_tags'] += state['reasons']
 
         # loop through sweeps that got dropped due to having fail tags update table data
         for feature in pre_qc_sweep_features:
@@ -546,16 +569,82 @@ class QCOperator(object):
                 full_sweep_qc_info[sweep_num]['passed'] = False
                 full_sweep_qc_info[sweep_num]['auto_qc_state'] = "failed"
             # update tags
-            full_sweep_qc_info[sweep_num]['tags'] += feature['tags']
+            full_sweep_qc_info[sweep_num]['fail_tags'] += feature['tags']
 
         # loop through all the other sweeps not included in auto qc
         for sweep_num in range(len(full_sweep_qc_info)):
             # only handle sweeps that were not processed in previous two steps
             if full_sweep_qc_info[sweep_num]['passed'] not in {True, False}:
                 # these sweeps have no auto qc, so update tags appropriately
-                full_sweep_qc_info[sweep_num]['tags'] += ["no auto qc"]
+                full_sweep_qc_info[sweep_num]['fail_tags'] += ["no auto qc"]
+
+        if nuc_vc_features:
+            for feature in nuc_vc_features:
+                sweep_num = feature['sweep_number']
+                seal_value = feature['seal_value']  # extract np.float seal value
+                seal_str = str(np.rint(seal_value))  # round it to nearest value
+                full_sweep_qc_info[sweep_num]['feature_tags'] += [
+                    f"Clamp Seal: {seal_str}"
+                ]   # append string to feature tags
 
         return full_sweep_qc_info
+
+    @staticmethod
+    def get_seal_from_test_pulse(voltage: np.ndarray, current: np.ndarray, time: np.ndarray):
+        """Compute input resistance from the stable pulse response
+
+        Parameters
+        ----------
+        voltage : np.ndarray
+            membrane voltage (mV)
+        current : np.ndarray
+            input current (pA)
+        time : np.ndarray
+
+        time : np.ndarray
+            time vector (s)
+        up_idx : int
+            index of start of square pulse
+        down_idx : int
+            index of end of square pulse
+
+        Returns
+        -------
+        input resistance : np.float
+            seal resistance (MOhm)
+
+        """
+        dv = np.diff(voltage)
+        # find index of first upstroke and downstroke in stimulus voltage
+        try:
+            # first upstroke index
+            up_idx = np.flatnonzero(dv > 0)[0]
+            # first downstroke index
+            down_idx = np.flatnonzero(dv < 0)[0]
+        except IndexError:
+            logging.warning("Could not find full test pulse.")
+            return np.nan
+
+        dt = time[1] - time[0]
+        one_ms = int(0.001 / dt)
+
+        # take average v and i one ms before start
+        end = up_idx - 1
+        start = end - one_ms
+
+        avg_v_base = np.mean(voltage[start:end])
+        avg_i_base = np.mean(current[start:end])
+
+        # take average v and i one ms before end
+        end = down_idx - 1
+        start = end - one_ms
+
+        avg_v_steady = np.mean(voltage[start:end])
+        avg_i_steady = np.mean(current[start:end])
+
+        seal_resistance = (avg_v_steady - avg_v_base) / (avg_i_steady - avg_i_base)
+
+        return 1e3 * np.mean(seal_resistance)  # multiply by 1000 to convert GOhm to MOhm
 
 
 def run_auto_qc(sweep_data_tuple: tuple, ontology: StimulusOntology,

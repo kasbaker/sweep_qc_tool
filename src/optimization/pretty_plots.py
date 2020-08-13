@@ -11,10 +11,10 @@ from ipfx.qc_feature_evaluator import DEFAULT_QC_CRITERIA_FILE
 from ipfx.stimulus import StimulusOntology
 
 from main import SweepPage
-from sweep_plotter import SweepPlotConfig
+from sweep_plotter import SweepPlotConfig, SweepPlotter
 from sweep_table_model import SweepTableModel
 from sweep_table_view import SweepTableView
-from optimization.sweep_plotter_lite import SweepPlotterLite
+# from optimization.sweep_plotter_lite import SweepPlotterLite
 from data_extractor import DataExtractor
 
 
@@ -76,7 +76,7 @@ def make_plot_page(nwb_path):
 
     sweep_data_tuple = extract_data(nwb_path=nwb_path)
 
-    plotter = SweepPlotterLite(sweep_data_tuple=sweep_data_tuple, config=config)
+    plotter = SweepPlotter(sweep_data_tuple=sweep_data_tuple, config=config)
     sweep_plots = tuple(plotter.gen_plots())
 
     model_data = [[
@@ -85,6 +85,7 @@ def make_plot_page(nwb_path):
         sweep_data_tuple[swp_num]['stimulus_name'],
         'auto_qc_state',
         'manual_qc_state',
+        'fail tag',
         format_amp_setting_strings(
             sweep_data_tuple[swp_num]['stimulus_unit'],
             sweep_data_tuple[swp_num]['amp_settings'],
@@ -96,8 +97,8 @@ def make_plot_page(nwb_path):
     populate_model_data(model, model_data)
 
     view.setModel(model)
-    view.setColumnHidden(3, True)
-    view.setColumnHidden(4, True)
+    # view.setColumnHidden(3, True)
+    # view.setColumnHidden(4, True)
     # view.setColumnHidden(5, True)
 
     view.resize_to_content()
@@ -205,8 +206,6 @@ def str_list_to_rows(str_list: List[str], num_newlines: int = 2) -> str:
     output_str = join_char.join(str_list)
     print(output_str)
     return join_char.join(str_list)
-
-
 
 def main(nwb_file):
     app = QApplication(sys.argv)

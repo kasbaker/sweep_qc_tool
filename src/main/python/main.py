@@ -54,14 +54,16 @@ with .setEnabled(True) and .setChecked(True) or .setChecked(False)
 class SweepPage(QWidget):
 
     colnames: tuple = (
-        "sweep number",
-        "stimulus code",
-        "stimulus type",
-        "auto QC state",
-        "manual QC state",
-        "fail tags",
-        "test epoch",
-        "experiment epoch"
+        "Sweep",
+        "Stimulus Code",
+        "Stimulus Type",
+        "Auto QC State",
+        "Manual QC State",
+        "Failure Tags",
+        "Feature Tags",
+        "Amplifier Settings",
+        "Test Pulse Epoch",
+        "Experiment Epoch"
     )
 
     def __init__(self, sweep_plot_config: SweepPlotConfig):
@@ -158,7 +160,7 @@ class MainWindow(QMainWindow):
 
         # Configure window
         self.setWindowTitle("Ephys Sweep QC Tool")
-        self.resize(1000, 1000)
+        self.resize(1600, 900)
 
         # Create tab widget & set tabs as a central widget
         tab_widget = QTabWidget()
