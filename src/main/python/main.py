@@ -54,16 +54,16 @@ with .setEnabled(True) and .setChecked(True) or .setChecked(False)
 class SweepPage(QWidget):
 
     colnames: tuple = (
-        "Sweep",
-        "Stimulus Code",
-        "Stimulus Type",
-        "Auto QC State",
-        "Manual QC State",
-        "Failure Tags",
-        "Feature Tags",
-        "Amplifier Settings",
-        "Test Pulse Epoch",
-        "Experiment Epoch"
+        " Sweep ",
+        " Stimulus Code ",
+        " Stimulus Type ",
+        " Auto QC State ",
+        " Manual QC State ",
+        " QC Tags ",
+        # "Feature Tags",
+        " Amplifier Settings ",
+        " Test Pulse Epoch ",
+        " Experiment Epoch "
     )
 
     def __init__(self, sweep_plot_config: SweepPlotConfig):

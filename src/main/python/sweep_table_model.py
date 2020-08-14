@@ -31,9 +31,9 @@ class SweepTableModel(QAbstractTableModel):
     FAIL_BGCOLOR = QColor(255, 225, 225)
 
     def __init__(
-        self, 
-        colnames: Sequence[str],
-        plot_config: SweepPlotConfig
+            self,
+            colnames: Sequence[str],
+            plot_config: SweepPlotConfig
     ):
         """ Initializes and configures abstract table model
 
@@ -60,7 +60,7 @@ class SweepTableModel(QAbstractTableModel):
         self.sweep_num_to_idx_key: Optional[Dict[int, int]] = None
         # dictionary of sets of sweep numbers classified in various ways
         self.sweep_types: Optional[Dict[str, set]] = None
-    
+
     def connect(self, data: PreFxData):
         """ Set up signals and slots for communication with the underlying data store.
 
@@ -153,16 +153,16 @@ class SweepTableModel(QAbstractTableModel):
 
         if role in (QtCore.Qt.DisplayRole, QtCore.Qt.EditRole):
             return self._data[index.row()][index.column()]
-        
+
         if role == QtCore.Qt.BackgroundRole and index.column() == 3:
             if self._data[index.row()][3] == "failed":
                 return self.FAIL_BGCOLOR
 
     def headerData(
-        self,
-        section: int,
-        orientation: QtCore.Qt.Orientation = QtCore.Qt.Horizontal,
-        role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole
+            self,
+            section: int,
+            orientation: QtCore.Qt.Orientation = QtCore.Qt.Horizontal,
+            role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole
     ):
         """ Returns the name of the 'section'th column
 
@@ -205,7 +205,7 @@ class SweepTableModel(QAbstractTableModel):
 
         flags = super(SweepTableModel, self).flags(index)
 
-        if index.column() == self.colnames.index("Manual QC State"):
+        if index.column() == self.colnames.index(" Manual QC State "):
             flags |= QtCore.Qt.ItemIsEditable
 
         return flags
@@ -240,12 +240,12 @@ class SweepTableModel(QAbstractTableModel):
 
         if index.isValid() \
                 and isinstance(value, str) \
-                and index.column() == self.column_map["Manual QC State"] \
+                and index.column() == self.column_map[" Manual QC State "] \
                 and role == QtCore.Qt.EditRole \
                 and value != current:
             self._data[index.row()][index.column()] = value
             self.qc_state_updated.emit(
-                self._data[index.row()][self.column_map["Sweep"]], value
+                self._data[index.row()][self.column_map[" Sweep "]], value
             )
             return True
 

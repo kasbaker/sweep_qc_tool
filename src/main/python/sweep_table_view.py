@@ -37,9 +37,9 @@ class SweepTableView(QTableView):
         manual_qc_choices = ["default", "failed", "passed"]
         self.cb_delegate = ComboBoxDelegate(self, manual_qc_choices)
 
-        self.setItemDelegateForColumn(self.colnames.index("Test Pulse Epoch"), self.svg_delegate)
-        self.setItemDelegateForColumn(self.colnames.index("Experiment Epoch"), self.svg_delegate)
-        self.setItemDelegateForColumn(self.colnames.index("Manual QC State"), self.cb_delegate)
+        self.setItemDelegateForColumn(self.colnames.index(" Test Pulse Epoch "), self.svg_delegate)
+        self.setItemDelegateForColumn(self.colnames.index(" Experiment Epoch "), self.svg_delegate)
+        self.setItemDelegateForColumn(self.colnames.index(" Manual QC State "), self.cb_delegate)
 
         self.verticalHeader().setMinimumSectionSize(120)
 
@@ -108,10 +108,11 @@ class SweepTableView(QTableView):
 
         header = self.horizontalHeader()
 
+        # TODO make it so long fail tags don't take up too much column width
         for column in range(header.count()-2):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
             width = header.sectionSize(column)
-            width = int(width*1.2 // 1)  # scale width up by 20% for prettiness
+            # width = int(width*1.2 // 1)  # scale width up by 20% for prettiness
             header.setSectionResizeMode(column, QHeaderView.Interactive)
             header.resizeSection(column, width)
 
@@ -149,7 +150,7 @@ class SweepTableView(QTableView):
 
         """
 
-        column = self.colnames.index("Manual QC State")
+        column = self.colnames.index(" Manual QC State ")
 
         for row in range(self.model().rowCount()):
             self.openPersistentEditor(self.model().index(row, column))
@@ -164,8 +165,8 @@ class SweepTableView(QTableView):
 
         """
 
-        test_column = self.get_column_index("Test Pulse Epoch")
-        exp_column = self.get_column_index("Experiment Epoch")
+        test_column = self.get_column_index(" Test Pulse Epoch ")
+        exp_column = self.get_column_index(" Experiment Epoch ")
 
         if not index.column() in {test_column, exp_column}:
             return

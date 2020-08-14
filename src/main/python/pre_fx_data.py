@@ -338,8 +338,8 @@ class PreFxData(QObject):
             full_sweep_qc_info[sweep_num]['stimulus_name'],
             full_sweep_qc_info[sweep_num]['auto_qc_state'],
             "default",  # manual QC state
-            join_str_list_on_newlines(full_sweep_qc_info[sweep_num]['fail_tags']),  # fail tags
-            join_str_list_on_newlines(full_sweep_qc_info[sweep_num]['feature_tags']),
+            join_str_list_on_newlines(full_sweep_qc_info[sweep_num]['qc_tags']),  # fail tags
+            # join_str_list_on_newlines(full_sweep_qc_info[sweep_num]['feature_tags']),
             format_amp_setting_strings(
                 sweep_data_tuple[sweep_num]['stimulus_unit'],
                 sweep_data_tuple[sweep_num]['amp_settings'],

@@ -477,21 +477,24 @@ class SweepPlotter(object):
             a matplotlib figure containing the plot to be turned into a thumbnail
 
         """
-
+        from scipy.signal import decimate
+        ds1 = 4
+        ds2 = 4
+        step = ds1 * ds2 // 1
         if initial is not None:
-            # ds_initial = decimate(decimate(initial.response, ds1), ds2)
-            self.ax.plot(initial.time[::step], initial.response[::step], linewidth=1,
+            ds_initial = decimate(decimate(initial.response, ds1), ds2)
+            self.ax.plot(initial.time[::step], ds_initial, linewidth=1,
                          label=f"initial",
                          color=TEST_PULSE_INIT_COLOR)
 
         if previous is not None:
-            # ds_previous = decimate(decimate(previous.response, ds1), ds2)
-            self.ax.plot(previous.time[::step], previous.response[::step], linewidth=1,
+            ds_previous = decimate(decimate(previous.response, ds1), ds2)
+            self.ax.plot(previous.time[::step],ds_previous, linewidth=1,
                          label=f"previous",
                          color=TEST_PULSE_PREV_COLOR)
 
-        # ds_response = decimate(decimate(plot_data.response, ds1), ds2)
-        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+        ds_response = decimate(decimate(plot_data.response, ds1), ds2)
+        self.ax.plot(plot_data.time[::step], ds_response, linewidth=1,
                      label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
 
         time_lim = (plot_data.time[0], plot_data.time[-1])
@@ -544,11 +547,16 @@ class SweepPlotter(object):
             a matplotlib figure containing the plot to be turned into a thumbnail
 
         """
+        from scipy.signal import decimate
+        ds1 = 4
+        ds2 = 4
+        step = ds1 * ds2 // 1
+        ds_response = decimate(decimate(plot_data.response, ds1), ds2)
 
         time_lim = [plot_data.time[0], plot_data.time[-1]]
         # y_lim = [min(ds_response), max(ds_response)]
 
-        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+        self.ax.plot(plot_data.time[::step], ds_response, linewidth=1,
                      color=EXP_PULSE_CURRENT_COLOR,
                      label=f"sweep {sweep_number}")
 

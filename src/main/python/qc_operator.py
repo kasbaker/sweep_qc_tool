@@ -183,9 +183,9 @@ class QCOperator(object):
 
         nuc_vc_features = self.nuc_vc_sweep_qc(sweep_types['nuc_vc'])
 
-        if nuc_vc_features:
-            for feature in nuc_vc_features:
-                print(feature)
+        # if nuc_vc_features:
+        #     for feature in nuc_vc_features:
+        #         print(feature)
 
         cell_features, cell_tags = self.fast_cell_qc(sweep_types)
         cell_features = deepcopy(cell_features)
@@ -218,7 +218,7 @@ class QCOperator(object):
             'stimulus_name': sweep['stimulus_name'],
             'auto_qc_state': "n/a",
             'passed': None,
-            'fail_tags': [],
+            'qc_tags': [],
             'feature_tags': []
         } for sweep in self.sweep_data_tuple]
 
@@ -557,8 +557,8 @@ class QCOperator(object):
                 full_sweep_qc_info[sweep_num]['passed'] = False
                 full_sweep_qc_info[sweep_num]['auto_qc_state'] = "failed"
             # update tags
-            full_sweep_qc_info[sweep_num]['fail_tags'] += post_qc_sweep_features[idx]['tags']
-            full_sweep_qc_info[sweep_num]['fail_tags'] += state['reasons']
+            full_sweep_qc_info[sweep_num]['qc_tags'] += post_qc_sweep_features[idx]['tags']
+            full_sweep_qc_info[sweep_num]['qc_tags'] += state['reasons']
 
         # loop through sweeps that got dropped due to having fail tags update table data
         for feature in pre_qc_sweep_features:
@@ -569,22 +569,23 @@ class QCOperator(object):
                 full_sweep_qc_info[sweep_num]['passed'] = False
                 full_sweep_qc_info[sweep_num]['auto_qc_state'] = "failed"
             # update tags
-            full_sweep_qc_info[sweep_num]['fail_tags'] += feature['tags']
+            full_sweep_qc_info[sweep_num]['qc_tags'] += feature['tags']
 
         # loop through all the other sweeps not included in auto qc
-        for sweep_num in range(len(full_sweep_qc_info)):
+        # for sweep_num in range(len(full_sweep_qc_info)):
             # only handle sweeps that were not processed in previous two steps
-            if full_sweep_qc_info[sweep_num]['passed'] not in {True, False}:
+            # if full_sweep_qc_info[sweep_num]['passed'] not in {True, False}:
                 # these sweeps have no auto qc, so update tags appropriately
-                full_sweep_qc_info[sweep_num]['fail_tags'] += ["no auto qc"]
+                # full_sweep_qc_info[sweep_num]['qc_tags'] += ["no auto qc"]
 
         if nuc_vc_features:
             for feature in nuc_vc_features:
                 sweep_num = feature['sweep_number']
                 seal_value = feature['seal_value']  # extract np.float seal value
                 seal_str = str(np.rint(seal_value))  # round it to nearest value
-                full_sweep_qc_info[sweep_num]['feature_tags'] += [
-                    f"Clamp Seal: {seal_str}"
+                # full_sweep_qc_info[sweep_num]['feature_tags'] += [
+                full_sweep_qc_info[sweep_num]['qc_tags'] += [
+                    f"Test pulse resistance: {seal_str} MOhm"
                 ]   # append string to feature tags
 
         return full_sweep_qc_info
