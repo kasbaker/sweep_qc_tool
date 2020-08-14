@@ -57,9 +57,9 @@ class PopupPlotter:
 
     """
 
-    __slots__ = ['plot_data', 'sweep_number', 'y_label']
+    __slots__ = ['plot_data', 'sweep_number', 'y_label', 'stimulus_code']
 
-    def __init__(self, plot_data: PlotData, sweep_number: int, y_label: str):
+    def __init__(self, plot_data: PlotData, sweep_number: int, y_label: str, stimulus_code: str):
         """ Displays an interactive plot of a sweep
 
         Parameters
@@ -68,13 +68,16 @@ class PopupPlotter:
             named tuple with raw data for plotting
         sweep_number : int
             sweep number used in naming the plot
-        y_label: str
+        y_label : str
             label for the y-axis (mV or pA)
+        stimulus_code : str
+            stimulus code to use when labeling the popup window
 
         """
         self.plot_data = plot_data
         self.sweep_number = sweep_number
         self.y_label = y_label
+        self.stimulus_code = stimulus_code
 
     def initialize_plot(self, graph: PlotWidget):
         """ Generates an interactive plot widget from this plotter's data. This
@@ -87,9 +90,9 @@ class PopupPlotter:
 
         """
         plot = graph.getPlotItem()
-        plot.addLegend()
         plot.setLabel("left", self.y_label)
         plot.setLabel("bottom", "time (s)")
+        graph.setWindowTitle(f"Sweep: {self.sweep_number} - {self.stimulus_code}")
 
         return plot
 
@@ -97,11 +100,11 @@ class PopupPlotter:
 class ExperimentPopupPlotter(PopupPlotter):
     """ Subclass of PopupPlotter used for the experiment epoch. """
 
-    __slots__ = ['plot_data', 'baseline', 'sweep_number', 'y_label']
+    __slots__ = ['plot_data', 'baseline', 'sweep_number', 'y_label', 'stimulus_code']
 
     def __init__(
             self, plot_data: PlotData, baseline: Optional[np.ndarray],
-            sweep_number: int, y_label: str
+            sweep_number: int, y_label: str, stimulus_code: str
     ):
         """ Displays an interactive plot of a sweep's experiment epoch, along
         with a horizontal line at the baseline.
@@ -116,9 +119,14 @@ class ExperimentPopupPlotter(PopupPlotter):
             sweep number used in naming the plot
         y_label: str
             label for the y-axis (mV or pA)
+        stimulus_code : str
+            stimulus code to use when labeling the popup window
 
         """
-        super().__init__(plot_data=plot_data, sweep_number=sweep_number, y_label=y_label)
+        super().__init__(
+            plot_data=plot_data, sweep_number=sweep_number,
+            y_label=y_label, stimulus_code=stimulus_code
+        )
 
         self.baseline = baseline
 
@@ -145,9 +153,8 @@ class ExperimentPopupPlotter(PopupPlotter):
         plot.plot(
             self.plot_data.time, self.plot_data.response,
             pen=mkPen(color=EXP_PULSE_CURRENT_COLOR, width=2),
-            name=f"sweep {self.sweep_number}"
+            # name=f"sweep {self.sweep_number}"
         )
-
         return graph
 
 
@@ -155,7 +162,7 @@ class PulsePopupPlotter(PopupPlotter):
     """ Subclass of PopupPlotter used for the test pulse epoch. """
 
     __slots__ = ['plot_data', 'previous_plot_data', 'initial_plot_data',
-                 'sweep_number', 'y_label']
+                 'sweep_number', 'y_label', 'stimulus_code']
 
     def __init__(
             self,
@@ -163,7 +170,8 @@ class PulsePopupPlotter(PopupPlotter):
             previous_plot_data: PlotData,
             initial_plot_data: PlotData,
             sweep_number: int,
-            y_label: str
+            y_label: str,
+            stimulus_code: str
     ):
         """ Plots the test pulse reponse, along with responses to the previous
         and first test pulse.
@@ -180,10 +188,14 @@ class PulsePopupPlotter(PopupPlotter):
             sweep number used in naming the plot
         y_label: str
             label for the y-axis (mV or pA)
-
+        stimulus_code : str
+            stimulus code to use when labeling the popup window
         """
 
-        super().__init__(plot_data=plot_data, sweep_number=sweep_number, y_label=y_label)
+        super().__init__(
+            plot_data=plot_data, sweep_number=sweep_number,
+            y_label=y_label, stimulus_code=stimulus_code
+        )
 
         self.previous_plot_data = previous_plot_data
         self.initial_plot_data = initial_plot_data
@@ -201,6 +213,7 @@ class PulsePopupPlotter(PopupPlotter):
 
         graph = PlotWidget()
         plot = self.initialize_plot(graph)
+        plot.addLegend()
 
         if self.initial_plot_data is not None:
             plot.plot(
@@ -371,9 +384,10 @@ class SweepPlotter(object):
             # store the test pulse if this is true
             store_tp = True
 
+            # cache stimulus code
+            stim_code = sweep['stimulus_code']
             # only save test pulse if it is not in excluded test pulse codes
-            if any(substring in sweep['stimulus_code']
-                   for substring in self.tp_exclude_codes):
+            if any(substring in stim_code for substring in self.tp_exclude_codes):
                 store_tp = False
 
             # handle voltage clamp previous and initial test pulses
@@ -419,7 +433,8 @@ class SweepPlotter(object):
                 full=PulsePopupPlotter(
                     plot_data=tp_plot_data,
                     previous_plot_data=previous, initial_plot_data=initial,
-                    sweep_number=sweep['sweep_number'], y_label=y_label
+                    sweep_number=sweep['sweep_number'], y_label=y_label,
+                    stimulus_code=stim_code
                 )
             )
 
@@ -432,7 +447,8 @@ class SweepPlotter(object):
                 ),
                 full=ExperimentPopupPlotter(
                     plot_data=exp_plot_data, baseline=exp_baseline_mean,
-                    sweep_number=sweep['sweep_number'], y_label=y_label
+                    sweep_number=sweep['sweep_number'], y_label=y_label,
+                    stimulus_code=stim_code
                 )
             )
 
@@ -477,24 +493,24 @@ class SweepPlotter(object):
             a matplotlib figure containing the plot to be turned into a thumbnail
 
         """
-        from scipy.signal import decimate
-        ds1 = 4
-        ds2 = 4
-        step = ds1 * ds2 // 1
+        # from scipy.signal import decimate
+        # ds1 = 4
+        # ds2 = 4
+        # step = ds1 * ds2 // 1
         if initial is not None:
-            ds_initial = decimate(decimate(initial.response, ds1), ds2)
-            self.ax.plot(initial.time[::step], ds_initial, linewidth=1,
+            # ds_initial = decimate(decimate(initial.response, ds1), ds2)
+            self.ax.plot(initial.time[::step], initial.response[::step], linewidth=1,
                          label=f"initial",
                          color=TEST_PULSE_INIT_COLOR)
 
         if previous is not None:
-            ds_previous = decimate(decimate(previous.response, ds1), ds2)
-            self.ax.plot(previous.time[::step],ds_previous, linewidth=1,
+            # ds_previous = decimate(decimate(previous.response, ds1), ds2)
+            self.ax.plot(previous.time[::step], previous.response[::step], linewidth=1,
                          label=f"previous",
                          color=TEST_PULSE_PREV_COLOR)
 
-        ds_response = decimate(decimate(plot_data.response, ds1), ds2)
-        self.ax.plot(plot_data.time[::step], ds_response, linewidth=1,
+        # ds_response = decimate(decimate(plot_data.response, ds1), ds2)
+        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
                      label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
 
         time_lim = (plot_data.time[0], plot_data.time[-1])
@@ -547,16 +563,16 @@ class SweepPlotter(object):
             a matplotlib figure containing the plot to be turned into a thumbnail
 
         """
-        from scipy.signal import decimate
-        ds1 = 4
-        ds2 = 4
-        step = ds1 * ds2 // 1
-        ds_response = decimate(decimate(plot_data.response, ds1), ds2)
+        # from scipy.signal import decimate
+        # ds1 = 4
+        # ds2 = 4
+        # step = ds1 * ds2 // 1
+        # ds_response = decimate(decimate(plot_data.response, ds1), ds2)
 
         time_lim = [plot_data.time[0], plot_data.time[-1]]
         # y_lim = [min(ds_response), max(ds_response)]
 
-        self.ax.plot(plot_data.time[::step], ds_response, linewidth=1,
+        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
                      color=EXP_PULSE_CURRENT_COLOR,
                      label=f"sweep {sweep_number}")
 

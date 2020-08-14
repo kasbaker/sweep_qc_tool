@@ -1,10 +1,13 @@
 /venv
+/venv_test
 /target
 __pycache__
 
-/.mypy_cache/
+/.mypy_cache
 
-/.idea/
+/.idea
 
-/*.nwb/
-/src/optimization/data/
+#*.nwb
+/qc_input/hidden
+/qc_output/hidden
+/src/optimization/data

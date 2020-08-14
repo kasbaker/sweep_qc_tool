@@ -1,6 +1,6 @@
 import sys
 import argparse
-import os
+from pathlib import Path
 from typing import Optional
 
 from PyQt5.QtWidgets import (
@@ -66,7 +66,7 @@ class SweepPage(QWidget):
         " Experiment Epoch "
     )
 
-    def __init__(self, sweep_plot_config: SweepPlotConfig):
+    def __init__(self):
         """ Holds and displays a table view (and associated model) containing 
         information about individual sweeps.
 
@@ -75,11 +75,12 @@ class SweepPage(QWidget):
         super().__init__()
         # abstract model of the sweep table that is represented by sweep_view
         # TODO give plot_worker to SweepTableModel
-        self.sweep_model = SweepTableModel(self.colnames, sweep_plot_config)
+        self.sweep_model = SweepTableModel(self.colnames)
 
         # view of the sweep table that the user sees
         self.sweep_view = SweepTableView(self.colnames)
         self.sweep_view.setModel(self.sweep_model)
+        # self.sweep_view.setParent(parent)
 
         # page layout
         vbox_layout = QVBoxLayout()
@@ -175,8 +176,16 @@ class MainWindow(QMainWindow):
         self.view_menu = self.main_menu_bar.addMenu("View")
         self.main_menu_bar.addMenu("Help")
 
-    # def update_window_title(self, filename: str):
+    def update_window_title(self, specimen_name: str):
+        """ Update window title to display current specimen (cell) name.
 
+        Parameters
+        ----------
+        specimen_name : str
+            string representing specimen to display in main window title
+
+        """
+        self.setWindowTitle(f"{specimen_name} - Ephys Sweep QC Tool")
 
     def insert_tabs(
         self, 
@@ -258,6 +267,8 @@ class MainWindow(QMainWindow):
 
         pre_fx_data.status_message.connect(status_bar.showMessage)
         pre_fx_data.status_message.connect(status_bar.repaint)
+        # connect signal to update window title with new specimen name
+        pre_fx_data.update_specimen_name.connect(self.update_window_title)
 
         fx_data.status_message.connect(status_bar.showMessage)
         fx_data.status_message.connect(status_bar.repaint)
@@ -268,7 +279,8 @@ class MainWindow(QMainWindow):
 class Application(object):
 
     def __init__(
-        self, 
+        self,
+        input_dir: str,
         output_dir: str, 
         backup_experiment_start_index: int, 
         experiment_baseline_start_index: int, 
@@ -295,23 +307,22 @@ class Application(object):
 
         # initialize components
         self.main_window = MainWindow()
-        self.pre_fx_controller: PreFxController = PreFxController()
+        self.pre_fx_controller: PreFxController = PreFxController(input_dir, output_dir)
 
-        # TODO create qc_worker process and give to PreFxData
         self.pre_fx_data: PreFxData = PreFxData(sweep_plot_config)
 
-        # TODO create fx_worker process and give to FxData
         self.fx_data: FxData = FxData()
 
-        # TODO create plot_worker and give to SweepPage
-        self.sweep_page = SweepPage(sweep_plot_config)
+        self.sweep_page = SweepPage()
+        # give sweep view parent so it knows where popup plots show appear
+        # self.sweep_page.sweep_view.parent = self.main_window
 
         self.feature_page = CellFeaturePage()
         self.plot_page = PlotPage()
         self.status_bar = self.main_window.statusBar()
 
-        # set cmdline params
-        self.pre_fx_controller.set_output_path(output_dir)
+        # # set cmdline params
+        # self.pre_fx_controller.set_output_path(output_dir)
 
         # connect components
         # connect controller to raw data and feature extractor
@@ -355,35 +366,61 @@ if __name__ == '__main__':
     setConfigOption("background", "w")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output_dir", default=os.getcwd(), type=str, help="output path for manual states")
-    parser.add_argument("--backup_experiment_start_index", type=int, default=5000,
-        help="when plotting experiment pulses, where to set the start index if it is erroneously stored as <= 0"
+
+    parser.add_argument(
+        "--input_dir", default=str(Path.cwd().parents[2].joinpath("qc_input")),
+        type=str, help="input path for .nwb files"
     )
-    parser.add_argument("--experiment_baseline_start_index", type=int, default=5000,
-        help="when plotting experiment pulses, where to start the baseline assessment epoch"
+    parser.add_argument(
+        "--output_dir", default=str(Path.cwd().parents[2].joinpath("qc_output")),
+        type=str, help="output path for manual states"
     )
-    parser.add_argument("--experiment_baseline_end_index", type=int, default=9000,
-        help="when plotting experiment pulses, where to end the baseline assessment epoch"
+    # parser.add_argument(
+    #     "--experiment_type", default="nuc_vc",
+    #     type=str, help=""
+    # )
+    parser.add_argument(
+        "--backup_experiment_start_index", type=int, default=5000,
+        help="when plotting experiment pulses, "
+             "where to set the start index if it is erroneously stored as <= 0"
     )
-    parser.add_argument("--test_pulse_plot_start", type=float, default=0.04,
+    parser.add_argument(
+        "--experiment_baseline_start_index", type=int, default=5000,
+        help="when plotting experiment pulses, "
+             "where to start the baseline assessment epoch"
+    )
+    parser.add_argument(
+        "--experiment_baseline_end_index", type=int, default=9000,
+        help="when plotting experiment pulses, "
+             "where to end the baseline assessment epoch"
+    )
+    parser.add_argument(
+        "--test_pulse_plot_start", type=float, default=0.04,
         help="where in time (s) to start the test pulse plot"
     )
-    parser.add_argument("--test_pulse_plot_end", type=float, default=0.1,
+    parser.add_argument(
+        "--test_pulse_plot_end", type=float, default=0.1,
         help="in seconds, the end time of the test pulse plot's domain"
     )
-    parser.add_argument("--test_pulse_baseline_samples", type=int, default=100,
-        help="when plotting test pulses, how many samples to use for baseline assessment"
+    parser.add_argument(
+        "--test_pulse_baseline_samples", type=int, default=100,
+        help="when plotting test pulses, "
+             "how many samples to use for baseline assessment"
     )
-    parser.add_argument("--thumbnail_step", type=float, default=20, 
+    parser.add_argument(
+        "--thumbnail_step", type=float, default=20,
         help="step size for generating decimated thumbnail images for individual sweeps."
     )
-    parser.add_argument("--initial_nwb_path", type=str, default=None, 
+    parser.add_argument(
+        "--initial_nwb_path", type=str, default=None,
         help="upon start, immediately load an nwb file from here"
     )
-    parser.add_argument("--initial_stimulus_ontology_path", type=str, default=None,
+    parser.add_argument(
+        "--initial_stimulus_ontology_path", type=str, default=None,
         help="upon start, immediately load a stimulus ontology from here"
     )
-    parser.add_argument("--initial_qc_criteria_path", type=str, default=None,
+    parser.add_argument(
+        "--initial_qc_criteria_path", type=str, default=None,
         help="upon start, immediately load qc criteria from here"
     )
 

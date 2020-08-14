@@ -64,7 +64,7 @@ def test_export_manual_states_to_json_dialog(
 ):
 
     controller._fx_outdated = True
-    controller.output_path = "default"
+    controller.output_dir = "default"
 
     dialog_method_tester(
         controller,

@@ -6,25 +6,11 @@ from PyQt5.QtCore import (
 from PyQt5.QtGui import QColor
 from PyQt5 import QtCore
 
-from ipfx.ephys_data_set import EphysDataSet
-
 from pre_fx_data import PreFxData
-from sweep_plotter import SweepPlotter, SweepPlotConfig
 
 
 class SweepTableModel(QAbstractTableModel):
-    """ Abstract table model holding the raw data for the sweep page.
 
-    Attributes
-    ----------
-    qc_state_updated : pyqtSignal
-        Signal that is emitted with the user updates the manual qc state.
-    new_data : pyqtSignal
-        Signal that is emitted when the user loads a new data set.
-    FAIL_BGCOLOR : QColor
-        Color that is used to pain the auto qc column when a sweep auto-fails
-
-    """
     qc_state_updated = pyqtSignal(int, str, name="qc_state_updated")
     sweep_types_ready = pyqtSignal(name="table_model_data_loaded")
 
@@ -33,16 +19,22 @@ class SweepTableModel(QAbstractTableModel):
     def __init__(
             self,
             colnames: Sequence[str],
-            plot_config: SweepPlotConfig
     ):
-        """ Initializes and configures abstract table model
+        """ Abstract table model holding the raw data for the sweep page.
+
+        Attributes
+        ----------
+        qc_state_updated : pyqtSignal
+            Signal that is emitted with the user updates the manual qc state.
+        new_data : pyqtSignal
+            Signal that is emitted when the user loads a new data set.
+        FAIL_BGCOLOR : QColor
+            Color that is used to pain the auto qc column when a sweep auto-fails
 
         Parameters
         ----------
         colnames : Sequence[str]
             list of column names for the sweep table model
-        plot_config : SweepPlotConfig
-            named tuple with constants used for plotting sweeps
 
         """
         super().__init__()

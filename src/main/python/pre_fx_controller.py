@@ -24,7 +24,7 @@ class PreFxController(QWidget):
     selected_data_set_path = pyqtSignal(str, name="selected_data_set_path")
     selected_manual_states_path = pyqtSignal(str, name="selected_manual_states_path")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, input_dir: str, output_dir: str, output_suffix="_nuc_sweep_qc"):
         """PreFxController provides an interface between GUI elements, such as 
         menus and the application's underlying PreFxData. It does so mainly by 
         exposing a set of QActions, which open dialogs and emit signals 
@@ -33,18 +33,23 @@ class PreFxController(QWidget):
 
         super(PreFxController, self).__init__()
 
+        self.default_output_filename = f"output{output_suffix}.json"
+        self.output_suffix = output_suffix
         self._stimulus_ontology: Optional[Dict] = None
         self._qc_criteria: Optional[Dict] = None
         self._has_data_set: bool = False
         self._fx_outdated: bool = True
 
+        self.input_dir = Path(input_dir)
+        self.output_dir = Path(output_dir)
         self.init_actions()
 
-    def set_output_path(self, output_path=None):
-        if output_path:
-            self.output_path = output_path
-        else:
-            self.output_path = str(Path.cwd())
+
+    # def set_output_path(self, output_path=None):
+    #     if output_path:
+    #         self.output_path = Path(output_path)
+    #     else:
+    #         self.output_path = Path.cwd().joinpath("output")
 
 
     def init_actions(self):
@@ -112,17 +117,34 @@ class PreFxController(QWidget):
         self.run_feature_extraction_action.triggered.connect(fx_data.run_feature_extraction)
 
         # data -> controller
+
+        # connect stimulus ontology set/unset signals
         pre_fx_data.stimulus_ontology_set.connect(self.on_stimulus_ontology_set)
         pre_fx_data.stimulus_ontology_unset.connect(self.on_stimulus_ontology_unset)
 
+        # connect qc criteria set/unset signals
         pre_fx_data.qc_criteria_set.connect(self.on_qc_criteria_set)
         pre_fx_data.qc_criteria_unset.connect(self.on_qc_criteria_unset)
 
-        pre_fx_data.end_commit_calculated.connect(self.on_data_set_set)
+        # connect signals for for .nwb data loaded
         pre_fx_data.table_model_data_ready.connect(self.on_data_set_set)
+        pre_fx_data.update_specimen_name.connect(self.set_default_output_filename)
 
         fx_data.state_outdated.connect(self.on_fx_results_outdated)
         fx_data.new_state_set.connect(self.on_new_fx_results)
+
+    def set_default_output_filename(self, output_prefix: str):
+        """ Set default manual qc state output filename to be the specimen name
+        joined with the output suffix with .json file extension.
+
+        Parameters
+        ----------
+        output_prefix : str
+            first part of the name to use for default output. pre_fx_data sets
+            this to the specimen name by default.
+
+        """
+        self.default_output_filename = f"{output_prefix}{self.output_suffix}.json"
 
     def on_fx_results_outdated(self):
         """ Triggered when the cell feature extraction results are not up-to-date
@@ -248,7 +270,7 @@ class PreFxController(QWidget):
                 return
 
         path = QFileDialog.getOpenFileName(
-            self, "load NWB file", str(Path.cwd()), "NWB files (*.nwb)"
+            self, "load NWB file", str(self.input_dir), "NWB files (*.nwb)"
         )[0]
 
         if path == "":
@@ -273,12 +295,15 @@ class PreFxController(QWidget):
             if QMessageBox.question(
                 self, 
                 "features out of date", 
-                "Your cell features are out of date. Proceed?\n\n To update cell features, choose Edit -> run feature extraction"
+                "Your cell features are out of date. Proceed?\n\n"
+                "To update cell features, choose Edit -> run feature extraction"
             ) == QMessageBox.No:
                 return
-
         path, _ = QFileDialog.getSaveFileName(
-            self, "export to JSON file", self.output_path, "All Files (*);;JSON files (*.json)"
+            parent=self,
+            caption="export to JSON file",
+            directory=str(self.output_dir.joinpath(self.default_output_filename)),
+            filter="All Files (*);;JSON files (*.json)"
         )
 
         if path != "":

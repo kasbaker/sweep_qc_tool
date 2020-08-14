@@ -24,10 +24,10 @@ class SweepTableView(QTableView):
             self._idx_colname_map[idx] = name
             self._colname_idx_map[name] = idx
 
-    def __init__(self, colnames):
+    def __init__(self, colnames: tuple):
         super().__init__()
-
-
+        # self.setParent()
+        # initialize parent object to use for relative popup positions
         self.colnames = colnames
         self.setFont(QFont("Monospace"))
         # A list to store active popup plots
@@ -191,8 +191,15 @@ class SweepTableView(QTableView):
         while len(self.popup_plots) > 5:
             self.popup_plots.pop(0)
 
+        # the great-great-grandparent of this widget should be the main window
+        main_window = self.parent().parent().parent().parent()
+
+        # move popup plot to nice location relative to main window
+        graph.window().move(
+            left + main_window.pos().x(),
+            top + main_window.pos().y()
+        )
         graph.show()
-        graph.window().move(left, top)
 
     def filter_sweeps(self):
         """ Filters the table down to sweeps based on the checkboxes that are

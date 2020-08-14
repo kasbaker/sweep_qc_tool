@@ -1,0 +1,251 @@
+{
+    "input_nwb_file": "/home/katie/GitHub/sweep_qc_tool/src/optimization/data/nwb/Ctgf-T2A-dgCre;Ai14-495723.05.02.01.nwb",
+    "stimulus_ontology_file": "/home/katie/GitHub/sweep_qc_tool/venv/lib/python3.6/site-packages/ipfx/defaults/stimulus_ontology.json",
+    "manual_sweep_states": [
+        {
+            "sweep_number": 0,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 1,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 2,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 3,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 4,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 5,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 6,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 7,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 8,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 9,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 10,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 11,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 12,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 13,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 14,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 15,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 16,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 17,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 18,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 19,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 20,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 21,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 22,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 23,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 24,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 25,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 26,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 27,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 28,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 29,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 30,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 31,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 32,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 33,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 34,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 35,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 36,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 37,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 38,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 39,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 40,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 41,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 42,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 43,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 44,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 45,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 46,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 47,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 48,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 49,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 50,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 51,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 52,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 53,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 54,
+            "sweep_state": "default"
+        },
+        {
+            "sweep_number": 55,
+            "sweep_state": "default"
+        }
+    ],
+    "qc_criteria": {
+        "vm_delta_mv_max": 1.0,
+        "access_resistance_mohm_max": 20.0,
+        "blowout_mv_min": -10.0,
+        "electrode_0_pa_max": 200.0,
+        "electrode_0_pa_min": -200.0,
+        "created_at": "2015-01-29T13:51:29-08:00",
+        "blowout_mv_max": 10.0,
+        "pre_noise_rms_mv_max": 0.07,
+        "updated_at": "2015-01-29T13:51:29-08:00",
+        "access_resistance_mohm_min": 1.0,
+        "input_vs_access_resistance_max": 0.15,
+        "leak_pa_max": 100.0,
+        "post_noise_rms_mv_max": 0.07,
+        "slow_noise_rms_mv_max": 0.5,
+        "seal_gohm_min": 1.0,
+        "leak_pa_min": -100.0,
+        "id": 324256702,
+        "name": "Ephys QC Criteria v1.1"
+    },
+    "ipfx_version": "1.0.0"
+}

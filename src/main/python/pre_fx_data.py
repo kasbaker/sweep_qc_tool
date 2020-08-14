@@ -27,16 +27,13 @@ class PreFxData(QObject):
     qc_criteria_set = pyqtSignal(dict, name="qc_criteria_set")
     qc_criteria_unset = pyqtSignal(name="qc_criteria_unset")
 
-    begin_commit_calculated = pyqtSignal(name="begin_commit_calculated")
-    end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
-
     # signal to send data to the sweep table once auto qc and plotting is done
     table_model_data_ready = pyqtSignal(list, dict, name="table_model_data_ready")
 
     update_fx_sweep_info = pyqtSignal(
         str, StimulusOntology, list, name="update_fx_sweep_info"
     )
-    update_main_window_title = pyqtSignal (str, name="update_main_window_title")
+    update_specimen_name = pyqtSignal(str, name="update_main_window_title")
 
     status_message = pyqtSignal(str, name="status_message")
 
@@ -48,6 +45,13 @@ class PreFxData(QObject):
             - the qc criteria
             - the sweep extraction results
             - the qc results
+
+        Parameters
+        ----------
+
+        plot_config : SweepPlotConfig
+            named tuple with constants used for plotting sweeps
+
         """
         super(PreFxData, self).__init__()
 
@@ -367,9 +371,10 @@ class PreFxData(QObject):
         self.update_fx_sweep_info.emit(
             self.nwb_path, self.stimulus_ontology, self._full_sweep_qc_info
         )
-        # TODO send nwb path to main window
         # send new sweep table data to
         self.table_model_data_ready.emit(table_model_data, sweep_types)
+        # TODO send nwb path to main window
+        self.update_specimen_name.emit(Path(nwb_path).stem)
 
     def on_manual_qc_state_updated(self, index: int, new_state: str):
         """ Takes in new manual QC state and updates sweep_states and
