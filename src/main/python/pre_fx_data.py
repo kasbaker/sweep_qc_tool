@@ -1,6 +1,7 @@
 import json
 from typing import Optional, List, Dict, Any
 from multiprocessing import Pipe, Process
+from pathlib import Path
 
 from PyQt5.QtCore import QObject, pyqtSignal
 from error_handling import exception_message
@@ -35,6 +36,7 @@ class PreFxData(QObject):
     update_fx_sweep_info = pyqtSignal(
         str, StimulusOntology, list, name="update_fx_sweep_info"
     )
+    update_main_window_title = pyqtSignal (str, name="update_main_window_title")
 
     status_message = pyqtSignal(str, name="status_message")
 
@@ -337,7 +339,7 @@ class PreFxData(QObject):
             full_sweep_qc_info[sweep_num]['stimulus_code'],
             full_sweep_qc_info[sweep_num]['stimulus_name'],
             full_sweep_qc_info[sweep_num]['auto_qc_state'],
-            "default",  # manual QC state
+            full_sweep_qc_info[sweep_num]['manual_qc_state'],
             join_str_list_on_newlines(full_sweep_qc_info[sweep_num]['qc_tags']),  # fail tags
             # join_str_list_on_newlines(full_sweep_qc_info[sweep_num]['feature_tags']),
             format_amp_setting_strings(
@@ -365,6 +367,7 @@ class PreFxData(QObject):
         self.update_fx_sweep_info.emit(
             self.nwb_path, self.stimulus_ontology, self._full_sweep_qc_info
         )
+        # TODO send nwb path to main window
         # send new sweep table data to
         self.table_model_data_ready.emit(table_model_data, sweep_types)
 

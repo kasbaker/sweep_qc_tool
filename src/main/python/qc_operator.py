@@ -217,6 +217,7 @@ class QCOperator(object):
             'stimulus_code': sweep['stimulus_code'],
             'stimulus_name': sweep['stimulus_name'],
             'auto_qc_state': "n/a",
+            'manual_qc_state': "default",
             'passed': None,
             'qc_tags': [],
             'feature_tags': []

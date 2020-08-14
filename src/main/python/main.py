@@ -159,6 +159,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         # Configure window
+        # TODO set window title on new data set loaded
         self.setWindowTitle("Ephys Sweep QC Tool")
         self.resize(1600, 900)
 
@@ -173,6 +174,9 @@ class MainWindow(QMainWindow):
         self.settings_menu = self.main_menu_bar.addMenu("Settings")
         self.view_menu = self.main_menu_bar.addMenu("View")
         self.main_menu_bar.addMenu("Help")
+
+    # def update_window_title(self, filename: str):
+
 
     def insert_tabs(
         self, 
