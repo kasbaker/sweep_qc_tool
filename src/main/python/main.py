@@ -129,7 +129,13 @@ class SweepPage(QWidget):
             self.sweep_view.view_all_sweeps.setChecked(True)
 
         if self.sweep_model.sweep_types['nuc_vc']:
+            # set view nuc vc checked if those sweeps exist
             self.sweep_view.view_nuc_vc.setEnabled(True)
+            self.sweep_view.view_nuc_vc.setChecked(True)
+
+            # set other options unchecked
+            self.sweep_view.view_pipeline.setChecked(False)
+            self.sweep_view.view_all_sweeps.setChecked(False)
         else:
             self.sweep_view.view_nuc_vc.setEnabled(False)
 
@@ -308,6 +314,7 @@ class Application(object):
         # initialize components
         self.main_window = MainWindow()
         self.pre_fx_controller: PreFxController = PreFxController(input_dir, output_dir)
+        # self.pre_fx_controller.setParent(self.main_window)
 
         self.pre_fx_data: PreFxData = PreFxData(sweep_plot_config)
 
@@ -375,10 +382,6 @@ if __name__ == '__main__':
         "--output_dir", default=str(Path.cwd().parents[2].joinpath("qc_output")),
         type=str, help="output path for manual states"
     )
-    # parser.add_argument(
-    #     "--experiment_type", default="nuc_vc",
-    #     type=str, help=""
-    # )
     parser.add_argument(
         "--backup_experiment_start_index", type=int, default=5000,
         help="when plotting experiment pulses, "

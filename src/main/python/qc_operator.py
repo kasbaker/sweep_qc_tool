@@ -309,10 +309,13 @@ class QCOperator(object):
                 'sweep_number': sweep['sweep_number'],
                 'seal_value': self.get_seal_from_test_pulse(
                     sweep['stimulus'], sweep['response'],   # voltage and current
-                    np.arange(len(sweep['stimulus'])) / sweep['sampling_rate']  # time vector
+                    np.arange(len(sweep['stimulus'])) / sweep['sampling_rate'],  # time vector
                 )
+                # testing possible voltage clamp sweep qc
+                # 'qc_features_test': self.fast_current_clamp_sweep_qc_features(sweep, False)
             } for sweep in nuc_vc_gen
         ]
+
         return nuc_vc_qc_results
 
     def fast_extract_blowout(self, blowout_sweeps, tags):
@@ -387,6 +390,7 @@ class QCOperator(object):
         return input_resistance, access_resistance
 
     def fast_sweep_qc(self, sweep_types):
+        # TODO integrate channel recording sweep qc here
         if len(sweep_types['i_clamp']) == 0:
             logging.warning("No current clamp sweeps available to compute QC features")
 
