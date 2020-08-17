@@ -29,6 +29,8 @@ class ManualSweepState(Schema):
     sweep_number = Integer(description="sweep number", required=True)
     sweep_state = Str(description="manual override state", required=True)
 
+# class FullSweepQCInfo(Schema):
+#
 
 class SweepParameters(Schema):
     stimulus_code = Str(description="stimulus code", required=True)
@@ -56,6 +58,7 @@ class PipelineParameters(Schema):
     stimulus_ontology_file = Str(description="stimulus ontology JSON", required=False)
     qc_criteria = Nested(QcCriteria, required=False)
     manual_sweep_states = Nested(ManualSweepState, required=False, many=True)
+    # full_qc_info = Nested
     ipfx_version = Str(description="version of ipfx package")
 
 

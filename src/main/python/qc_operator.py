@@ -348,10 +348,8 @@ class QCOperator(object):
     #     return nuc_vc_qc_results
 
     def run_sweep_qc(self, sweep_types):
-        # TODO integrate channel recording sweep qc here
-        # if len(sweep_types['i_clamp']) == 0:
-        #     logging.warning("No current clamp sweeps available to compute QC features")
-
+        """ Docstring goes here """
+        # TODO write docstring
         # set of current clamp pipeline sweeps to perform qc on
         i_clamp_qc_sweeps = sweep_types['i_clamp'].difference(
             sweep_types['test'], sweep_types['search']
@@ -422,20 +420,12 @@ class QCOperator(object):
                 elif sweep_num in nuc_vc_qc_sweeps:
                     # update with new qc features
                     sweep_features.update(qc_features)
+                    # get seal value from test pulse
                     sweep_features['seal_value'] = self.get_seal_from_test_pulse(
                         sweep['stimulus'], sweep['response'],  # voltage and current
                         np.arange(len(sweep['stimulus'])) / sweep['sampling_rate'],  # time vector
                     )
                     nuc_vc_qc_results.append(sweep_features)
-                    # possible alternate keys for vclamp sweeps
-                    # elif sweep_num in nuc_vc_qc_sweeps:
-                    # sweep_features.update({
-                    #     'post_stim_pa': qc_features['post_stim_baseline'],
-                    #     'post_stim_rms_pa': qc_features['post_stim_rms'],
-                    #     'pre_stim_pa': qc_features['pre_stim_baseline'],
-                    #     'pre_stim_rms_pa': qc_features['pre_stim_rms'],
-                    #     'delta_pa': qc_features['baseline_delta']
-                    # })
             else:
                 # if there are tags for early termination or missing epochs
                 # skip getting sweep qc features and continue
@@ -715,12 +705,20 @@ class QCOperator(object):
         if nuc_vc_features:
             for feature in nuc_vc_features:
                 sweep_num = feature['sweep_number']
-                seal_value = feature['seal_value']  # extract np.float seal value
-                seal_str = str(np.rint(seal_value))  # round it to nearest value
-                # full_sweep_qc_info[sweep_num]['feature_tags'] += [
-                full_sweep_qc_info[sweep_num]['qc_tags'] += [
-                    f"Test pulse resistance: {seal_str} MOhm"
-                ]   # append string to feature tags
+                # skip these calculations if sweep has fail tags
+                if not feature['tags']:
+                    # extract np.float seal value and round to nearest int
+                    seal_str = str(int(np.around(feature['seal_value'], 0)))
+                    # get baseline delta from feature
+                    baseline_delta = str(np.around(feature['baseline_delta'], 3))
+                    full_sweep_qc_info[sweep_num]['qc_tags'] += [
+                        f"Test pulse resistance: {seal_str} MOhm",
+                        f"Baseline delta pA: {baseline_delta}"
+                    ]   # append string to feature tags
+                else:
+                    full_sweep_qc_info[sweep_num]['qc_tags'] += \
+                        feature['tags'] + ["DON'T CLICK THIS SWEEP"]
+
 
         return full_sweep_qc_info
 

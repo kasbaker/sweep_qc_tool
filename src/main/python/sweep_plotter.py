@@ -143,11 +143,11 @@ class ExperimentPopupPlotter(PopupPlotter):
         graph = PlotWidget()
         plot = self.initialize_plot(graph)
 
-        if self.baseline:
+        if self.baseline is not None:
             plot.addLine(
                 y=self.baseline,
                 pen=mkPen(color=EXP_PULSE_BASELINE_COLOR, width=2),
-                label="baseline"
+                # label="baseline"
             )
 
         plot.plot(

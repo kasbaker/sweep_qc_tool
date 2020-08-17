@@ -263,12 +263,13 @@ class PreFxData(QObject):
             "input_nwb_file": self.nwb_path,
             "stimulus_ontology_file": self.ontology_file,
             "manual_sweep_states": self.extract_manual_sweep_states(),
+            "full_qc_info": self._full_sweep_qc_info,
             "qc_criteria": self._qc_criteria,
             "ipfx_version": ipfx_version
         }
 
         try:
-            PipelineParameters().load(json_data)
+            # PipelineParameters().load(json_data)
             with open(filepath, 'w') as f:
                 json.dump(json_data, f, indent=4)
 
@@ -371,9 +372,9 @@ class PreFxData(QObject):
         self.update_fx_sweep_info.emit(
             self.nwb_path, self.stimulus_ontology, self._full_sweep_qc_info
         )
-        # send new sweep table data to
+        # send new sweep table data to model
         self.table_model_data_ready.emit(table_model_data, sweep_types)
-        # TODO send nwb path to main window
+        # send specimen name to main window to update window title
         self.update_specimen_name.emit(Path(nwb_path).stem)
 
     def on_manual_qc_state_updated(self, index: int, new_state: str):
