@@ -181,7 +181,7 @@ class QCOperator(object):
 
         sweep_types = self.get_sweep_types()
 
-        nuc_vc_features = self.nuc_vc_sweep_qc(sweep_types['nuc_vc'])
+        # nuc_vc_features = self.nuc_vc_sweep_qc(sweep_types['nuc_vc'])
 
         # if nuc_vc_features:
         #     for feature in nuc_vc_features:
@@ -190,14 +190,14 @@ class QCOperator(object):
         cell_features, cell_tags = self.fast_cell_qc(sweep_types)
         cell_features = deepcopy(cell_features)
 
-        pre_qc_sweep_features = self.fast_sweep_qc(sweep_types)
-        post_qc_sweep_features = deepcopy(pre_qc_sweep_features)
-        drop_tagged_sweeps(post_qc_sweep_features)
+        pre_qc_i_clamp_sweep_features, nuc_vc_sweep_features = self.run_sweep_qc(sweep_types)
+        i_clamp_sweep_features = deepcopy(pre_qc_i_clamp_sweep_features)
+        drop_tagged_sweeps(i_clamp_sweep_features)
 
         cell_state, sweep_states = qc_experiment(
             ontology=self.ontology,
             cell_features=cell_features,
-            sweep_features=post_qc_sweep_features,
+            sweep_features=i_clamp_sweep_features,
             qc_criteria=self.qc_criteria
         )
 
@@ -205,7 +205,7 @@ class QCOperator(object):
         sweep_types['pipeline'] = {state['sweep_number'] for state in sweep_states}
 
         qc_summary(
-            sweep_features=post_qc_sweep_features,
+            sweep_features=i_clamp_sweep_features,
             sweep_states=sweep_states,
             cell_features=cell_features,
             cell_state=cell_state
@@ -225,17 +225,17 @@ class QCOperator(object):
 
         full_sweep_qc_info = self.get_full_sweep_qc_info(
             full_sweep_qc_info=full_sweep_qc_info,
-            pre_qc_sweep_features=pre_qc_sweep_features,
-            post_qc_sweep_features=post_qc_sweep_features,
+            pre_qc_sweep_features=pre_qc_i_clamp_sweep_features,
+            post_qc_sweep_features=i_clamp_sweep_features,
             sweep_states=sweep_states,
-            nuc_vc_features=nuc_vc_features
+            nuc_vc_features=nuc_vc_sweep_features
         )
 
         qc_results = QCResults(
             cell_features=cell_features,
             cell_tags=cell_tags,
             cell_state=cell_state,
-            sweep_features=post_qc_sweep_features,
+            sweep_features=i_clamp_sweep_features,
             sweep_states=sweep_states
         )
 
@@ -299,24 +299,153 @@ class QCOperator(object):
 
         return sweep_types
 
-    def nuc_vc_sweep_qc(self, nuc_vc_sweeps):
-        if not nuc_vc_sweeps:
-            return None
-        nuc_vc_list = sorted(nuc_vc_sweeps)
-        nuc_vc_gen = (self.sweep_data_tuple[idx] for idx in nuc_vc_list)
-        nuc_vc_qc_results = [
-            {
-                'sweep_number': sweep['sweep_number'],
-                'seal_value': self.get_seal_from_test_pulse(
-                    sweep['stimulus'], sweep['response'],   # voltage and current
-                    np.arange(len(sweep['stimulus'])) / sweep['sampling_rate'],  # time vector
-                )
-                # testing possible voltage clamp sweep qc
-                # 'qc_features_test': self.fast_current_clamp_sweep_qc_features(sweep, False)
-            } for sweep in nuc_vc_gen
-        ]
+    # def nuc_vc_sweep_qc(self, nuc_vc_sweeps):
+    #     if not nuc_vc_sweeps:
+    #         logging.warning("No channel recording sweeps available to compute QC features")
+    #         return None
+    #     nuc_vc_list = sorted(nuc_vc_sweeps)
+    #     nuc_vc_gen = (self.sweep_data_tuple[idx] for idx in nuc_vc_list)
+    #     nuc_vc_qc_results = []
+    #     for sweep in nuc_vc_gen:
+    #
+    #         sweep_num = sweep['sweep_number']
+    #         sweep_features = {
+    #             'sweep_number': sweep_num, 'stimulus_code': sweep['stimulus_code'],
+    #             'stimulus_name': sweep['stimulus_name']
+    #
+    #         }
+    #
+    #         # check sweep integrity, with ramp = False
+    #         tags = self.fast_check_sweep_integrity(sweep, False)
+    #
+    #         # early termination / missing epochs appended to 'tags'
+    #         sweep_features['tags'] = tags
+    #
+    #         # stimulus features
+    #         stim_features = self.get_stimulus_features(sweep)
+    #         sweep_features.update(stim_features)
+    #
+    #         # if all the sweep epochs are present, and sweep not terminated early, do this
+    #         if not tags:
+    #             qc_features = self.fast_current_clamp_sweep_qc_features(sweep, False)
+    #             sweep_features.update(qc_features)
+    #         else:
+    #             logging.warning("sweep {}: {}".format(sweep_num, tags))
+    #
+    #         sweep_qc_results.append(sweep_features)
+    #     nuc_vc_qc_results = [
+    #         {
+    #             'sweep_number': sweep['sweep_number'],
+    #             'seal_value': self.get_seal_from_test_pulse(
+    #                 sweep['stimulus'], sweep['response'],   # voltage and current
+    #                 np.arange(len(sweep['stimulus'])) / sweep['sampling_rate'],  # time vector
+    #             )
+    #             # testing possible voltage clamp sweep qc
+    #             # 'qc_features_test': self.fast_current_clamp_sweep_qc_features(sweep, False)
+    #         } for sweep in nuc_vc_gen
+    #     ]
+    #
+    #     return nuc_vc_qc_results
 
-        return nuc_vc_qc_results
+    def run_sweep_qc(self, sweep_types):
+        # TODO integrate channel recording sweep qc here
+        # if len(sweep_types['i_clamp']) == 0:
+        #     logging.warning("No current clamp sweeps available to compute QC features")
+
+        # set of current clamp pipeline sweeps to perform qc on
+        i_clamp_qc_sweeps = sweep_types['i_clamp'].difference(
+            sweep_types['test'], sweep_types['search']
+        )
+        # if there are no i clamp sweeps to qc, warn and set results to None
+        if not i_clamp_qc_sweeps:
+            logging.warning("No current clamp sweeps available to compute QC features")
+
+        # nuc vc sweeps to qc are intersection of nuc vc and v clamp
+        nuc_vc_qc_sweeps = sweep_types['v_clamp'].intersection(
+            sweep_types['nuc_vc']
+        )
+        # if there are no nuc vc sweeps to qc, warn and set results to none
+        if not nuc_vc_qc_sweeps:
+            logging.warning("No channel recording sweeps available to compute QC features")
+
+        # sweeps to qc union of i clamp and nuc vc sweeps put in sorted list
+        qc_sweeps = sorted(i_clamp_qc_sweeps.union(nuc_vc_qc_sweeps))
+        # generator of sweeps to qc
+        sweep_gen = (self.sweep_data_tuple[idx] for idx in qc_sweeps)
+
+        # initialize empty lists of i clamp and nuc vc qc results
+        i_clamp_qc_results = []
+        nuc_vc_qc_results = []
+
+        # sweep_qc_results = []
+        # loop through sweep gen and grab qc features for each sweep
+        for sweep in sweep_gen:
+            # grab sweep number and initialize a sweep feature dictionary
+            sweep_num = sweep['sweep_number']
+
+            # make an exception for ramp sweeps because sometimes they fail qc
+            is_ramp = False
+            if sweep_num in sweep_types['ramp']:
+                is_ramp = True
+
+            # check for sweep integrity and grab those tags
+            tags = self.check_sweep_integrity(sweep, is_ramp)
+            # sweep_features['tags'] = tags
+
+            # intialize dictionary of sweep features
+            sweep_features = {
+                'sweep_number': sweep_num, 'stimulus_code': sweep['stimulus_code'],
+                'stimulus_name': sweep['stimulus_name'], 'tags': tags
+            }
+
+            # grab stimulus features
+            stim_features = self.get_stimulus_features(sweep)
+            sweep_features.update(stim_features)
+
+            # if there is no early termination or missing epochs get qc features
+            if not tags:
+                qc_features = self.get_sweep_qc_features(sweep, is_ramp)
+                # sweep_features.update(qc_features)
+                if sweep_num in i_clamp_qc_sweeps:
+                    # update sweep qc features
+                    # pre_vm_mv and slow_vm_mv are the same - pre_vm should use fast noise?
+                    sweep_features.update({
+                        'pre_vm_mv': qc_features['pre_baseline'],
+                        'pre_noise_rms_mv': qc_features['pre_rms_fast'],
+                        'slow_vm_mv': qc_features['pre_baseline'],
+                        'slow_noise_rms_mv': qc_features['pre_rms'],
+                        'post_vm_mv': qc_features['post_baseline'],
+                        'post_noise_rms_mv': qc_features['post_rms'],
+                        'vm_delta_mv': qc_features['baseline_delta']
+                    })
+                    i_clamp_qc_results.append(sweep_features)
+                elif sweep_num in nuc_vc_qc_sweeps:
+                    # update with new qc features
+                    sweep_features.update(qc_features)
+                    sweep_features['seal_value'] = self.get_seal_from_test_pulse(
+                        sweep['stimulus'], sweep['response'],  # voltage and current
+                        np.arange(len(sweep['stimulus'])) / sweep['sampling_rate'],  # time vector
+                    )
+                    nuc_vc_qc_results.append(sweep_features)
+                    # possible alternate keys for vclamp sweeps
+                    # elif sweep_num in nuc_vc_qc_sweeps:
+                    # sweep_features.update({
+                    #     'post_stim_pa': qc_features['post_stim_baseline'],
+                    #     'post_stim_rms_pa': qc_features['post_stim_rms'],
+                    #     'pre_stim_pa': qc_features['pre_stim_baseline'],
+                    #     'pre_stim_rms_pa': qc_features['pre_stim_rms'],
+                    #     'delta_pa': qc_features['baseline_delta']
+                    # })
+            else:
+                # if there are tags for early termination or missing epochs
+                # skip getting sweep qc features and continue
+                logging.warning("sweep {}: {}".format(sweep_num, tags))
+                if sweep_num in i_clamp_qc_sweeps:
+                    i_clamp_qc_results.append(sweep_features)
+                else:
+                    nuc_vc_qc_results.append(sweep_features)
+
+        return i_clamp_qc_results, nuc_vc_qc_results
 
     def fast_extract_blowout(self, blowout_sweeps, tags):
         if blowout_sweeps:
@@ -389,58 +518,16 @@ class QCOperator(object):
 
         return input_resistance, access_resistance
 
-    def fast_sweep_qc(self, sweep_types):
-        # TODO integrate channel recording sweep qc here
-        if len(sweep_types['i_clamp']) == 0:
-            logging.warning("No current clamp sweeps available to compute QC features")
-
-        qc_sweeps = sorted(
-            sweep_types['i_clamp'].difference(
-                sweep_types['test'], sweep_types['search']
-            )
-        )
-
-        sweep_gen = (self.sweep_data_tuple[idx] for idx in qc_sweeps)
-        sweep_qc_results = []
-
-        for sweep in sweep_gen:
-            sweep_num = sweep['sweep_number']
-            sweep_features = {
-                'sweep_number': sweep_num, 'stimulus_code': sweep['stimulus_code'],
-                'stimulus_name': sweep['stimulus_name']
-            }
-            is_ramp = False
-
-            if sweep_num in sweep_types['ramp']:
-                is_ramp = True
-
-            tags = self.fast_check_sweep_integrity(sweep, is_ramp)
-
-            sweep_features['tags'] = tags
-
-            stim_features = self.fast_current_clamp_stim_features(sweep)
-            sweep_features.update(stim_features)
-
-            if not tags:
-                qc_features = self.fast_current_clamp_sweep_qc_features(sweep, is_ramp)
-                sweep_features.update(qc_features)
-            else:
-                logging.warning("sweep {}: {}".format(sweep_num, tags))
-
-            sweep_qc_results.append(sweep_features)
-
-        return sweep_qc_results
-
     @staticmethod
-    def fast_current_clamp_stim_features(sweep):
+    def get_stimulus_features(sweep):
         stim_features = {}
 
-        i = sweep['stimulus']
+        stimulus = sweep['stimulus']
         hz = sweep['sampling_rate']
 
         time = np.arange(len(sweep['stimulus'])) / hz
 
-        start_time, dur, amp, start_idx, end_idx = stf.get_stim_characteristics(i, time)
+        start_time, dur, amp, start_idx, end_idx = stf.get_stim_characteristics(stimulus, time)
 
         stim_features['stimulus_start_time'] = start_time
         stim_features['stimulus_amplitude'] = amp
@@ -448,7 +535,7 @@ class QCOperator(object):
 
         if sweep['epochs']['experiment']:
             expt_start_idx, _ = sweep['epochs']['experiment']
-            interval = stf.find_stim_interval(expt_start_idx, i, hz)
+            interval = stf.find_stim_interval(expt_start_idx, stimulus, hz)
         else:
             interval = None
 
@@ -457,7 +544,7 @@ class QCOperator(object):
         return stim_features
 
     @staticmethod
-    def fast_check_sweep_integrity(sweep, is_ramp):
+    def check_sweep_integrity(sweep, is_ramp):
 
         tags = []
 
@@ -473,15 +560,15 @@ class QCOperator(object):
         return tags
 
     @staticmethod
-    def fast_current_clamp_sweep_qc_features(sweep, is_ramp):
+    def get_sweep_qc_features(sweep, is_ramp):
         qc_features = {}
 
-        voltage = sweep['response']
+        response = sweep['response']
         hz = sweep['sampling_rate']
         # measure noise before stimulus
         idx0, idx1 = ep.get_first_noise_epoch(sweep['epochs']['experiment'][0], hz)
         # count from the beginning of the experiment
-        _, qc_features["pre_noise_rms_mv"] = qcf.measure_vm(voltage[idx0:idx1])
+        qc_features['pre_baseline_fast'], qc_features['pre_rms_fast'] = qcf.measure_vm(response[idx0:idx1])
 
         # measure mean and rms of Vm at end of recording
         # do not check for ramp, because they do not have enough time to recover
@@ -489,31 +576,73 @@ class QCOperator(object):
         rec_end_idx = sweep['epochs']['recording'][1]
         if not is_ramp:
             idx0, idx1 = ep.get_last_stability_epoch(rec_end_idx, hz)
-            mean_last_stability_epoch, _ = qcf.measure_vm(voltage[idx0:idx1])
+            mean_last_stability_epoch, _ = qcf.measure_vm(response[idx0:idx1])
 
             idx0, idx1 = ep.get_last_noise_epoch(rec_end_idx, hz)
-            _, rms_last_noise_epoch = qcf.measure_vm(voltage[idx0:idx1])
+            _, rms_last_noise_epoch = qcf.measure_vm(response[idx0:idx1])
         else:
             rms_last_noise_epoch = None
             mean_last_stability_epoch = None
 
-        qc_features["post_vm_mv"] = mean_last_stability_epoch
-        qc_features["post_noise_rms_mv"] = rms_last_noise_epoch
+        qc_features['post_baseline'] = mean_last_stability_epoch
+        qc_features["post_rms"] = rms_last_noise_epoch
 
         # measure mean and rms of Vm and over extended interval before stimulus, to check stability
 
         stim_start_idx = sweep['epochs']['stim'][0]
 
         idx0, idx1 = ep.get_first_stability_epoch(stim_start_idx, hz)
-        mean_first_stability_epoch, rms_first_stability_epoch = qcf.measure_vm(voltage[idx0:idx1])
+        mean_first_stability_epoch, rms_first_stability_epoch = qcf.measure_vm(response[idx0:idx1])
 
-        qc_features["pre_vm_mv"] = mean_first_stability_epoch
-        qc_features["slow_vm_mv"] = mean_first_stability_epoch
-        qc_features["slow_noise_rms_mv"] = rms_first_stability_epoch
+        qc_features['pre_baseline'] = mean_first_stability_epoch
+        qc_features['pre_rms'] = rms_first_stability_epoch
 
-        qc_features["vm_delta_mv"] = qcf.measure_vm_delta(mean_first_stability_epoch, mean_last_stability_epoch)
+        qc_features['baseline_delta'] = qcf.measure_vm_delta(mean_first_stability_epoch, mean_last_stability_epoch)
 
         return qc_features
+
+    # @staticmethod
+    # def get_sweep_qc_features(sweep, is_ramp):
+    #     qc_features = {}
+    #
+    #     response = sweep['response']
+    #     hz = sweep['sampling_rate']
+    #     # measure noise before stimulus
+    #     idx0, idx1 = ep.get_first_noise_epoch(sweep['epochs']['experiment'][0], hz)
+    #     # count from the beginning of the experiment
+    #     _, qc_features["pre_noise_rms_mv"] = qcf.measure_vm(response[idx0:idx1])
+    #
+    #     # measure mean and rms of Vm at end of recording
+    #     # do not check for ramp, because they do not have enough time to recover
+    #
+    #     rec_end_idx = sweep['epochs']['recording'][1]
+    #     if not is_ramp:
+    #         idx0, idx1 = ep.get_last_stability_epoch(rec_end_idx, hz)
+    #         mean_last_stability_epoch, _ = qcf.measure_vm(response[idx0:idx1])
+    #
+    #         idx0, idx1 = ep.get_last_noise_epoch(rec_end_idx, hz)
+    #         _, rms_last_noise_epoch = qcf.measure_vm(response[idx0:idx1])
+    #     else:
+    #         rms_last_noise_epoch = None
+    #         mean_last_stability_epoch = None
+    #
+    #     qc_features["post_vm_mv"] = mean_last_stability_epoch
+    #     qc_features["post_noise_rms_mv"] = rms_last_noise_epoch
+    #
+    #     # measure mean and rms of Vm and over extended interval before stimulus, to check stability
+    #
+    #     stim_start_idx = sweep['epochs']['stim'][0]
+    #
+    #     idx0, idx1 = ep.get_first_stability_epoch(stim_start_idx, hz)
+    #     mean_first_stability_epoch, rms_first_stability_epoch = qcf.measure_vm(response[idx0:idx1])
+    #
+    #     qc_features["pre_vm_mv"] = mean_first_stability_epoch
+    #     qc_features["slow_vm_mv"] = mean_first_stability_epoch
+    #     qc_features["slow_noise_rms_mv"] = rms_first_stability_epoch
+    #
+    #     qc_features["vm_delta_mv"] = qcf.measure_vm_delta(mean_first_stability_epoch, mean_last_stability_epoch)
+    #
+    #     return qc_features
 
     @staticmethod
     def get_epochs(sampling_rate, stimulus, response):
