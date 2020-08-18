@@ -1,6 +1,0 @@
-setuptools==44.0.0
-git+https://github.com/nilegraddis/fbs@additional_hooks_dir
-PyQt5==5.9.2
-PyInstaller==3.4
-ipfx==1.0.0
-pyqtgraph==0.10.0

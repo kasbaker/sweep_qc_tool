@@ -11,7 +11,29 @@ We provide binary packages for Windows, which you can download from [the release
 2. unzip the archive and move the resulting directory to your desired install location
 3. run `sweep_qc_tool.exe` to start the tool
 
-To run on OSX or Linux you should:
+To run on Windows from source:
+-----------------------------------
+1. Install Python 3.6.8, found her:e `https://www.python.org/ftp/python/3.6.8/` Make sure to add python to the `Path` variable when prompted during installation.
+2. Clone this repository using `git clone https://github.com/alleninstitute/sweep_qc_tool`
+2. Press `Windows Key + r` and type `cmd` to open command prompt.
+3. Use the command prompt to create a virtual environment:
+    ```
+   python -m pip install --upgrade pip  # upgrade to latest pip version
+   python -m pip install --upgrade virtualenv   # upgrade to latest virtualenv
+   python -m venv venv  # creates a virtual environment in the \venv\ directory
+    ```
+4. Activate the virtual environment and install the requirements:
+    ```
+   venv\scripts\activate.bat    # activate virtual environment
+   python -m pip install -r requirements/windows.txt    # install requirements
+   ```
+5. Run the sweep QC tool from the command line:
+    ```
+   python src/main/python/main.py   # runs main.py using Python 3.6
+    ```
+
+To run on OSX or Linux from source:
+----------------------------------
 1. clone this repository to your desired install location using `git clone https://github.com/alleninstitute/sweep_qc_tool`
 2. create an environment using e.g. conda or virtualenv. For instance, if using virtualenv on Linux, you might run:
     ```
@@ -21,7 +43,7 @@ To run on OSX or Linux you should:
     to create your virtual environment. You would then activate this environment using `source .venv/bin/activate`.
 3. With your environment activated, install the dependencies by running
     ```
-    pip install -r requirements/base.txt
+    pip install -r requirements/linux.txt
     ```
 4. You can now start the tool either via `fbs run` or via `python src/main/python/main.py`.)
 
