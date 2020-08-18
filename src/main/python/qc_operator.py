@@ -19,10 +19,10 @@ class QCResults(NamedTuple):
     cell_features: dict
     cell_tags: list
     cell_state: dict
-    pre_qc_sweep_features: List[dict]
     sweep_features: List[dict]
     sweep_states: List[dict]
     nuc_vc_features: List[dict]
+    full_sweep_qc_info: List[dict]
 
 
 class QCOperator(object):
@@ -218,31 +218,28 @@ class QCOperator(object):
             'sweep_number': sweep['sweep_number'],
             'stimulus_code': sweep['stimulus_code'],
             'stimulus_name': sweep['stimulus_name'],
-            'auto_qc_state': "n/a",
-            'manual_qc_state': "default",
-            'passed': None,
-            'qc_tags': []
+            'passed': None
         } for sweep in self.sweep_data_tuple]
 
         full_sweep_qc_info = self.get_full_sweep_qc_info(
             full_sweep_qc_info=full_sweep_qc_info,
             pre_qc_sweep_features=pre_qc_i_clamp_sweep_features,
             post_qc_sweep_features=i_clamp_sweep_features,
-            sweep_states=sweep_states,
-            nuc_vc_features=nuc_vc_sweep_features
+            nuc_vc_features=nuc_vc_sweep_features,
+            sweep_states=sweep_states
         )
 
         qc_results = QCResults(
             cell_features=cell_features,
             cell_tags=cell_tags,
             cell_state=cell_state,
-            pre_qc_sweep_features=pre_qc_i_clamp_sweep_features,
             sweep_features=i_clamp_sweep_features,
             sweep_states=sweep_states,
-            nuc_vc_features=nuc_vc_sweep_features
+            nuc_vc_features=nuc_vc_sweep_features,
+            full_sweep_qc_info=full_sweep_qc_info
         )
 
-        return qc_results, full_sweep_qc_info, sweep_types
+        return qc_results, sweep_types
 
     def get_sweep_types(self):
         sweep_keys = (
@@ -385,6 +382,8 @@ class QCOperator(object):
                 # if there are tags for early termination or missing epochs
                 # skip getting sweep qc features and continue
                 logging.warning("sweep {}: {}".format(sweep_num, tags))
+                # set sweep passed to False due to early term / missing epochs
+                sweep_features['passed'] = False
                 if sweep_num in i_clamp_qc_sweeps:
                     i_clamp_qc_results.append(sweep_features)
                 else:
@@ -546,49 +545,6 @@ class QCOperator(object):
 
         return qc_features
 
-    # @staticmethod
-    # def get_sweep_qc_features(sweep, is_ramp):
-    #     qc_features = {}
-    #
-    #     response = sweep['response']
-    #     hz = sweep['sampling_rate']
-    #     # measure noise before stimulus
-    #     idx0, idx1 = ep.get_first_noise_epoch(sweep['epochs']['experiment'][0], hz)
-    #     # count from the beginning of the experiment
-    #     _, qc_features["pre_noise_rms_mv"] = qcf.measure_vm(response[idx0:idx1])
-    #
-    #     # measure mean and rms of Vm at end of recording
-    #     # do not check for ramp, because they do not have enough time to recover
-    #
-    #     rec_end_idx = sweep['epochs']['recording'][1]
-    #     if not is_ramp:
-    #         idx0, idx1 = ep.get_last_stability_epoch(rec_end_idx, hz)
-    #         mean_last_stability_epoch, _ = qcf.measure_vm(response[idx0:idx1])
-    #
-    #         idx0, idx1 = ep.get_last_noise_epoch(rec_end_idx, hz)
-    #         _, rms_last_noise_epoch = qcf.measure_vm(response[idx0:idx1])
-    #     else:
-    #         rms_last_noise_epoch = None
-    #         mean_last_stability_epoch = None
-    #
-    #     qc_features["post_vm_mv"] = mean_last_stability_epoch
-    #     qc_features["post_noise_rms_mv"] = rms_last_noise_epoch
-    #
-    #     # measure mean and rms of Vm and over extended interval before stimulus, to check stability
-    #
-    #     stim_start_idx = sweep['epochs']['stim'][0]
-    #
-    #     idx0, idx1 = ep.get_first_stability_epoch(stim_start_idx, hz)
-    #     mean_first_stability_epoch, rms_first_stability_epoch = qcf.measure_vm(response[idx0:idx1])
-    #
-    #     qc_features["pre_vm_mv"] = mean_first_stability_epoch
-    #     qc_features["slow_vm_mv"] = mean_first_stability_epoch
-    #     qc_features["slow_noise_rms_mv"] = rms_first_stability_epoch
-    #
-    #     qc_features["vm_delta_mv"] = qcf.measure_vm_delta(mean_first_stability_epoch, mean_last_stability_epoch)
-    #
-    #     return qc_features
-
     @staticmethod
     def get_epochs(sampling_rate, stimulus, response):
         test_epoch = ep.get_test_epoch(stimulus, sampling_rate)
@@ -617,63 +573,20 @@ class QCOperator(object):
             full_sweep_qc_info: List[dict],
             pre_qc_sweep_features: List[dict],
             post_qc_sweep_features: List[dict],
-            sweep_states: List[dict],
-            nuc_vc_features: List[dict]
+            nuc_vc_features: List[dict],
+            sweep_states: List[dict]
     ):
         # TODO write docstring
         """ foo
         """
+        feature_lists = [
+            pre_qc_sweep_features, post_qc_sweep_features, nuc_vc_features,
+            sweep_states
+        ]
 
-        # loop through sweep states and assign auto qc states to sweep_table_data
-        for idx, state in enumerate(sweep_states):
-            # cache sweep number
-            sweep_num = state['sweep_number']
-            # it state is auto passed, update table data appropriately
-            if state['passed']:
-                full_sweep_qc_info[sweep_num]['passed'] = True
-                full_sweep_qc_info[sweep_num]['auto_qc_state'] = "passed"
-            else:
-                full_sweep_qc_info[sweep_num]['passed'] = False
-                full_sweep_qc_info[sweep_num]['auto_qc_state'] = "failed"
-            # update tags
-            full_sweep_qc_info[sweep_num]['qc_tags'] += post_qc_sweep_features[idx]['tags']
-            full_sweep_qc_info[sweep_num]['qc_tags'] += state['reasons']
-
-        # loop through sweeps that got dropped due to having fail tags update table data
-        for feature in pre_qc_sweep_features:
-            # cache sweep number
-            sweep_num = feature['sweep_number']
-            # skip over sweeps that were processed in above step
-            if full_sweep_qc_info[sweep_num]['passed'] not in {True, False}:
-                full_sweep_qc_info[sweep_num]['passed'] = False
-                full_sweep_qc_info[sweep_num]['auto_qc_state'] = "failed"
-            # update tags
-            full_sweep_qc_info[sweep_num]['qc_tags'] += feature['tags']
-
-        # loop through all the other sweeps not included in auto qc
-        # for sweep_num in range(len(full_sweep_qc_info)):
-            # only handle sweeps that were not processed in previous two steps
-            # if full_sweep_qc_info[sweep_num]['passed'] not in {True, False}:
-                # these sweeps have no auto qc, so update tags appropriately
-                # full_sweep_qc_info[sweep_num]['qc_tags'] += ["no auto qc"]
-
-        if nuc_vc_features:
-            for feature in nuc_vc_features:
-                sweep_num = feature['sweep_number']
-                # skip these calculations if sweep has fail tags
-                if not feature['tags']:
-                    # extract np.float seal value and round to nearest int
-                    seal_str = str(int(np.around(feature['seal_value'], 0)))
-                    # get baseline delta from feature
-                    baseline_delta = str(np.around(feature['baseline_delta'], 3))
-                    full_sweep_qc_info[sweep_num]['qc_tags'] += [
-                        f"Test pulse resistance: {seal_str} MOhm",
-                        f"Baseline delta pA: {baseline_delta}"
-                    ]   # append string to feature tags
-                else:
-                    full_sweep_qc_info[sweep_num]['qc_tags'] += \
-                        feature['tags'] + ["DON'T CLICK THIS SWEEP"]
-
+        for feature_list in feature_lists:
+            for sweep in feature_list:
+                full_sweep_qc_info[sweep['sweep_number']].update(sweep)
 
         return full_sweep_qc_info
 
@@ -741,8 +654,8 @@ def run_auto_qc(sweep_data_tuple: tuple, ontology: StimulusOntology,
     qc_operator = QCOperator(
         sweep_data_tuple, ontology, qc_criteria, recording_date
     )
-    qc_results, full_sweep_qc_info, sweep_types = qc_operator.fast_experiment_qc()
+    qc_results, sweep_types = qc_operator.fast_experiment_qc()
 
     qc_out = qc_output
-    qc_out.send((qc_results, full_sweep_qc_info, sweep_types))
+    qc_out.send((qc_results, sweep_types))
     qc_out.close()
