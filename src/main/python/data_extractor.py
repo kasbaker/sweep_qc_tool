@@ -17,11 +17,11 @@ from ipfx.epochs import (
 
 class DataExtractor(object):
 
-    __slots__ = [
-        'nwb_file', '_ontology', '_data_set', '_recording_date',
-        '_series_iter', '_data_iter', '_series_table', '_num_sweeps',
-        'v_clamp_settings_dict', 'i_clamp_settings_dict'
-    ]
+    # __slots__ = [
+    #     'nwb_file', '_ontology', '_data_set', '_recording_date',
+    #     '_series_iter', '_data_iter', '_series_table', '_num_sweeps',
+    #     'v_clamp_settings_dict', 'i_clamp_settings_dict'
+    # ]
 
     def __init__(
             self, nwb_file, ontology,
@@ -38,6 +38,9 @@ class DataExtractor(object):
         self._num_sweeps = None
         self._series_iter = None
         self._data_iter = None
+
+        self.prev_experiment_epoch = None
+        self.prev_stim_epoch = None
 
         # initialize dictionary of amplifier settings for voltage clamp
         if v_clamp_settings_keys != 'default':
@@ -177,8 +180,9 @@ class DataExtractor(object):
         response = response[:recording_end_idx]
         stimulus = stimulus[:recording_end_idx]
 
-        epochs = get_epochs(
-            sampling_rate=sampling_rate, stimulus=stimulus, response=response
+        epochs = self.get_epochs(
+            sampling_rate=sampling_rate, stimulus=stimulus, response=response,
+            stimulus_code=stimulus_code
         )
 
         # print(patch_clamp_settings_dict)
@@ -195,25 +199,46 @@ class DataExtractor(object):
             'amp_settings': patch_clamp_settings_dict
         }
 
+    def get_epochs(self, sampling_rate, stimulus, response, stimulus_code):
 
-def get_epochs(sampling_rate, stimulus, response):
-    test_epoch = get_test_epoch(stimulus, sampling_rate)
-    if test_epoch:
-        test_pulse = True
-    else:
-        test_pulse = False
+        test_epoch = get_test_epoch(stimulus, sampling_rate)
+        if test_epoch:
+            test_pulse = True
+        else:
+            test_pulse = False
 
-    sweep_epoch = get_sweep_epoch(response)
-    recording_epoch = get_recording_epoch(response)
-    stimulus_epoch = get_stim_epoch(stimulus, test_pulse=test_pulse)
-    experiment_epoch = get_experiment_epoch(
-        stimulus, sampling_rate, test_pulse=test_pulse
-    )
+        sweep_epoch = get_sweep_epoch(response)
+        recording_epoch = get_recording_epoch(response)
+        stimulus_epoch = get_stim_epoch(stimulus, test_pulse=test_pulse)
+        experiment_epoch = get_experiment_epoch(
+            stimulus, sampling_rate, test_pulse=test_pulse
+        )
+        # handle instance where a certain NucVC sweep has a stimulus of zero
+        if stimulus_code == 'NucVCSus0':
+            # if there is no experiment epoch handle things accordingly
+            if experiment_epoch is None:
+                # if the end of the experiment epoch is less than the sweep length
+                if self.prev_experiment_epoch[1] < len(stimulus):
+                    # use the previous experiment epoch instead of None
+                    experiment_epoch = self.prev_experiment_epoch
+            else:
+                # otherwise, assign this to previous experiment epoch
+                self.prev_experiment_epoch = experiment_epoch
 
-    return {
-        'test': test_epoch,
-        'sweep': sweep_epoch,
-        'recording': recording_epoch,
-        'experiment': experiment_epoch,
-        'stim': stimulus_epoch
-    }
+            # if there is no stimulus epoch handle things accordingly
+            if stimulus_epoch is None:
+                # if the end of the stim epoch is less than the sweep length
+                if self.prev_stim_epoch[1] < len(stimulus):
+                    # use the previous stimulus epoch instead of None
+                    stimulus_epoch = self.prev_stim_epoch
+            else:
+                # otherwise, assign this to previous stimulus epoch
+                self.prev_stim_epoch = stimulus_epoch
+
+        return {
+            'test': test_epoch,
+            'sweep': sweep_epoch,
+            'recording': recording_epoch,
+            'experiment': experiment_epoch,
+            'stim': stimulus_epoch
+        }

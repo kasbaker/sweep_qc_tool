@@ -142,19 +142,22 @@ class ExperimentPopupPlotter(PopupPlotter):
         """
         graph = PlotWidget()
         plot = self.initialize_plot(graph)
-
+        # plot baseline if it exists
         if self.baseline is not None:
             plot.addLine(
                 y=self.baseline,
                 pen=mkPen(color=EXP_PULSE_BASELINE_COLOR, width=2),
                 # label="baseline"
             )
-
-        plot.plot(
+        # plot experiment data
+        experiment_plot = plot.plot(
             self.plot_data.time, self.plot_data.response,
             pen=mkPen(color=EXP_PULSE_CURRENT_COLOR, width=2),
-            # name=f"sweep {self.sweep_number}"
         )
+        # set downsampling and clip to view for performance reasons
+        experiment_plot.setDownsampling(auto=True)
+        experiment_plot.setClipToView(True)
+
         return graph
 
 

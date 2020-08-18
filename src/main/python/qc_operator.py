@@ -19,8 +19,10 @@ class QCResults(NamedTuple):
     cell_features: dict
     cell_tags: list
     cell_state: dict
+    pre_qc_sweep_features: List[dict]
     sweep_features: List[dict]
     sweep_states: List[dict]
+    nuc_vc_features: List[dict]
 
 
 class QCOperator(object):
@@ -219,8 +221,7 @@ class QCOperator(object):
             'auto_qc_state': "n/a",
             'manual_qc_state': "default",
             'passed': None,
-            'qc_tags': [],
-            'feature_tags': []
+            'qc_tags': []
         } for sweep in self.sweep_data_tuple]
 
         full_sweep_qc_info = self.get_full_sweep_qc_info(
@@ -235,8 +236,10 @@ class QCOperator(object):
             cell_features=cell_features,
             cell_tags=cell_tags,
             cell_state=cell_state,
+            pre_qc_sweep_features=pre_qc_i_clamp_sweep_features,
             sweep_features=i_clamp_sweep_features,
-            sweep_states=sweep_states
+            sweep_states=sweep_states,
+            nuc_vc_features=nuc_vc_sweep_features
         )
 
         return qc_results, full_sweep_qc_info, sweep_types
@@ -298,54 +301,6 @@ class QCOperator(object):
                 sweep_types['nuc_vc'].add(sweep_num)
 
         return sweep_types
-
-    # def nuc_vc_sweep_qc(self, nuc_vc_sweeps):
-    #     if not nuc_vc_sweeps:
-    #         logging.warning("No channel recording sweeps available to compute QC features")
-    #         return None
-    #     nuc_vc_list = sorted(nuc_vc_sweeps)
-    #     nuc_vc_gen = (self.sweep_data_tuple[idx] for idx in nuc_vc_list)
-    #     nuc_vc_qc_results = []
-    #     for sweep in nuc_vc_gen:
-    #
-    #         sweep_num = sweep['sweep_number']
-    #         sweep_features = {
-    #             'sweep_number': sweep_num, 'stimulus_code': sweep['stimulus_code'],
-    #             'stimulus_name': sweep['stimulus_name']
-    #
-    #         }
-    #
-    #         # check sweep integrity, with ramp = False
-    #         tags = self.fast_check_sweep_integrity(sweep, False)
-    #
-    #         # early termination / missing epochs appended to 'tags'
-    #         sweep_features['tags'] = tags
-    #
-    #         # stimulus features
-    #         stim_features = self.get_stimulus_features(sweep)
-    #         sweep_features.update(stim_features)
-    #
-    #         # if all the sweep epochs are present, and sweep not terminated early, do this
-    #         if not tags:
-    #             qc_features = self.fast_current_clamp_sweep_qc_features(sweep, False)
-    #             sweep_features.update(qc_features)
-    #         else:
-    #             logging.warning("sweep {}: {}".format(sweep_num, tags))
-    #
-    #         sweep_qc_results.append(sweep_features)
-    #     nuc_vc_qc_results = [
-    #         {
-    #             'sweep_number': sweep['sweep_number'],
-    #             'seal_value': self.get_seal_from_test_pulse(
-    #                 sweep['stimulus'], sweep['response'],   # voltage and current
-    #                 np.arange(len(sweep['stimulus'])) / sweep['sampling_rate'],  # time vector
-    #             )
-    #             # testing possible voltage clamp sweep qc
-    #             # 'qc_features_test': self.fast_current_clamp_sweep_qc_features(sweep, False)
-    #         } for sweep in nuc_vc_gen
-    #     ]
-    #
-    #     return nuc_vc_qc_results
 
     def run_sweep_qc(self, sweep_types):
         """ Docstring goes here """

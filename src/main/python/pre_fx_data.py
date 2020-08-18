@@ -2,10 +2,12 @@ import json
 from typing import Optional, List, Dict, Any
 from multiprocessing import Pipe, Process
 from pathlib import Path
+from copy import deepcopy
 
 from PyQt5.QtCore import QObject, pyqtSignal
 from error_handling import exception_message
 from marshmallow import ValidationError
+import numpy as np
 
 from ipfx import __version__ as ipfx_version
 from ipfx.stimulus import StimulusOntology
@@ -73,6 +75,7 @@ class PreFxData(QObject):
         # self._sweep_types: Optional[dict] = None
         # named tuple containing qc results obtained from auto-qc
         self._qc_results: Optional[QCResults] = None
+        self._qc_output = None
 
     def _notifying_setter(
         self, 
@@ -331,7 +334,7 @@ class PreFxData(QObject):
         # close the qc pipe output and receive qc operator's output
         self.status_message.emit("Waiting on QC results...")
         qc_pipe[1].close()
-        qc_results, full_sweep_qc_info, sweep_types = qc_pipe[0].recv()
+        qc_results, display_data, sweep_types = qc_pipe[0].recv()
         # join and terminate qc worker
         qc_worker.join()
         qc_worker.terminate()
@@ -339,18 +342,27 @@ class PreFxData(QObject):
         # create list of data to send to sweep table model, exclude 'Search' sweeps
         self.status_message.emit("Preparing data for sweep page...")
 
+        display_data = get_display_data(
+            sweep_data_tuple=sweep_data_tuple,
+            pre_qc_sweep_features=qc_results.pre_qc_sweep_features,
+            post_qc_sweep_features=qc_results.sweep_features,
+            sweep_states=qc_results.sweep_states,
+            nuc_vc_features=qc_results.nuc_vc_features
+        )
+
         table_model_data = [[
             sweep_num,
-            full_sweep_qc_info[sweep_num]['stimulus_code'],
-            full_sweep_qc_info[sweep_num]['stimulus_name'],
-            full_sweep_qc_info[sweep_num]['auto_qc_state'],
-            full_sweep_qc_info[sweep_num]['manual_qc_state'],
-            join_str_list_on_newlines(full_sweep_qc_info[sweep_num]['qc_tags']),  # fail tags
+            display_data[sweep_num]['stimulus_code'],
+            display_data[sweep_num]['stimulus_name'],
+            display_data[sweep_num]['auto_qc_state'],
+            display_data[sweep_num]['manual_qc_state'],
+            join_str_list_on_newlines(display_data[sweep_num]['qc_tags']),  # fail tags
             # join_str_list_on_newlines(full_sweep_qc_info[sweep_num]['feature_tags']),
             format_amp_setting_strings(
-                sweep_data_tuple[sweep_num]['stimulus_unit'],
-                sweep_data_tuple[sweep_num]['amp_settings'],
-            ),  # mcc settings from amplifier
+                display_data[sweep_num]['stimulus_unit'],
+                display_data[sweep_num]['amp_settings'],
+            ),
+            # display_data['amp_settings'],   # mcc settings from amplifier
             tp_plot,    # test pulse plot
             exp_plot    # experiment plot
         ] for sweep_num, tp_plot, exp_plot in sweep_plots]
@@ -364,7 +376,7 @@ class PreFxData(QObject):
         self.data_set = data_extractor.data_set
 
         # update self with qc results, full sweep info, and sweep types
-        self._full_sweep_qc_info = full_sweep_qc_info
+        self._full_sweep_qc_info = display_data
         self._qc_results = qc_results
         # self._sweep_types = sweep_types
 
@@ -419,6 +431,95 @@ class PreFxData(QObject):
         self.update_fx_sweep_info.emit(
             self.nwb_path, self.stimulus_ontology, self._full_sweep_qc_info
         )
+
+    # def get_qc_output_data(self, display_data: List[dict]):
+    #     """ Generate full output of QC data to print to .json
+    #     """
+    #     display_data = [{
+    #         'sweep_number': sweep['sweep_number'],
+    #         'stimulus_code': sweep['stimulus_code'],
+    #         'stimulus_name': sweep['stimulus_name'],
+    #         'auto_qc_state': sweep['auto_qc_state'],
+    #         'manual_qc_state': sweep['manual_qc_state'],
+    #         'qc_tags': sweep['qc_tags'],  # fail tags or qc information
+    #         'stimulus_unit': sweep['stimulus_unit'],
+    #         'amp_settings': sweep['amp_settings'],  # mcc settings from amplifier
+    #     } for sweep in display_data]
+
+
+def get_display_data(
+        sweep_data_tuple: tuple,
+        pre_qc_sweep_features: List[dict],
+        post_qc_sweep_features: List[dict],
+        sweep_states: List[dict],
+        nuc_vc_features: List[dict]
+):
+    # TODO write docstring
+    """ foo
+    """
+    display_data = [{
+        'sweep_number': sweep['sweep_number'],
+        'stimulus_code': sweep['stimulus_code'],
+        'stimulus_name': sweep['stimulus_name'],
+        'auto_qc_state': "n/a",
+        'manual_qc_state': "default",
+        'passed': None,
+        'qc_tags': [],  # fail tags or qc information
+        'stimulus_unit': sweep['stimulus_unit'],
+        'amp_settings': sweep['amp_settings'],  # mcc settings from amplifier
+    } for sweep in sweep_data_tuple]
+
+    # loop through sweep states and assign auto qc states to sweep_table_data
+    for idx, state in enumerate(sweep_states):
+        # cache sweep number
+        sweep_num = state['sweep_number']
+        # it state is auto passed, update table data appropriately
+        if state['passed']:
+            display_data[sweep_num]['passed'] = True
+            display_data[sweep_num]['auto_qc_state'] = "passed"
+        else:
+            display_data[sweep_num]['passed'] = False
+            display_data[sweep_num]['auto_qc_state'] = "failed"
+        # update tags
+        display_data[sweep_num]['qc_tags'] += post_qc_sweep_features[idx]['tags']
+        display_data[sweep_num]['qc_tags'] += state['reasons']
+
+    # loop through sweeps that got dropped due to having fail tags update table data
+    for feature in pre_qc_sweep_features:
+        # cache sweep number
+        sweep_num = feature['sweep_number']
+        # skip over sweeps that were processed in above step
+        if display_data[sweep_num]['passed'] not in {True, False}:
+            display_data[sweep_num]['passed'] = False
+            display_data[sweep_num]['auto_qc_state'] = "failed"
+        # update tags
+        display_data[sweep_num]['qc_tags'] += feature['tags']
+
+    # loop through all the other sweeps not included in auto qc
+    # for sweep_num in range(len(full_sweep_qc_info)):
+        # only handle sweeps that were not processed in previous two steps
+        # if full_sweep_qc_info[sweep_num]['passed'] not in {True, False}:
+            # these sweeps have no auto qc, so update tags appropriately
+            # full_sweep_qc_info[sweep_num]['qc_tags'] += ["no auto qc"]
+
+    if nuc_vc_features:
+        for feature in nuc_vc_features:
+            sweep_num = feature['sweep_number']
+            # skip these calculations if sweep has fail tags
+            if not feature['tags']:
+                # extract np.float seal value and round to nearest int
+                seal_str = str(int(np.around(feature['seal_value'], 0)))
+                # get baseline delta from feature
+                baseline_delta = str(np.around(feature['baseline_delta'], 3))
+                display_data[sweep_num]['qc_tags'] += [
+                    f"Test pulse resistance: {seal_str} MOhm",
+                    f"Baseline delta pA: {baseline_delta}"
+                ]   # append string to feature tags
+            else:
+                display_data[sweep_num]['qc_tags'] += \
+                    feature['tags'] + ["DON'T CLICK THIS SWEEP"]
+
+    return display_data
 
 
 def format_amp_setting_strings(stimulus_unit, amp_settings, line_length=26):

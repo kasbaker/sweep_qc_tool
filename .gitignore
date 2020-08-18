@@ -1,5 +1,5 @@
 /venv
-/venv_test
+/test_env
 /target
 __pycache__
 
