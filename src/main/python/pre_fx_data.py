@@ -70,7 +70,7 @@ class PreFxData(QObject):
         # criteria used with auto QC
         self._qc_criteria: Optional[Dict] = None
         # full list of sweep qc info used for qc-ing sweeps and feature extraction
-        self._table_metadata: Optional[list] = None
+        self._display_data: Optional[list] = None
         # dictionary of sweep types, which can be used for filtering sweeps
         # self._sweep_types: Optional[dict] = None
         # named tuple containing qc results obtained from auto-qc
@@ -233,9 +233,6 @@ class PreFxData(QObject):
                 raise ValueError("must set qc criteria before loading a data set!")
 
             self.status_message.emit("Running extraction and auto qc...")
-            # self.run_extraction_and_auto_qc(
-            #     path, self.stimulus_ontology, self.qc_criteria, commit=True
-            # )
             self.run_auto_qc_and_make_plots(
                 path, self.stimulus_ontology, self.qc_criteria
             )
@@ -257,7 +254,7 @@ class PreFxData(QObject):
                 "sweep_number": sweep['sweep_number'],
                 "sweep_state": sweep['manual_qc_state']
             }
-            for sweep in self._table_metadata
+            for sweep in self._display_data
         ]
 
     def save_manual_states_to_json(self, filepath: str):
@@ -265,8 +262,7 @@ class PreFxData(QObject):
         json_data = {
             "input_nwb_file": self.nwb_path,
             "stimulus_ontology_file": self.ontology_file,
-            "manual_sweep_states": self.extract_manual_sweep_states(),
-            "full_qc_info": self._table_metadata,
+            "sweep_qc_output": self.get_output_qc_data(),
             "qc_criteria": self._qc_criteria,
             "ipfx_version": ipfx_version
         }
@@ -342,19 +338,19 @@ class PreFxData(QObject):
         # create list of data to send to sweep table model, exclude 'Search' sweeps
         self.status_message.emit("Preparing data for sweep page...")
 
-        table_metadata = get_table_metadata(
+        display_data = get_display_data(
             sweep_data_tuple=sweep_data_tuple,
             full_sweep_qc_info=qc_results.full_sweep_qc_info
         )
 
-        new_table_model_data = [[
+        table_model_data = [[
             sweep_num,
-            table_metadata[sweep_num]['stimulus_code'],
-            table_metadata[sweep_num]['stimulus_name'],
-            table_metadata[sweep_num]['auto_qc_state'],
-            table_metadata[sweep_num]['manual_qc_state'],
-            table_metadata[sweep_num]['qc_tags'],
-            table_metadata[sweep_num]['amp_settings'],
+            display_data[sweep_num]['stimulus_code'],
+            display_data[sweep_num]['stimulus_name'],
+            display_data[sweep_num]['auto_qc_state'],
+            display_data[sweep_num]['manual_qc_state'],
+            display_data[sweep_num]['qc_tags'],
+            display_data[sweep_num]['amp_settings'],
             tp_plot,    # test pulse plot
             exp_plot    # experiment plot
         ] for sweep_num, tp_plot, exp_plot in sweep_plots]
@@ -368,16 +364,16 @@ class PreFxData(QObject):
         self.data_set = data_extractor.data_set
 
         # update self with qc results, full sweep info, and sweep types
-        self._table_metadata = table_metadata
+        self._display_data = display_data
         self._qc_results = qc_results
-        # self._sweep_types = sweep_types
+        self._sweep_data_tuple = sweep_data_tuple
 
         # update feature extractor with new info
         self.update_fx_sweep_info.emit(
-            self.nwb_path, self.stimulus_ontology, self._table_metadata
+            self.nwb_path, self.stimulus_ontology, self._display_data
         )
         # send new sweep table data to model
-        self.table_model_data_ready.emit(new_table_model_data, sweep_types)
+        self.table_model_data_ready.emit(table_model_data, sweep_types)
         # send specimen name to main window to update window title
         self.update_specimen_name.emit(Path(nwb_path).stem)
 
@@ -395,37 +391,48 @@ class PreFxData(QObject):
                 String specifying manual QC state "default", "passed", or "failed"
         """
         # assign new manual qc state
-        self._table_metadata[index]['manual_qc_state'] = new_state
+        self._display_data[index]['manual_qc_state'] = new_state
 
         # cache this row of the full sweep qc info list
-        sweep = self._table_metadata[index]
+        sweep = self._display_data[index]
         # only change sweep['passed'] if this sweep is auto-qc-able
         if sweep['auto_qc_state'] == "passed":
-            self._table_metadata[index]['passed'] = True
+            self._display_data[index]['passed'] = True
         elif sweep['auto_qc_state'] == "failed":
             # sweeps that fail auto qc will break feature extraction if we set
             # 'passed' to True, so leave this false for now
-            self._table_metadata[index]['passed'] = False
+            self._display_data[index]['passed'] = False
         else:
-            self._table_metadata[index]['passed'] = None
+            self._display_data[index]['passed'] = None
 
         # revert to original auto qc value if manual value set back to 'default'
         if new_state == "default":
             if sweep['auto_qc_state'] == "passed":
-                self._table_metadata[index]['passed'] = True
+                self._display_data[index]['passed'] = True
             elif sweep['auto_qc_state'] == "failed":
-                self._table_metadata[index]['passed'] = False
+                self._display_data[index]['passed'] = False
             else:
                 # 'auto_qc_state' should be "n/a" here, so set to 'passed' to None
-                self._table_metadata[index]['passed'] = None
+                self._display_data[index]['passed'] = None
 
         # send updated sweep qc info to fx_data for feature extraction
         self.update_fx_sweep_info.emit(
-            self.nwb_path, self.stimulus_ontology, self._table_metadata
+            self.nwb_path, self.stimulus_ontology, self._display_data
         )
 
+    def get_output_qc_data(self):
+        """ Extract qc data and format it nicely for .json output """
+        qc_output_data = deepcopy(self._qc_results.full_sweep_qc_info)
+        for index, sweep in enumerate(self._display_data):
+            qc_output_data[index]['auto_qc_state'] = sweep['auto_qc_state']
+            qc_output_data[index]['manual_qc_state'] = sweep['manual_qc_state']
+            qc_output_data[index]['stimulus_unit'] = sweep['stimulus_unit']
+            qc_output_data[index]['amp_settings'] = self._sweep_data_tuple[index]['amp_settings']
 
-def get_table_metadata(sweep_data_tuple: tuple, full_sweep_qc_info: List[dict]):
+        return qc_output_data
+
+
+def get_display_data(sweep_data_tuple: tuple, full_sweep_qc_info: List[dict]):
     """ Take full sweep qc info and sweep data tuple, then populate list
     of data to send to the sweep table model
 
@@ -566,7 +573,6 @@ def format_amp_setting_strings(stimulus_unit, amp_settings, line_length=26):
 def format_key_value_strings(key: str, value: str, line_length: int, indent: int = 0):
     justify_len = line_length - len(key) - indent
     return f"{' '*indent}{key}: {value.rjust(justify_len)}"
-    # return f"{key}:\n{' '*indent}{value}"
 
 
 def join_str_list_on_newlines(str_list: List[str], num_newlines: int = 2) -> str:
