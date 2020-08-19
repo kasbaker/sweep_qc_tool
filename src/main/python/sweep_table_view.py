@@ -236,6 +236,9 @@ class SweepTableView(QTableView):
             sweep_types['nuc_vc'].issubset(sweep_nums_to_show)
         )
 
+        # remove any skipped sweeps that are not present in all sweeps
+        sweep_nums_to_show.intersection_update(sweep_types['all_sweeps'])
+
         # cache key to translate sweep numbers to table model indexes
         swp_idx_key = self.model().sweep_num_to_idx_key
         # translate sweep numbers to show into table model indexes to show

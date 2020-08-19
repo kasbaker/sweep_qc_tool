@@ -516,8 +516,7 @@ def get_display_data(
                     f"Baseline delta pA: {baseline_delta}"
                 ]   # append string to feature tags
             else:
-                display_data[sweep_num]['qc_tags'] += \
-                    feature['tags'] + ["DON'T CLICK THIS SWEEP"]
+                display_data[sweep_num]['qc_tags'] += feature['tags']
 
     return display_data
 

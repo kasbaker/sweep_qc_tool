@@ -671,9 +671,7 @@ class QCOperator(object):
                         f"Baseline delta pA: {baseline_delta}"
                     ]   # append string to feature tags
                 else:
-                    full_sweep_qc_info[sweep_num]['qc_tags'] += \
-                        feature['tags'] + ["DON'T CLICK THIS SWEEP"]
-
+                    full_sweep_qc_info[sweep_num]['qc_tags'] += feature['tags']
 
         return full_sweep_qc_info
 
