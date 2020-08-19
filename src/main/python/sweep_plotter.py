@@ -301,38 +301,21 @@ class SweepPlotter(object):
         # sampling rate in hz
         hz = sweep_data['sampling_rate']
         # number of points in the full sweep
-        # num_pts = len(sweep_data['stimulus'])
-        time = np.arange(len(sweep_data['stimulus'])) / hz
+        num_pts = len(sweep_data['stimulus'])
+        time = np.arange(num_pts) / hz
 
         # set test pulse start index to zero
         # tp_start_idx = 0
         # if the test epoch exists grab that number, otherwise set it to backup
         if sweep_data['epochs']['test']:
             tp_end_idx = sweep_data['epochs']['test'][1]
-        else:
+            exp_start_idx = tp_end_idx
+        elif self.config.backup_experiment_start_index < num_pts-1:
             tp_end_idx = self.config.backup_experiment_start_index
-
-        # start experiment epoch epoch at end of test pulse
-        exp_start_idx = tp_end_idx
-        # set
-        # exp_end_idx = num_pts - 1
-
-        # if the experiment epoch exists, split up the epochs like this
-        # if exp_epoch:
-        #     # set test pulse end index to 5000
-        #     tp_end_idx = sweep_data['epochs']['test'][1]
-        #     # set experiment start index to be the and of the test pulse end index
-        #     exp_start_idx = tp_end_idx
-        #     # set the experiment end index to be the end of the sweep
-        #     exp_end_idx = len(sweep_data['stimulus']) - 1
-        #
-        # # if the experiment epoch doesn't exist, then take the whole sweep
-        # else:
-        #     # set the end index to be the end of the sweep
-        #     tp_end_idx = len(sweep_data['stimulus']) - 1
-        #     # set the experiment start and end to be the same as the test pulse
-        #     exp_start_idx = tp_start_idx
-        #     exp_end_idx = tp_end_idx
+            exp_start_idx = tp_end_idx
+        else:
+            tp_end_idx = num_pts-1
+            exp_start_idx = 0
 
         # calculate baseline mean for test pulse
         tp_baseline_mean = np.nanmean(
@@ -374,7 +357,8 @@ class SweepPlotter(object):
     def gen_plots(self):
         """ Generate a pair of fixed plots for sweeps in sweep data iterator. """
         for sweep in self._sweep_data_tuple:
-            if sweep['stimulus_name'] == "Search":
+            # skip over sweeps with missing experiment epochs
+            if sweep['epochs']['experiment'] is None:
                 continue
 
             # split up test pulse and experiment epochs
