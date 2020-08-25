@@ -480,7 +480,10 @@ def get_display_data(sweep_data_tuple: tuple, full_sweep_qc_info: List[dict]):
             if key in sweep_info_keys:
                 # format string nicely for seal values
                 if key == 'seal_value':
-                    seal_str = str(int(np.around(sweep[key], 0)))
+                    if sweep[key] == np.float64('inf'):
+                        seal_str = "inf."   # handle case where seal is infinite
+                    else:
+                        seal_str = str(int(np.around(sweep[key], 0)))
                     value = [f"Test pulse resistance: {seal_str} MOhm"]
                 # format string nicely for baseline delta
                 elif key == 'baseline_delta':
