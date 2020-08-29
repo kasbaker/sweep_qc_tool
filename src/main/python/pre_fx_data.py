@@ -308,7 +308,7 @@ class PreFxData(QObject):
         """
         self.status_message.emit("Extracting EPhys Data...")
         data_extractor = DataExtractor(nwb_file=nwb_path, ontology=stimulus_ontology)
-        sweep_data_tuple = tuple(data_extractor.data_iter)
+        sweep_data_tuple = data_extractor.sweep_data_tuple
         recording_date = data_extractor.recording_date
 
         qc_pipe = Pipe(duplex=False)
