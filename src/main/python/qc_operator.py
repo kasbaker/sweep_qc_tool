@@ -228,27 +228,40 @@ class QCOperator(object):
 
         return features, tags
 
-    def fast_experiment_qc(self):
-        """foo"""
-        # initialize a list of dictionaries to be used in sweep table model
+    def fast_experiment_qc(self) -> Tuple[NamedTuple, Dict[Set[Optional[int]]]]:
+        """Runs cell and sweep qc, then compiles a list of full qc info.
 
-        # get sweep_types and update sweep table data
+        Gets the sweep types for all sweeps in the data set, runs cell qc and
+        sweep qc. Evaluates those cell and sweep qc features then displays a qc
+        summary. Compiles a list of full sweep qc info. Packages all of this
+        information into a NamedTuple called qc results and a dictionary of
+        sweep types. Returns the qc results and  sweep types
 
+        Returns
+        -------
+        qc_results : NamedTuple[Union[list, dict]]
+            A named tuple, which packages up all the qc information gathered
+            during computer qc features and evaluating them
+        sweep_types : Dict[Set[Optional[int]]]
+            A dictionary defining sets of integers, which correspond to sweep
+            numbers for sweeps of a particular 'type'
+
+        """
+        # gets a dictionary of sets of integers of sweeps of a given type
         sweep_types = self.get_sweep_types()
 
-        # nuc_vc_features = self.nuc_vc_sweep_qc(sweep_types['nuc_vc'])
-
-        # if nuc_vc_features:
-        #     for feature in nuc_vc_features:
-        #         print(feature)
-
+        # give sweep types to fast cell qc so it knows which sweeps to use
         cell_features, cell_tags = self.fast_cell_qc(sweep_types)
+        # deepcopy of these features TODO why do we need to deepcopy here?
         cell_features = deepcopy(cell_features)
 
+        # get sweep qc features for i clamp and channel recordings
         pre_qc_i_clamp_sweep_features, nuc_vc_sweep_features = self.run_sweep_qc(sweep_types)
+        # deepcopy i clamp features (needed because we are about to drop bad sweeps)
         i_clamp_sweep_features = deepcopy(pre_qc_i_clamp_sweep_features)
         drop_tagged_sweeps(i_clamp_sweep_features)
 
+        # evaluate the cell and sweep qc features based on given qc criteria
         cell_state, sweep_states = qc_experiment(
             ontology=self.ontology,
             cell_features=cell_features,
@@ -257,8 +270,10 @@ class QCOperator(object):
         )
 
         # grab set of sweeps that made it through auto qc and add to sweep types
+        # pipeline sweeps are to be displayed by default in sweep qc tool
         sweep_types['pipeline'] = {state['sweep_number'] for state in sweep_states}
 
+        # print out a summary of the qc results to the log
         qc_summary(
             sweep_features=i_clamp_sweep_features,
             sweep_states=sweep_states,
@@ -266,7 +281,7 @@ class QCOperator(object):
             cell_state=cell_state
         )
 
-        # todo add qc features
+        # Initialize a list of dictionaries of full qc information
         full_sweep_qc_info = [{
             'sweep_number': sweep['sweep_number'],
             'stimulus_code': sweep['stimulus_code'],
@@ -274,6 +289,7 @@ class QCOperator(object):
             'passed': None
         } for sweep in self.sweep_data_tuple]
 
+        # populate list of full qc information based on information we have now
         full_sweep_qc_info = self.get_full_sweep_qc_info(
             full_sweep_qc_info=full_sweep_qc_info,
             pre_qc_sweep_features=pre_qc_i_clamp_sweep_features,
@@ -282,6 +298,7 @@ class QCOperator(object):
             sweep_states=sweep_states
         )
 
+        # package up all our qc information into one big NamedTuple
         qc_results = QCResults(
             cell_features=cell_features,
             cell_tags=cell_tags,
