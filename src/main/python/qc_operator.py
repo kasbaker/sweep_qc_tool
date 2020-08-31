@@ -1,7 +1,10 @@
+"""TODO module level docstring goes here
+
+"""
 import logging
 from copy import deepcopy
 from multiprocessing.connection import Connection
-from typing import List, Tuple, Dict, Union, NamedTuple
+from typing import List, Tuple, Dict, Union, NamedTuple, Any, Set, Optional
 
 import numpy as np
 from ipfx.qc_feature_evaluator import qc_experiment
@@ -121,62 +124,112 @@ class QCOperator(object):
 
     def __init__(
             self,
-            sweep_data_tuple: Tuple[Dict[str, Union[int, str, np.ndarray, float, Dict[str, tuple]]]],
-            ontology: StimulusOntology, qc_criteria: list, recording_date: str
+            sweep_data_tuple: Tuple[Dict[str, Any]],
+            ontology: StimulusOntology, qc_criteria: dict, recording_date: str
     ):
+        """Takes in extracted nwb data and performs auto qc operations on it
+
+        An object that takes in data extracted from nwb file and performs
+        QC operations on it. Can be used with multiprocessing when using the run
+        auto QC function at the end of this file.
+
+        Parameters
+        ----------
+        sweep_data_tuple : Tuple[Dict[str, Any]]
+            A tuple of dictionaries, where each dictionary is the extracted data
+            from one sweep.
+        ontology : StimulusOntology
+            Stimulus ontology object from ipfx, which contains information about
+            the stimulus sets associated with this data set.
+        qc_criteria : dict
+            A dictionary containing the criteria used for auto qc
+        recording_date : str
+            A string representation of the recording date for this experiment
+
+        """
         self._sweep_data_tuple = sweep_data_tuple
         self._ontology = ontology
         self._qc_criteria = qc_criteria
         self._recording_date = recording_date
 
     @property
-    def sweep_data_tuple(self):
+    def sweep_data_tuple(self) -> Tuple[Dict[str, Any]]:
+        """Returns tuple of sweep data."""
         return self._sweep_data_tuple
 
     @property
-    def ontology(self):
+    def ontology(self) -> StimulusOntology:
+        """Returns StimulusOntology object."""
         return self._ontology
 
     @property
-    def qc_criteria(self):
+    def qc_criteria(self) -> Dict[str, Union[float, int, str]]:
+        """Returns qc criteria dictionary."""
         return self._qc_criteria
 
     @property
-    def recording_date(self):
+    def recording_date(self) -> str:
+        """Returns string representation of experiment recording date."""
         return self._recording_date
 
-    def fast_cell_qc(self, sweep_types, manual_values=None):
+    def fast_cell_qc(
+            self, sweep_types: Dict[str, set], manual_values: Optional[dict] = None
+    ) -> Tuple[Dict[str, Optional[Any]], List[str]]:
+        """Performs auto QC at the cell level and returns a dictionary of cell
+        qc features and cell qc tags.
 
+        Parameters
+        ----------
+        sweep_types : Dict[str, Set[int]
+            A dictionary of sets indicating which sweeps belong to which
+            specific stimulus types
+        manual_values : dict
+            A dictionary of manual values for cell qc info to fall back on.
+            Used to manually input a clamp seal if the sweep wasn't recorded.
+
+        Returns
+        -------
+        features : Dict[str, Optional[Any]]
+            A dictionary of cell QC features with string keys. Values are either
+            float, np.float or str in the case of recording date
+        tags : List[str]
+            A list of strings for cell qc feature tags for missing sweeps
+            (e.g. 'Seal is not available)
+
+        """
+        # intiailize manual values as empty dictionary if it is not provided
         if manual_values is None:
             manual_values = {}
 
+        # intialize empty dictionary for features and empty list for tags
         features = {}
         tags = []
 
+        # grab blowout voltage
         features['blowout_mv'] = self.fast_extract_blowout(sweep_types['blowout'], tags)
-
+        # grab electrode offset picoamp value from last offset sweep
         features['electrode_0_pa'] = self.fast_extract_electrode_0(sweep_types['in_bath'], tags)
-
+        # grab recording date
         if self.recording_date is None:
             tags.append("Recording date is missing")
         features['recording_date'] = self.recording_date
-
-        features["seal_gohm"] = self.fast_extract_clamp_seal(sweep_types['seal'], tags,
-                                                        manual_values)
-
+        # grab gigaseal from last cell attached sweep
+        features["seal_gohm"] = self.fast_extract_clamp_seal(
+            sweep_types['seal'], tags, manual_values
+        )
+        # compute input and access resistance from last breakin sweep
         input_resistance, access_resistance = \
             self.fast_extract_input_and_acess_resistance(sweep_types['break_in'], tags)
-
+        # add input and access resistance as well as ratio to features dict
         features['input_resistance_mohm'] = input_resistance
         features["initial_access_resistance_mohm"] = access_resistance
-
         features['input_access_resistance_ratio'] = \
             compute_input_access_resistance_ratio(input_resistance, access_resistance)
 
         return features, tags
 
     def fast_experiment_qc(self):
-
+        """foo"""
         # initialize a list of dictionaries to be used in sweep table model
 
         # get sweep_types and update sweep table data
@@ -402,7 +455,7 @@ class QCOperator(object):
             blowout_mv = None
         return blowout_mv
 
-    def fast_extract_electrode_0(self, bath_sweeps: list, tags):
+    def fast_extract_electrode_0(self, bath_sweeps: Set[int], tags):
         if bath_sweeps:
             last_bath_sweep = self.sweep_data_tuple[max(bath_sweeps)]
             e0 = qcf.measure_electrode_0(last_bath_sweep['response'], last_bath_sweep['sampling_rate'])
@@ -411,7 +464,7 @@ class QCOperator(object):
             e0 = None
         return e0
 
-    def fast_extract_clamp_seal(self, seal_sweeps: list, tags, manual_values=None):
+    def fast_extract_clamp_seal(self, seal_sweeps: Set[int], tags, manual_values):
         if seal_sweeps:
             last_seal_sweep = self.sweep_data_tuple[max(seal_sweeps)]
 
@@ -432,7 +485,7 @@ class QCOperator(object):
 
         return seal_gohm
 
-    def fast_extract_input_and_acess_resistance(self, breakin_sweeps: list, tags):
+    def fast_extract_input_and_acess_resistance(self, breakin_sweeps: Set[int], tags):
         if breakin_sweeps:
             last_breakin_sweep = self.sweep_data_tuple[max(breakin_sweeps)]
 

@@ -1,3 +1,7 @@
+"""TODO Module level docstring goes here
+
+"""
+
 import logging
 from copy import copy
 from typing import List, Tuple, Union, Optional, Dict
@@ -29,8 +33,10 @@ class DataExtractor(object):
             v_clamp_settings_keys: Tuple[str] = 'default',
             i_clamp_settings_keys: Tuple[str] = 'default'
     ):
-        """ An object that extracts data from an nwb file and returns an
-        iterator containing all the sweep data and metdata associated with
+        """Extracts raw time series data and metadata from nwb file.
+
+        An object that extracts data from an nwb file and returns an
+        iterator containing all the sweep data and metadata associated with
         each sweep.
 
         Parameters
@@ -161,7 +167,7 @@ class DataExtractor(object):
         VoltageClampSeries, CurrentClampSeries, IZeroClampSeries,
         VoltageClampStimulusSeries, CurrentClampStimulusSeries
     ]]) -> dict:
-        """ Extracts the data that we want from a list containing two patch
+        """Extracts the data that we want from a list containing two patch
         clamp series and returns a dictionary containg data from this sweep.
 
         Parameters
