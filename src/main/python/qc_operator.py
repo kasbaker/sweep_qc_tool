@@ -206,20 +206,20 @@ class QCOperator(object):
         tags = []
 
         # grab blowout voltage
-        features['blowout_mv'] = self.fast_extract_blowout(sweep_types['blowout'], tags)
+        features['blowout_mv'] = self.extract_blowout_mv(sweep_types, tags)
         # grab electrode offset picoamp value from last offset sweep
-        features['electrode_0_pa'] = self.fast_extract_electrode_0(sweep_types['in_bath'], tags)
+        features['electrode_0_pa'] = self.extract_electrode_offset_pa(sweep_types, tags)
         # grab recording date
         if self.recording_date is None:
             tags.append("Recording date is missing")
         features['recording_date'] = self.recording_date
         # grab gigaseal from last cell attached sweep
         features["seal_gohm"] = self.fast_extract_clamp_seal(
-            sweep_types['seal'], tags, manual_values
+            sweep_types, tags, manual_values
         )
         # compute input and access resistance from last breakin sweep
         input_resistance, access_resistance = \
-            self.fast_extract_input_and_acess_resistance(sweep_types['break_in'], tags)
+            self.fast_extract_input_and_acess_resistance(sweep_types, tags)
         # add input and access resistance as well as ratio to features dict
         features['input_resistance_mohm'] = input_resistance
         features["initial_access_resistance_mohm"] = access_resistance
@@ -228,7 +228,9 @@ class QCOperator(object):
 
         return features, tags
 
-    def fast_experiment_qc(self) -> Tuple[NamedTuple, Dict[Set[Optional[int]]]]:
+    def fast_experiment_qc(self) -> Tuple[
+        QCResults, Dict[str, Set[Optional[int]]]
+    ]:
         """Runs cell and sweep qc, then compiles a list of full qc info.
 
         Gets the sweep types for all sweeps in the data set, runs cell qc and
@@ -311,29 +313,50 @@ class QCOperator(object):
 
         return qc_results, sweep_types
 
-    def get_sweep_types(self):
+    def get_sweep_types(self) -> Dict[str, Set[Optional[int]]]:
+        """Loops through sweep data tuple and extracts sweep types from it.
+
+        Creates a dictionary of sets of sweep types using the following keys,
+        then loops through the sweep data tuple and searches for clamp modes,
+        stimulus codes, and stimulus names that correspond to these keys. When
+        a given sweep type is detected it is added to a set of integer sweep
+        numbers that are values of the sweep types dictionary.
+
+        Returns
+        -------
+        sweep_types : Dict[str, Set[Optional[int]]]
+            A dictionary of sets of sweep types, where the key is the sweep type
+            and the set contains integer sweep numbers of that type
+
+        """
+        # keys to use for sweep types dictionary
         sweep_keys = (
             'v_clamp', 'i_clamp', 'blowout', 'in_bath', 'seal', 'break_in',
             'ramp', 'long_square', 'coarse_long_square', 'short_square_triple',
             'short_square', 'search', 'test', 'ex_tp', 'nuc_vc'
         )
 
+        # initialize dictionary of sweep types
         sweep_types = {key: set() for key in sweep_keys}
 
+        # cache ontology to be referenced while looking up stimulus names
         ontology = self.ontology
 
+        # loop through sweep data and add sweep numbers to sweep types dict
         for sweep in self.sweep_data_tuple:
+            # cache necessary values from this sweep
             sweep_num = sweep['sweep_number']
             stim_unit = sweep['stimulus_unit']
+            stim_code = sweep['stimulus_code']
+            stim_name = sweep['stimulus_name']
 
+            # assign sweep to either voltage clamp or current clamp set
             if stim_unit == "Volts":
                 sweep_types['v_clamp'].add(sweep_num)
             if stim_unit == "Amps":
                 sweep_types['i_clamp'].add(sweep_num)
 
-            stim_code = sweep['stimulus_code']
-            stim_name = sweep['stimulus_name']
-
+            # TODO make sure the correct clamp mode is used for these sweeps
             # check ontology for a stim name match or check if stim code
             # contains a partial match with first ontology name
             if stim_name in ontology.extp_names or ontology.extp_names[0] in stim_code:
@@ -369,66 +392,88 @@ class QCOperator(object):
 
         return sweep_types
 
-    def run_sweep_qc(self, sweep_types):
-        """ Docstring goes here """
-        # TODO write docstring
-        # set of current clamp pipeline sweeps to perform qc on
+    def run_sweep_qc(
+            self, sweep_types: Dict[str, Set[Optional[int]]]
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Runs sweep-wise qc feature extraction given sweep types dictionary.
+
+        Compiles a set of sweeps to calculate qc features from, then puts it in
+        to a sorted list. Loops through a generator of data for sweeps from
+        which to calculate QC features. Appends QC features to one of two lists,
+        i_clamp_qc_features, for pipeline IVSCC current clamp auto QC, or
+        nuc_vc_qc_features, for nucleated patch voltage clamp recordings.
+
+        Parameters
+        ----------
+        sweep_types : Dict[str, Set[Optional[int]]]
+            A dictionary of sets of sweep numbers for certain sweep types
+
+        Returns
+        -------
+        i_clamp_qc_features : List[Dict[str, Any]]
+            A list of QC features and metadata associated with current clamp
+            sweeps on which to perform auto QC.
+        nuc_vc_qc_features : List[Dict[str, Any]]
+            A list of QC features and metadata associated with nucleated patch
+            voltage clamp sweeps on which to perform auto QC.
+
+        """
+        # set of current clamp pipeline sweeps to calculate features from
         i_clamp_qc_sweeps = sweep_types['i_clamp'].difference(
             sweep_types['test'], sweep_types['search']
         )
-        # if there are no i clamp sweeps to qc, warn and set results to None
+        # send out a logging warning if there are no i clamp sweeps to qc
         if not i_clamp_qc_sweeps:
             logging.warning("No current clamp sweeps available to compute QC features")
 
-        # nuc vc sweeps to qc are intersection of nuc vc and v clamp
+        # nuc vc sweeps to qc are intersection of nuc vc and voltage clamp clamp
         nuc_vc_qc_sweeps = sweep_types['v_clamp'].intersection(
             sweep_types['nuc_vc']
         )
-        # if there are no nuc vc sweeps to qc, warn and set results to none
+        # send out a logging warning if there are no nuc vc sweeps to qc
         if not nuc_vc_qc_sweeps:
             logging.warning("No channel recording sweeps available to compute QC features")
 
         # sweeps to qc union of i clamp and nuc vc sweeps put in sorted list
         qc_sweeps = sorted(i_clamp_qc_sweeps.union(nuc_vc_qc_sweeps))
-        # generator of sweeps to qc
+        # generator of sweeps to calculate qc features from
         sweep_gen = (self.sweep_data_tuple[idx] for idx in qc_sweeps)
 
-        # initialize empty lists of i clamp and nuc vc qc results
-        i_clamp_qc_results = []
-        nuc_vc_qc_results = []
+        # initialize empty lists of i clamp and nuc vc qc features
+        i_clamp_qc_features = []
+        nuc_vc_qc_features = []
 
-        # sweep_qc_results = []
         # loop through sweep gen and grab qc features for each sweep
         for sweep in sweep_gen:
-            # grab sweep number and initialize a sweep feature dictionary
+            # cache sweep number
             sweep_num = sweep['sweep_number']
 
-            # make an exception for ramp sweeps because sometimes they fail qc
+            # check if this is a ramp sweep since they can be slow to return
+            # to baseline and therefore fail some auto qc checks
             is_ramp = False
             if sweep_num in sweep_types['ramp']:
                 is_ramp = True
 
             # check for sweep integrity and grab those tags
             tags = self.check_sweep_integrity(sweep, is_ramp)
-            # sweep_features['tags'] = tags
 
-            # intialize dictionary of sweep features
+            # initialize dictionary of sweep features
             sweep_features = {
                 'sweep_number': sweep_num, 'stimulus_code': sweep['stimulus_code'],
                 'stimulus_name': sweep['stimulus_name'], 'tags': tags
             }
 
-            # grab stimulus features
+            # grab stimulus features and update sweep features dictionary
             stim_features = self.get_stimulus_features(sweep)
             sweep_features.update(stim_features)
 
-            # if there is no early termination or missing epochs get qc features
+            # get qc features if there is no early termination or missing epochs
             if not tags:
+                # get generic sweep qc features for both v clamp or i clamp
                 qc_features = self.get_sweep_qc_features(sweep, is_ramp)
-                # sweep_features.update(qc_features)
                 if sweep_num in i_clamp_qc_sweeps:
-                    # update sweep qc features
-                    # pre_vm_mv and slow_vm_mv are the same - pre_vm should use fast noise?
+                    # update sweep qc features with more specific keys
+                    # TODO pre_vm_mv (fast) and slow_vm_mv are the same - why?
                     sweep_features.update({
                         'pre_vm_mv': qc_features['pre_baseline'],
                         'pre_noise_rms_mv': qc_features['pre_rms_fast'],
@@ -438,53 +483,98 @@ class QCOperator(object):
                         'post_noise_rms_mv': qc_features['post_rms'],
                         'vm_delta_mv': qc_features['baseline_delta']
                     })
-                    i_clamp_qc_results.append(sweep_features)
+                    i_clamp_qc_features.append(sweep_features)
                 elif sweep_num in nuc_vc_qc_sweeps:
-                    # update with new qc features
+                    # update with new generic qc features
                     sweep_features.update(qc_features)
-                    # get seal value from test pulse
+                    # get the seal value from the test pulse for this sweep
                     sweep_features['seal_value'] = self.get_seal_from_test_pulse(
                         sweep['stimulus'], sweep['response'],  # voltage and current
                         np.arange(len(sweep['stimulus'])) / sweep['sampling_rate'],  # time vector
                     )
-                    nuc_vc_qc_results.append(sweep_features)
+                    nuc_vc_qc_features.append(sweep_features)
             else:
-                # if there are tags for early termination or missing epochs
-                # skip getting sweep qc features and continue
+                # if there are tags for early termination or missing epochs,
+                # then skip getting sweep qc features and move on to next sweep
                 logging.warning("sweep {}: {}".format(sweep_num, tags))
                 # set sweep passed to False due to early term / missing epochs
                 sweep_features['passed'] = False
+                # append incomplete features to qc features lists
                 if sweep_num in i_clamp_qc_sweeps:
-                    i_clamp_qc_results.append(sweep_features)
+                    i_clamp_qc_features.append(sweep_features)
                 else:
-                    nuc_vc_qc_results.append(sweep_features)
+                    nuc_vc_qc_features.append(sweep_features)
 
-        return i_clamp_qc_results, nuc_vc_qc_results
+        return i_clamp_qc_features, nuc_vc_qc_features
 
-    def fast_extract_blowout(self, blowout_sweeps, tags):
+    def extract_blowout_mv(
+            self, sweep_types: Dict[str, Set[Optional[int]]], tags: List[Optional[str]]
+    ) -> Optional[np.ndarray]:
+        """Finds the last blowout sweep and returns the average response.
+
+        qcf.measure_blowout computes the average response from the end index of
+        the test pulse to the end index of the sweep. Note that the list of tags
+        passed in is modified directly and therefore this is an inplace
+        operation with respect to the tags.
+
+        Parameters
+        ----------
+        sweep_types : Set[Optional[int]]
+            A set of sweep numbers for the blowout stimulus, blowout voltage
+            is computed from the last sweep in this list.
+
+        tags : List[Optional[str]]
+            A list of strings
+
+        Returns
+        -------
+        blowout_mv : np.ndarray or None
+            Blowout voltage in millivolts of last current clamp blowout sweep
+
+        """
+        # blowout sweeps are an intersection of i clamp and blowout stimulus codes
+        blowout_sweeps = sweep_types['i_clamp'].intersection(sweep_types['blowout'])
+
         if blowout_sweeps:
+            # get the last blowout sweep and extract the ending voltage from it
             last_blowout_sweep = self.sweep_data_tuple[max(blowout_sweeps)]
             blowout_mv = qcf.measure_blowout(
                 last_blowout_sweep['response'], last_blowout_sweep['epochs']['test'][1]
             )
         else:
+            # update tags and return None if there are no blowout sweeps
             tags.append("Blowout is not available")
             blowout_mv = None
+
         return blowout_mv
 
-    def fast_extract_electrode_0(self, bath_sweeps: Set[int], tags):
+    def extract_electrode_offset_pa(
+            self, sweep_types: Dict[str, Set[Optional[int]]],
+            tags: List[Optional[str]]
+    ) -> Optional[np.ndarray]:
+        """TODO docstring"""
+        # bath sweeps are an intersection of i clamp and bath stimulus codes
+        bath_sweeps = sweep_types['v_clamp'].intersection(sweep_types['in_bath'])
         if bath_sweeps:
+            # get the last bath sweep and extract the ending voltage from it
             last_bath_sweep = self.sweep_data_tuple[max(bath_sweeps)]
             e0 = qcf.measure_electrode_0(last_bath_sweep['response'], last_bath_sweep['sampling_rate'])
         else:
+            # update tags and return None if there are no bath sweeps
             tags.append("Electrode 0 is not available")
             e0 = None
         return e0
 
-    def fast_extract_clamp_seal(self, seal_sweeps: Set[int], tags, manual_values):
+    def fast_extract_clamp_seal(
+            self, sweep_types: Dict[str, Set[Optional[int]]],
+            tags: List[Optional[str]], manual_values: dict
+    ) -> Optional[np.ndarray]:
+        """"TODO docstring"""
+        # bath sweeps are an intersection of v clamp and bath stimulus codes
+        seal_sweeps = sweep_types['v_clamp'].intersection(sweep_types['seal'])
         if seal_sweeps:
+            # get the last seal sweep and measure the resistance
             last_seal_sweep = self.sweep_data_tuple[max(seal_sweeps)]
-
             time = np.arange(
                 len(last_seal_sweep['stimulus'])
             ) / last_seal_sweep['sampling_rate']
@@ -495,6 +585,7 @@ class QCOperator(object):
             if seal_gohm is None or not np.isfinite(seal_gohm):
                 raise er.FeatureError("Could not compute seal")
         else:
+            # update tags and grab manual value if it is available
             tags.append("Seal is not available")
             seal_gohm = manual_values.get('manual_seal_gohm', None)
             if seal_gohm is not None:
@@ -502,7 +593,13 @@ class QCOperator(object):
 
         return seal_gohm
 
-    def fast_extract_input_and_acess_resistance(self, breakin_sweeps: Set[int], tags):
+    def fast_extract_input_and_acess_resistance(
+            self, sweep_types: Dict[str, Set[Optional[int]]],
+            tags: List[Optional[str]]
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        """TODO docstring"""
+        # breakin sweeps are intersection of v clamp and breakin stimulus codes
+        breakin_sweeps = sweep_types['v_clamp'].intersection(sweep_types['break_in'])
         if breakin_sweeps:
             last_breakin_sweep = self.sweep_data_tuple[max(breakin_sweeps)]
 
@@ -533,7 +630,8 @@ class QCOperator(object):
         return input_resistance, access_resistance
 
     @staticmethod
-    def get_stimulus_features(sweep):
+    def get_stimulus_features(sweep: Dict[str, Any]) -> Dict[str, Any]:
+        """TODO docstring"""
         stim_features = {}
 
         stimulus = sweep['stimulus']
@@ -558,7 +656,8 @@ class QCOperator(object):
         return stim_features
 
     @staticmethod
-    def check_sweep_integrity(sweep, is_ramp):
+    def check_sweep_integrity(sweep: Dict[str, Any], is_ramp: bool) -> List[str]:
+        """TODO docstring"""
 
         tags = []
 
@@ -574,7 +673,7 @@ class QCOperator(object):
         return tags
 
     @staticmethod
-    def get_sweep_qc_features(sweep, is_ramp):
+    def get_sweep_qc_features(sweep: Dict[str, Any], is_ramp: bool) -> Dict[str, Any]:
         qc_features = {}
 
         response = sweep['response']
@@ -615,28 +714,30 @@ class QCOperator(object):
 
         return qc_features
 
-    @staticmethod
-    def get_epochs(sampling_rate, stimulus, response):
-        test_epoch = ep.get_test_epoch(stimulus, sampling_rate)
-        if test_epoch:
-            test_pulse = True
-        else:
-            test_pulse = False
-
-        sweep_epoch = ep.get_sweep_epoch(response)
-        recording_epoch = ep.get_recording_epoch(response)
-        stimulus_epoch = ep.get_stim_epoch(stimulus, test_pulse=test_pulse)
-        experiment_epoch = ep.get_experiment_epoch(
-            stimulus, sampling_rate, test_pulse=test_pulse
-        )
-
-        return {
-            'test': test_epoch,
-            'sweep': sweep_epoch,
-            'recording': recording_epoch,
-            'experiment': experiment_epoch,
-            'stim': stimulus_epoch
-        }
+    # @staticmethod
+    # def get_epochs(
+    #         sampling_rate: np.float, stimulus: np.ndarray, response: np.ndarray
+    # ) -> Dict[str, Tuple[int, int]]:
+    #     test_epoch = ep.get_test_epoch(stimulus, sampling_rate)
+    #     if test_epoch:
+    #         test_pulse = True
+    #     else:
+    #         test_pulse = False
+    #
+    #     sweep_epoch = ep.get_sweep_epoch(response)
+    #     recording_epoch = ep.get_recording_epoch(response)
+    #     stimulus_epoch = ep.get_stim_epoch(stimulus, test_pulse=test_pulse)
+    #     experiment_epoch = ep.get_experiment_epoch(
+    #         stimulus, sampling_rate, test_pulse=test_pulse
+    #     )
+    #
+    #     return {
+    #         'test': test_epoch,
+    #         'sweep': sweep_epoch,
+    #         'recording': recording_epoch,
+    #         'experiment': experiment_epoch,
+    #         'stim': stimulus_epoch
+    #     }
 
     @staticmethod
     def get_full_sweep_qc_info(
@@ -645,7 +746,7 @@ class QCOperator(object):
             post_qc_sweep_features: List[dict],
             nuc_vc_features: List[dict],
             sweep_states: List[dict]
-    ):
+    ) -> List[dict]:
         # TODO write docstring
         """ foo
         """
@@ -718,9 +819,11 @@ class QCOperator(object):
         return 1e3 * np.mean(seal_resistance)  # multiply by 1000 to convert GOhm to MOhm
 
 
-def run_auto_qc(sweep_data_tuple: tuple, ontology: StimulusOntology,
-                qc_criteria: list, recording_date: str, qc_output: Connection):
-
+def run_auto_qc(
+        sweep_data_tuple: tuple, ontology: StimulusOntology,
+        qc_criteria: dict, recording_date: str, qc_output: Connection
+):
+    """TODO docstring"""
     qc_operator = QCOperator(
         sweep_data_tuple, ontology, qc_criteria, recording_date
     )
