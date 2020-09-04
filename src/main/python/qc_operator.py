@@ -208,13 +208,13 @@ class QCOperator(object):
         # grab blowout voltage
         features['blowout_mv'] = self.extract_blowout_mv(sweep_types, tags)
         # grab electrode offset picoamp value from last offset sweep
-        features['electrode_0_pa'] = self.extract_electrode_offset_pa(sweep_types, tags)
+        features['electrode_0_pa'] = self.extract_pipette_offset_pa(sweep_types, tags)
         # grab recording date
         if self.recording_date is None:
             tags.append("Recording date is missing")
         features['recording_date'] = self.recording_date
         # grab gigaseal from last cell attached sweep
-        features["seal_gohm"] = self.fast_extract_clamp_seal(
+        features["seal_gohm"] = self.extract_clamp_seal_gohm(
             sweep_types, tags, manual_values
         )
         # compute input and access resistance from last breakin sweep
@@ -524,53 +524,113 @@ class QCOperator(object):
             is computed from the last sweep in this list.
 
         tags : List[Optional[str]]
-            A list of strings
+            A list of strings for cell qc tags indicating missing sweep etc.
 
         Returns
         -------
         blowout_mv : np.ndarray or None
             Blowout voltage in millivolts of last current clamp blowout sweep
 
+        Raises
+        ------
+        IndexError
+            If we get an indexing error due to a missing or truncated sweep
+
         """
         # blowout sweeps are an intersection of i clamp and blowout stimulus codes
         blowout_sweeps = sweep_types['i_clamp'].intersection(sweep_types['blowout'])
 
-        if blowout_sweeps:
+        try:
             # get the last blowout sweep and extract the ending voltage from it
             last_blowout_sweep = self.sweep_data_tuple[max(blowout_sweeps)]
             blowout_mv = qcf.measure_blowout(
-                last_blowout_sweep['response'], last_blowout_sweep['epochs']['test'][1]
+                last_blowout_sweep['response'],
+                last_blowout_sweep['epochs']['test'][1]
             )
-        else:
-            # update tags and return None if there are no blowout sweeps
+
+        except IndexError:
+            # update tags and return None if there are no blowout sweeps or the
+            # sweep is incomplete for some reason
             tags.append("Blowout is not available")
             blowout_mv = None
 
         return blowout_mv
 
-    def extract_electrode_offset_pa(
+    def extract_pipette_offset_pa(
             self, sweep_types: Dict[str, Set[Optional[int]]],
             tags: List[Optional[str]]
     ) -> Optional[np.ndarray]:
-        """TODO docstring"""
+        """Finds the last pipette offset sweep and returns the average response.
+
+        Computes the average response of the first 5 milliseconds of the
+        pipette offset (in bath) sweep. Returns a tag saying the offset is not
+        available if there are no voltage clamp bath sweeps.
+
+        Parameters
+        ----------
+        sweep_types : Set[Optional[int]]
+            A set of sweep numbers for the blowout stimulus, blowout voltage
+            is computed from the last sweep in this list.
+
+        tags : List[Optional[str]]
+            A list of strings for cell qc tags indicating missing sweep etc.
+
+        Returns
+        -------
+        offset_pa : np.ndarray or None
+            Offset current in pA of last current clamp blowout sweep
+
+        Raises
+        ------
+        IndexError
+            If we get an indexing error due to a missing or truncated sweep
+
+        """
         # bath sweeps are an intersection of i clamp and bath stimulus codes
         bath_sweeps = sweep_types['v_clamp'].intersection(sweep_types['in_bath'])
         if bath_sweeps:
             # get the last bath sweep and extract the ending voltage from it
             last_bath_sweep = self.sweep_data_tuple[max(bath_sweeps)]
-            e0 = qcf.measure_electrode_0(last_bath_sweep['response'], last_bath_sweep['sampling_rate'])
+            offset_pa = qcf.measure_electrode_0(
+                last_bath_sweep['response'], last_bath_sweep['sampling_rate']
+            )
         else:
             # update tags and return None if there are no bath sweeps
             tags.append("Electrode 0 is not available")
-            e0 = None
-        return e0
+            offset_pa = None
+        return offset_pa
 
-    def fast_extract_clamp_seal(
+    def extract_clamp_seal_gohm(
             self, sweep_types: Dict[str, Set[Optional[int]]],
             tags: List[Optional[str]], manual_values: dict
     ) -> Optional[np.ndarray]:
-        """"TODO docstring"""
-        # bath sweeps are an intersection of v clamp and bath stimulus codes
+        """Finds the last clamp seal sweep and returns the .
+
+        Computes the average response of the first 5 milliseconds of the
+        pipette offset (in bath) sweep. Returns a tag saying the offset is not
+        available if there are no voltage clamp bath sweeps.
+
+        Parameters
+        ----------
+        sweep_types : Set[Optional[int]]
+            A set of sweep numbers for the blowout stimulus, blowout voltage
+            is computed from the last sweep in this list.
+
+        tags : List[Optional[str]]
+            A list of strings for cell qc tags indicating missing sweep etc.
+
+        Returns
+        -------
+        offset_pa : np.ndarray or None
+            Offset current in pA of last current clamp blowout sweep
+
+        Raises
+        ------
+        IndexError
+            If we get an indexing error due to a missing or truncated sweep
+
+        """
+        # seal sweeps are an intersection of v clamp and bath stimulus codes
         seal_sweeps = sweep_types['v_clamp'].intersection(sweep_types['seal'])
         if seal_sweeps:
             # get the last seal sweep and measure the resistance
