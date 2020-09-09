@@ -219,7 +219,7 @@ class QCOperator(object):
         )
         # compute input and access resistance from last breakin sweep
         input_resistance, access_resistance = \
-            self.fast_extract_input_and_acess_resistance(sweep_types, tags)
+            self.extract_input_and_acess_resistance_mohm(sweep_types, tags)
         # add input and access resistance as well as ratio to features dict
         features['input_resistance_mohm'] = input_resistance
         features["initial_access_resistance_mohm"] = access_resistance
@@ -283,21 +283,10 @@ class QCOperator(object):
             cell_state=cell_state
         )
 
-        # Initialize a list of dictionaries of full qc information
-        full_sweep_qc_info = [{
-            'sweep_number': sweep['sweep_number'],
-            'stimulus_code': sweep['stimulus_code'],
-            'stimulus_name': sweep['stimulus_name'],
-            'passed': None
-        } for sweep in self.sweep_data_tuple]
-
         # populate list of full qc information based on information we have now
-        full_sweep_qc_info = self.get_full_sweep_qc_info(
-            full_sweep_qc_info=full_sweep_qc_info,
-            pre_qc_sweep_features=pre_qc_i_clamp_sweep_features,
-            post_qc_sweep_features=i_clamp_sweep_features,
-            nuc_vc_features=nuc_vc_sweep_features,
-            sweep_states=sweep_states
+        full_sweep_qc_info = self.update_full_sweep_qc_info(
+            pre_qc_i_clamp_sweep_features, i_clamp_sweep_features,
+            nuc_vc_sweep_features, sweep_states
         )
 
         # package up all our qc information into one big NamedTuple
@@ -464,13 +453,13 @@ class QCOperator(object):
             }
 
             # grab stimulus features and update sweep features dictionary
-            stim_features = self.get_stimulus_features(sweep)
+            stim_features = self.extract_stimulus_features(sweep)
             sweep_features.update(stim_features)
 
             # get qc features if there is no early termination or missing epochs
             if not tags:
                 # get generic sweep qc features for both v clamp or i clamp
-                qc_features = self.get_sweep_qc_features(sweep, is_ramp)
+                qc_features = self.extract_sweep_qc_features(sweep, is_ramp)
                 if sweep_num in i_clamp_qc_sweeps:
                     # update sweep qc features with more specific keys
                     # TODO pre_vm_mv (fast) and slow_vm_mv are the same - why?
@@ -520,21 +509,15 @@ class QCOperator(object):
         Parameters
         ----------
         sweep_types : Set[Optional[int]]
-            A set of sweep numbers for the blowout stimulus, blowout voltage
-            is computed from the last sweep in this list.
-
+            A dictionary of sets of sweep numbers for certain sweep types.
+            Used to find the last current-clamp blowout sweep.
         tags : List[Optional[str]]
-            A list of strings for cell qc tags indicating missing sweep etc.
+            A list of strings for cell qc tags indicating missing sweeps etc.
 
         Returns
         -------
         blowout_mv : np.ndarray or None
             Blowout voltage in millivolts of last current clamp blowout sweep
-
-        Raises
-        ------
-        IndexError
-            If we get an indexing error due to a missing or truncated sweep
 
         """
         # blowout sweeps are an intersection of i clamp and blowout stimulus codes
@@ -548,7 +531,7 @@ class QCOperator(object):
                 last_blowout_sweep['epochs']['test'][1]
             )
 
-        except IndexError:
+        except {IndexError, ValueError}:
             # update tags and return None if there are no blowout sweeps or the
             # sweep is incomplete for some reason
             tags.append("Blowout is not available")
@@ -569,70 +552,74 @@ class QCOperator(object):
         Parameters
         ----------
         sweep_types : Set[Optional[int]]
-            A set of sweep numbers for the blowout stimulus, blowout voltage
-            is computed from the last sweep in this list.
-
+            A dictionary of sets of sweep numbers for certain sweep types.
+            Used to find the last voltage-clamp in-bath sweep.
         tags : List[Optional[str]]
-            A list of strings for cell qc tags indicating missing sweep etc.
+            A list of strings for cell qc tags indicating missing sweeps etc.
 
         Returns
         -------
         offset_pa : np.ndarray or None
             Offset current in pA of last current clamp blowout sweep
 
-        Raises
-        ------
-        IndexError
-            If we get an indexing error due to a missing or truncated sweep
-
         """
         # bath sweeps are an intersection of i clamp and bath stimulus codes
         bath_sweeps = sweep_types['v_clamp'].intersection(sweep_types['in_bath'])
-        if bath_sweeps:
+        # if bath_sweeps:
+        try:
             # get the last bath sweep and extract the ending voltage from it
             last_bath_sweep = self.sweep_data_tuple[max(bath_sweeps)]
             offset_pa = qcf.measure_electrode_0(
                 last_bath_sweep['response'], last_bath_sweep['sampling_rate']
             )
-        else:
+        except {IndexError, ValueError}:
+        # else:
             # update tags and return None if there are no bath sweeps
             tags.append("Electrode 0 is not available")
             offset_pa = None
+
         return offset_pa
 
     def extract_clamp_seal_gohm(
             self, sweep_types: Dict[str, Set[Optional[int]]],
             tags: List[Optional[str]], manual_values: dict
     ) -> Optional[np.ndarray]:
-        """Finds the last clamp seal sweep and returns the .
+        """Finds the last clamp seal sweep and returns the resistance in GOhm.
 
-        Computes the average response of the first 5 milliseconds of the
-        pipette offset (in bath) sweep. Returns a tag saying the offset is not
-        available if there are no voltage clamp bath sweeps.
+        Finds the last cell-attached 'seal' sweep and computes the average
+        resistance of that seal. The function qcf.measure_seal() takes the last
+        1 ms before the square stimulus pulse and the last 1 ms of the end of
+        the square pulse. It then computes the average of the two and uses that
+        to calculate the resistance. The seal sweep has multiple pulses in it so
+        it averages all of those averages in order to compute the GOhm seal.
+        If we can't compute the seal or there is no seal sweep, then we try to
+        grab a value from the manual_values dict.
 
         Parameters
         ----------
         sweep_types : Set[Optional[int]]
-            A set of sweep numbers for the blowout stimulus, blowout voltage
-            is computed from the last sweep in this list.
-
+            A dictionary of sets of sweep numbers for certain sweep types.
+            Used to find the last voltage-clamp cell-attached seal sweep.
         tags : List[Optional[str]]
-            A list of strings for cell qc tags indicating missing sweep etc.
+            A list of strings for cell qc tags indicating missing sweeps etc.
+        manual_values : dict
+            A dictionary of manual values to fall back on. The value for
+            manual_values['manual_seal_gohm'] is used if we can't get the seal.
 
         Returns
         -------
-        offset_pa : np.ndarray or None
-            Offset current in pA of last current clamp blowout sweep
+        seal_gohm : np.ndarray or None
+            Resistance of the clamp seal in gigaohms of the last seal sweep
 
         Raises
         ------
-        IndexError
-            If we get an indexing error due to a missing or truncated sweep
+        FeatureError
+            If we can't compute the seal or the seal is infinite
 
         """
         # seal sweeps are an intersection of v clamp and bath stimulus codes
         seal_sweeps = sweep_types['v_clamp'].intersection(sweep_types['seal'])
-        if seal_sweeps:
+        try:
             # get the last seal sweep and measure the resistance
             last_seal_sweep = self.sweep_data_tuple[max(seal_sweeps)]
             time = np.arange(
@@ -644,7 +631,8 @@ class QCOperator(object):
             )
             if seal_gohm is None or not np.isfinite(seal_gohm):
                 raise er.FeatureError("Could not compute seal")
-        else:
+
+        except {IndexError, ValueError}:
             # update tags and grab manual value if it is available
             tags.append("Seal is not available")
             seal_gohm = manual_values.get('manual_seal_gohm', None)
@@ -653,173 +641,295 @@ class QCOperator(object):
 
         return seal_gohm
 
-    def fast_extract_input_and_acess_resistance(
+    def extract_input_and_acess_resistance_mohm(
             self, sweep_types: Dict[str, Set[Optional[int]]],
             tags: List[Optional[str]]
     ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        """TODO docstring"""
+        """Computes the input and access resistance of the last break-in sweep.
+
+        Finds the last break-in sweep and computes the average input and access
+        resistance of that sweep. The function qcf.measure_input_resistance()
+        takes the last 1 ms before the square stimulus pulse and the last 1 ms
+        of the end of the square pulse. It then computes the average of the two
+        and uses that to calculate the resistance. The break-in has multiple
+        pulses in it so it averages all of those averages in order to compute
+        the input resistance in MOhms. Access resistance is measured in a
+        similar way, but instead of finding the average steady state
+        qcf.measure_initial_access_resistance() takes the maximum value of the
+        response in pA.
+
+
+        Parameters
+        ----------
+        sweep_types : Set[Optional[int]]
+            A dictionary of sets of sweep numbers for certain sweep types.
+            Used to find the last voltage-clamp break-in sweep.
+        tags : List[Optional[str]]
+            A list of strings for cell qc tags indicating missing sweeps etc.
+
+        Returns
+        -------
+        input_resistance : np.ndarray or None
+            Input resistance in MOhm of the last voltage-clamp break-in sweep
+        access_resistance : np.ndarray or None
+            Access resistance in MOhm of the last voltage-clamp break-in sweep
+
+        Raises
+        ------
+        Exception
+            Raise any errors we encountered while trying to compute resistances
+
+        """
+
         # breakin sweeps are intersection of v clamp and breakin stimulus codes
         breakin_sweeps = sweep_types['v_clamp'].intersection(sweep_types['break_in'])
-        if breakin_sweeps:
-            last_breakin_sweep = self.sweep_data_tuple[max(breakin_sweeps)]
 
+        try:
+            # find the last break-in sweep
+            last_breakin_sweep = self.sweep_data_tuple[max(breakin_sweeps)]
+            # generate time vector
             time = np.arange(
                 len(last_breakin_sweep['stimulus'])
             ) / last_breakin_sweep['sampling_rate']
+
             try:
+                # try to calculate input resistance
                 input_resistance = qcf.measure_input_resistance(
                     last_breakin_sweep['stimulus'], last_breakin_sweep['response'], time
                 )
-            except Exception as e:
+            except Exception:
+                # log and raise any errors we encounter if this doesn't work
                 logging.warning("Error reading input resistance.")
                 raise
 
             try:
+                # try to calculate access resistance
                 access_resistance = qcf.measure_initial_access_resistance(
                     last_breakin_sweep['stimulus'], last_breakin_sweep['response'], time
                 )
-            except Exception as e:
+            except Exception:
+                # log and raise any errors we encounter if this doesn't work
                 logging.warning("Error reading initial access resistance.")
                 raise
 
-        else:
+        except {IndexError, ValueError}:
+            # if we can't find the break-in sweep, then note it in tags and
+            # return None for both input and access resistance
             tags.append("Breakin sweep not found")
             input_resistance = None
             access_resistance = None
 
         return input_resistance, access_resistance
 
-    @staticmethod
-    def get_stimulus_features(sweep: Dict[str, Any]) -> Dict[str, Any]:
-        """TODO docstring"""
-        stim_features = {}
+    def update_full_sweep_qc_info(self, *args: List[dict]) -> List[dict]:
+        """Compiles full list of qc information from various QC feature lists.
 
+        Takes in any number of lists of dictionaries of QC information. Those
+        dictionaries must contain the key 'sweep_number'. Loops through all of
+        the dictionaries in those lists and updates the full_sweep_qc_info
+        list appropriately.
+
+        Parameters
+        ----------
+        *args : List[dict]
+            List of dictionaries of qc information. Dictionaries must contain
+            the key 'sweep_number' in order for this to work.
+
+        Returns
+        -------
+        full_sweep_qc_info : List[dict]
+            A list of dictionaries with all the compiled QC information
+
+        """
+        # Initialize a list of dictionaries of full qc information
+        full_sweep_qc_info = [{
+            'sweep_number': sweep['sweep_number'],
+            'stimulus_code': sweep['stimulus_code'],
+            'stimulus_name': sweep['stimulus_name'],
+            'passed': None
+        } for sweep in self.sweep_data_tuple]
+
+        # generator of lists of qc features
+        feature_lists = (feature_list for feature_list in args)
+
+        # loop through feature lists and sweeps and update full_sweep_qc_info
+        for feature_list in feature_lists:
+            for sweep in feature_list:
+                try:
+                    full_sweep_qc_info[sweep['sweep_number']].update(sweep)
+                except KeyError:
+                    logging.warning(f"Could not find sweep number of {sweep}")
+
+        return full_sweep_qc_info
+
+    @staticmethod
+    def extract_stimulus_features(sweep: Dict[str, Any]) -> Dict[str, Any]:
+        """Takes in a sweep and computes stimulus features from it.
+
+        This function takes in a dictionary of extracted data from one sweep,
+        then uses the stimulus time series, the sampling rate, and the
+        experiment epoch to calculate stimulus features.
+
+
+        Parameters
+        ----------
+        sweep : Dict[str, Any]
+            A dictionary of extracted data for one sweep. The stimulus time
+            series, the sampling rate, and the epoch indices are needed here.
+
+        Returns
+        -------
+        stimulus_features : Dict[str, Any]
+            A dictionary of stimulus features indicating things like stimulus
+            start time, amplitude, and duration.
+
+        """
+        # initialize empty dictionary of stimulus features
+        stimulus_features = {}
+
+        # cache stimulus array and sampling rate from sweep
         stimulus = sweep['stimulus']
         hz = sweep['sampling_rate']
 
+        # generate time vector
         time = np.arange(len(sweep['stimulus'])) / hz
 
+        # calculate stimulus features from time series data
         start_time, dur, amp, start_idx, end_idx = stf.get_stim_characteristics(stimulus, time)
 
-        stim_features['stimulus_start_time'] = start_time
-        stim_features['stimulus_amplitude'] = amp
-        stim_features['stimulus_duration'] = dur
+        # update stimuls features dictionary with calculated values
+        stimulus_features['stimulus_start_time'] = start_time
+        stimulus_features['stimulus_amplitude'] = amp
+        stimulus_features['stimulus_duration'] = dur
 
+        # find the stimulus interval if the experiment epoch exists
         if sweep['epochs']['experiment']:
             expt_start_idx, _ = sweep['epochs']['experiment']
             interval = stf.find_stim_interval(expt_start_idx, stimulus, hz)
         else:
             interval = None
+        # update stimulus features with stimulus interval
+        stimulus_features['stimulus_interval'] = interval
 
-        stim_features['stimulus_interval'] = interval
-
-        return stim_features
+        return stimulus_features
 
     @staticmethod
     def check_sweep_integrity(sweep: Dict[str, Any], is_ramp: bool) -> List[str]:
-        """TODO docstring"""
+        """Checks sweep for missing epochs and early recording termination.
 
+        Loops through the sweeps epochs and checks for any missing epochs. Then
+        checks to see if the end of the recording epoch is less than the end of
+        the experiment epoch, given that this is not a 'Ramp' sweep. Appends
+        strings to list of tags for missing epochs or early recording
+        termination and returns a list of these tags.
+
+        Parameters
+        ----------
+        sweep : Dict[str, Any]
+            A dictionary of extracted data for one sweep. Only the epochs are
+            needed for this function.
+        is_ramp : bool
+            A boolean value indicating whether or not a sweep is a 'Ramp' sweep
+            since sometimes these sweeps terminate early, but are still good.
+
+        Returns
+        -------
+        tags : List[str]
+            A list of qc tags for this sweep. Missing epochs or early recording
+            termination are indicated here.
+
+        """
+        # initialize empty list of tags
         tags = []
 
+        # loop through sweep epochs and check for missing ones
         for k, v in sweep['epochs'].items():
             if not v:
+                # append missing sweep tags as appropriate
                 tags.append(f"{k} epoch is missing")
 
+        # check to see if the recording ends before the end of experiment epoch
         if not is_ramp:
             if sweep['epochs']['recording'] and sweep['epochs']['experiment']:
                 if sweep['epochs']['recording'][1] < sweep['epochs']['experiment'][1]:
+                    # append early termination tag as appropriate
                     tags.append("Recording stopped before completing the experiment epoch")
 
         return tags
 
     @staticmethod
-    def get_sweep_qc_features(sweep: Dict[str, Any], is_ramp: bool) -> Dict[str, Any]:
-        qc_features = {}
+    def extract_sweep_qc_features(
+            sweep: Dict[str, Any], is_ramp: bool
+    ) -> Dict[str, Any]:
+        """Calculates QC features from the response of one sweep.
 
+        Uses the sweep response, sampling rate, and epochs to calculate QC
+        features such as baseline mean, fast rms noise, slow rms noise, and
+        change in baseline from pre to post stimulus.
+
+        Parameters
+        ----------
+        sweep : Dict[str, Any]
+            A dictionary of extracted data for one sweep. The sweep response,
+            sampling rate, and epochs are needed here.
+        is_ramp : bool
+            A boolean value indicating whether or not a sweep is a 'Ramp' sweep
+            since sometimes these don't return to baseline, but are still good.
+
+        Returns
+        -------
+        qc_features : Dict[str, Any]
+            A dictionary of QC features calculated from this sweep's response
+
+        """
+        # initialize empty dictionary of qc features
+        qc_features = {}
+        # cache response and sampling rate from sweep
         response = sweep['response']
         hz = sweep['sampling_rate']
+
         # measure noise before stimulus
         idx0, idx1 = ep.get_first_noise_epoch(sweep['epochs']['experiment'][0], hz)
         # count from the beginning of the experiment
         qc_features['pre_baseline_fast'], qc_features['pre_rms_fast'] = qcf.measure_vm(response[idx0:idx1])
 
-        # measure mean and rms of Vm at end of recording
+        # measure mean and rms of response at end of recording
         # do not check for ramp, because they do not have enough time to recover
-
         rec_end_idx = sweep['epochs']['recording'][1]
         if not is_ramp:
+            # get index of last stability epoch and measure it's mean response
             idx0, idx1 = ep.get_last_stability_epoch(rec_end_idx, hz)
             mean_last_stability_epoch, _ = qcf.measure_vm(response[idx0:idx1])
 
+            # get the index of the last noise epoch and measure its rms
             idx0, idx1 = ep.get_last_noise_epoch(rec_end_idx, hz)
             _, rms_last_noise_epoch = qcf.measure_vm(response[idx0:idx1])
         else:
+            # don't measure these for ramp
             rms_last_noise_epoch = None
             mean_last_stability_epoch = None
 
+        # store calculated values in qc features dictionary
         qc_features['post_baseline'] = mean_last_stability_epoch
         qc_features["post_rms"] = rms_last_noise_epoch
 
         # measure mean and rms of Vm and over extended interval before stimulus, to check stability
-
         stim_start_idx = sweep['epochs']['stim'][0]
 
+        # get first stability epoch, then measure mean and rms noise for it.
         idx0, idx1 = ep.get_first_stability_epoch(stim_start_idx, hz)
         mean_first_stability_epoch, rms_first_stability_epoch = qcf.measure_vm(response[idx0:idx1])
 
+        # store more calculated values
         qc_features['pre_baseline'] = mean_first_stability_epoch
         qc_features['pre_rms'] = rms_first_stability_epoch
 
-        qc_features['baseline_delta'] = qcf.measure_vm_delta(mean_first_stability_epoch, mean_last_stability_epoch)
+        # store absolute value difference of pre and post baseline means
+        qc_features['baseline_delta'] = qcf.measure_vm_delta(
+            mean_first_stability_epoch, mean_last_stability_epoch
+        )
 
         return qc_features
-
-    # @staticmethod
-    # def get_epochs(
-    #         sampling_rate: np.float, stimulus: np.ndarray, response: np.ndarray
-    # ) -> Dict[str, Tuple[int, int]]:
-    #     test_epoch = ep.get_test_epoch(stimulus, sampling_rate)
-    #     if test_epoch:
-    #         test_pulse = True
-    #     else:
-    #         test_pulse = False
-    #
-    #     sweep_epoch = ep.get_sweep_epoch(response)
-    #     recording_epoch = ep.get_recording_epoch(response)
-    #     stimulus_epoch = ep.get_stim_epoch(stimulus, test_pulse=test_pulse)
-    #     experiment_epoch = ep.get_experiment_epoch(
-    #         stimulus, sampling_rate, test_pulse=test_pulse
-    #     )
-    #
-    #     return {
-    #         'test': test_epoch,
-    #         'sweep': sweep_epoch,
-    #         'recording': recording_epoch,
-    #         'experiment': experiment_epoch,
-    #         'stim': stimulus_epoch
-    #     }
-
-    @staticmethod
-    def get_full_sweep_qc_info(
-            full_sweep_qc_info: List[dict],
-            pre_qc_sweep_features: List[dict],
-            post_qc_sweep_features: List[dict],
-            nuc_vc_features: List[dict],
-            sweep_states: List[dict]
-    ) -> List[dict]:
-        # TODO write docstring
-        """ foo
-        """
-        feature_lists = [
-            pre_qc_sweep_features, post_qc_sweep_features, nuc_vc_features,
-            sweep_states
-        ]
-
-        for feature_list in feature_lists:
-            for sweep in feature_list:
-                full_sweep_qc_info[sweep['sweep_number']].update(sweep)
-
-        return full_sweep_qc_info
 
     @staticmethod
     def get_seal_from_test_pulse(voltage: np.ndarray, current: np.ndarray, time: np.ndarray):
