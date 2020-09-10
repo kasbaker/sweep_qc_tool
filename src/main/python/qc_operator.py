@@ -524,7 +524,7 @@ class QCOperator(object):
         # blowout sweeps are an intersection of i clamp and blowout stimulus codes
         blowout_sweeps = sweep_types['i_clamp'].intersection(sweep_types['blowout'])
 
-        try:
+        if blowout_sweeps:
             # get the last blowout sweep and extract the ending voltage from it
             last_blowout_sweep = self.sweep_data_tuple[max(blowout_sweeps)]
             blowout_mv = qcf.measure_blowout(
@@ -532,12 +532,14 @@ class QCOperator(object):
                 last_blowout_sweep['epochs']['test'][1]
             )
 
-        except {IndexError, ValueError}:
+        else:
             # update tags and return None if there are no blowout sweeps or the
             # sweep is incomplete for some reason
             tags.append("Blowout is not available")
             blowout_mv = None
-        # todo
+
+        # TODO exceptions?
+
         return blowout_mv
 
     def extract_pipette_offset_pa(
@@ -566,19 +568,17 @@ class QCOperator(object):
         """
         # bath sweeps are an intersection of i clamp and bath stimulus codes
         bath_sweeps = sweep_types['v_clamp'].intersection(sweep_types['in_bath'])
-        # if bath_sweeps:
-        try:
+        if bath_sweeps:
             # get the last bath sweep and extract the ending voltage from it
             last_bath_sweep = self.sweep_data_tuple[max(bath_sweeps)]
             offset_pa = qcf.measure_electrode_0(
                 last_bath_sweep['response'], last_bath_sweep['sampling_rate']
             )
-        except {IndexError, ValueError}:
-        # else:
+        else:
             # update tags and return None if there are no bath sweeps
             tags.append("Electrode 0 is not available")
             offset_pa = None
-        # todo
+        # TODO exceptions?
         return offset_pa
 
     def extract_clamp_seal_gohm(
@@ -620,7 +620,7 @@ class QCOperator(object):
         """
         # seal sweeps are an intersection of v clamp and bath stimulus codes
         seal_sweeps = sweep_types['v_clamp'].intersection(sweep_types['seal'])
-        try:
+        if seal_sweeps:
             # get the last seal sweep and measure the resistance
             last_seal_sweep = self.sweep_data_tuple[max(seal_sweeps)]
             time = np.arange(
@@ -633,13 +633,13 @@ class QCOperator(object):
             if seal_gohm is None or not np.isfinite(seal_gohm):
                 raise er.FeatureError("Could not compute seal")
 
-        except {IndexError, ValueError}:
+        else:
             # update tags and grab manual value if it is available
             tags.append("Seal is not available")
             seal_gohm = manual_values.get('manual_seal_gohm', None)
             if seal_gohm is not None:
                 tags.append("Using manual seal value: %f" % seal_gohm)
-        # todo
+        # TODO exceptions?
         return seal_gohm
 
     def extract_input_and_acess_resistance_mohm(
@@ -684,8 +684,8 @@ class QCOperator(object):
 
         # breakin sweeps are intersection of v clamp and breakin stimulus codes
         breakin_sweeps = sweep_types['v_clamp'].intersection(sweep_types['break_in'])
-        # todo
-        try:
+
+        if breakin_sweeps:
             # find the last break-in sweep
             last_breakin_sweep = self.sweep_data_tuple[max(breakin_sweeps)]
             # generate time vector
@@ -713,13 +713,13 @@ class QCOperator(object):
                 logging.warning("Error reading initial access resistance.")
                 raise
 
-        except {IndexError, ValueError}:
+        else:
             # if we can't find the break-in sweep, then note it in tags and
             # return None for both input and access resistance
             tags.append("Breakin sweep not found")
             input_resistance = None
             access_resistance = None
-
+        # TODO exceptions?
         return input_resistance, access_resistance
 
     def update_full_sweep_qc_info(self, *args: List[dict]) -> List[dict]:
