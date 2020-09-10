@@ -477,6 +477,7 @@ class QCOperator(object):
                     # update with new generic qc features
                     sweep_features.update(qc_features)
                     # get the seal value from the test pulse for this sweep
+                    # todo check full sweep
                     sweep_features['seal_value'] = self.get_seal_from_test_pulse(
                         sweep['stimulus'], sweep['response'],  # voltage and current
                         np.arange(len(sweep['stimulus'])) / sweep['sampling_rate'],  # time vector
@@ -536,7 +537,7 @@ class QCOperator(object):
             # sweep is incomplete for some reason
             tags.append("Blowout is not available")
             blowout_mv = None
-
+        # todo
         return blowout_mv
 
     def extract_pipette_offset_pa(
@@ -577,7 +578,7 @@ class QCOperator(object):
             # update tags and return None if there are no bath sweeps
             tags.append("Electrode 0 is not available")
             offset_pa = None
-
+        # todo
         return offset_pa
 
     def extract_clamp_seal_gohm(
@@ -638,7 +639,7 @@ class QCOperator(object):
             seal_gohm = manual_values.get('manual_seal_gohm', None)
             if seal_gohm is not None:
                 tags.append("Using manual seal value: %f" % seal_gohm)
-
+        # todo
         return seal_gohm
 
     def extract_input_and_acess_resistance_mohm(
@@ -683,7 +684,7 @@ class QCOperator(object):
 
         # breakin sweeps are intersection of v clamp and breakin stimulus codes
         breakin_sweeps = sweep_types['v_clamp'].intersection(sweep_types['break_in'])
-
+        # todo
         try:
             # find the last break-in sweep
             last_breakin_sweep = self.sweep_data_tuple[max(breakin_sweeps)]
@@ -942,18 +943,12 @@ class QCOperator(object):
         current : np.ndarray
             input current (pA)
         time : np.ndarray
-
-        time : np.ndarray
             time vector (s)
-        up_idx : int
-            index of start of square pulse
-        down_idx : int
-            index of end of square pulse
 
         Returns
         -------
-        input resistance : np.float
-            seal resistance (MOhm)
+        np.float
+            Resistance of test pulse seal in MOhm
 
         """
         dv = np.diff(voltage)
@@ -966,7 +961,7 @@ class QCOperator(object):
         except IndexError:
             logging.warning("Could not find full test pulse.")
             return np.nan
-
+        # todo
         dt = time[1] - time[0]
         one_ms = int(0.001 / dt)
 
@@ -990,10 +985,31 @@ class QCOperator(object):
 
 
 def run_auto_qc(
-        sweep_data_tuple: tuple, ontology: StimulusOntology,
+        sweep_data_tuple: Tuple[Dict[str, Any]], ontology: StimulusOntology,
         qc_criteria: dict, recording_date: str, qc_output: Connection
 ):
-    """TODO docstring"""
+    """Runs auto QC on EPhys data and pipes results through output connection.
+
+    Initializes QCOperator using provided parameters. Runs auto QC on the
+    experiment, which returns the qc_results NamedTuple and sweep_types
+    dictionary. Pipes out the data via provided qc_output Connection and finally
+    closes the pipe. This function is intended to be the target of a Process
+    from the multiprocessing module.
+
+    Parameters
+    ----------
+    sweep_data_tuple : Tuple[Dict[str, Any]]
+        A tuple of dictionaries containing extracted data from each sweep.
+    ontology : StimulusOntology
+        An ipfx stimulus ontology object, used for identifying sweep types.
+    qc_criteria : dict
+        A dictionary of auto QC criteria to use when evaluating QC features.
+    recording_date : str
+        A string with the recording date in it, used in cell QC features.
+    qc_output : multiprocessing.Connection
+        The output end of a multiprocessing Pipe used to transmit QC results.
+
+    """
     qc_operator = QCOperator(
         sweep_data_tuple, ontology, qc_criteria, recording_date
     )
