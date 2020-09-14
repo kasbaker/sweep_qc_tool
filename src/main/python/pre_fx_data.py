@@ -268,7 +268,7 @@ class PreFxData(QObject):
         }
 
         try:
-            # PipelineParameters().load(json_data)
+            # PipelineParameters().load(json_data) TODO fix schema validation
             with open(filepath, 'w') as f:
                 json.dump(json_data, f, indent=4)
 
@@ -338,7 +338,7 @@ class PreFxData(QObject):
         # create list of data to send to sweep table model, exclude 'Search' sweeps
         self.status_message.emit("Preparing data for sweep page...")
 
-        display_data = get_display_data(
+        display_data = format_display_data(
             sweep_data_tuple=sweep_data_tuple,
             full_sweep_qc_info=qc_results.full_sweep_qc_info
         )
@@ -388,7 +388,8 @@ class PreFxData(QObject):
                 Sweep number that is being updated. Used as an index when
                     addressing sweep_States and sweep_features
             new_state : str
-                String specifying manual QC state "default", "passed", or "failed"
+                String specifying manual QC state "default", "passed", "failed"
+
         """
         # assign new manual qc state
         self._display_data[index]['manual_qc_state'] = new_state
@@ -432,8 +433,8 @@ class PreFxData(QObject):
         return qc_output_data
 
 
-def get_display_data(sweep_data_tuple: tuple, full_sweep_qc_info: List[dict]):
-    """ Take full sweep qc info and sweep data tuple, then populate list
+def format_display_data(sweep_data_tuple: tuple, full_sweep_qc_info: List[dict]):
+    """Take full sweep qc info and sweep data tuple, then populate list
     of data to send to the sweep table model
 
     Parameters

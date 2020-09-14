@@ -67,8 +67,18 @@ class SweepTableModel(QAbstractTableModel):
         data.table_model_data_ready.connect(self.build_sweep_table)
         self.qc_state_updated.connect(data.on_manual_qc_state_updated)
 
-    def build_sweep_table(self, table_model_data: List[list], sweep_types: Dict[str, Set[int]]):
-        """ foobar """
+    def build_sweep_table(
+            self, table_model_data: List[list], sweep_types: Dict[str, Set[int]]
+    ):
+        """Populates
+
+        Parameters
+        ----------
+        table_model_data : List[list]
+        sweep_types : Dict[str, Set[int]]
+            foo
+
+        """
 
         if self.rowCount() > 0:
             # reset the model if it is not already empty

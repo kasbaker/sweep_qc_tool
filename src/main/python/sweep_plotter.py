@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from ipfx.ephys_data_set import EphysDataSet
 from ipfx.epochs import get_first_stability_epoch
 
 PLOT_FONTSIZE = 24
@@ -23,8 +22,22 @@ EXP_PULSE_BASELINE_COLOR = "#0000ff70"
 
 
 class SweepPlotConfig(NamedTuple):
-    test_pulse_plot_start: float
-    test_pulse_plot_end: float
+    """NamedTuple storing configuration for plotter.
+
+    Parameters
+    ----------
+    test_pulse_baseline_samples : int
+        Number of samples used for baseline assessment of test pulse.
+    backup_experiment_start_index : int
+        The index to start the experiment at if the test pulse is missing.
+    experiment_baseline_start_index : int
+        Start index for experiment epoch baseline assessment.
+    experiment_baseline_end_index : int
+        End index for experiment epoch baseline assessment.
+    thumbnail_step : int
+        Step size to use for decimated plots of sweeps used in thumbnails.
+
+    """
     test_pulse_baseline_samples: int
     backup_experiment_start_index: int
     experiment_baseline_start_index: int
@@ -32,46 +45,40 @@ class SweepPlotConfig(NamedTuple):
     thumbnail_step: int
 
 
-# class PlotConfigLite(NamedTuple):
-#     first_downsample_factor: int
-#     second_downsample_factor: int
-
-
 class PlotData(NamedTuple):
-    """ Contains numpy arrays for each type of data: stimulus, response, time.
-    This is needed due to ensure plotting doesn't break when different sampling
-    rates are used in previous and initial test pulses.
+    """NamedTuple of numpy arrays to store data for plotting.
+
+    Parameters
+    ----------
+    stimulus : np.ndarray
+        Stimulus array for the plot in pA for I-clamp or mV for V-clamp.
+    response : np.ndarray
+        Response array for the plot in mV for I-clamp or pA for V-clamp.
+    time : np.ndarray
+        Time array for the sweep in seconds
 
     """
-    # stimulus for part of a sweep; current for I-clamp or voltage for V-clamp
     stimulus: np.ndarray
-    # response for part of a sweep; voltage for I-clamp or current for V-clamp
     response: np.ndarray
-    # time vector for part of a sweep
     time: np.ndarray
 
 
 class PopupPlotter:
-    """ Stores data needed to make an interactive plot and generates it on
-    __call__()
-
-    """
-
     __slots__ = ['plot_data', 'sweep_number', 'y_label', 'stimulus_code']
 
     def __init__(self, plot_data: PlotData, sweep_number: int, y_label: str, stimulus_code: str):
-        """ Displays an interactive plot of a sweep
+        """Stores sweep data and displays an interactive plot when __call__()ed.
 
         Parameters
         ----------
         plot_data : PlotData
-            named tuple with raw data for plotting
+            Named tuple with raw data for plotting.
         sweep_number : int
-            sweep number used in naming the plot
+            Sweep number used in naming the plot.
         y_label : str
-            label for the y-axis (mV or pA)
+            Label for the y-axis (mV or pA)
         stimulus_code : str
-            stimulus code to use when labeling the popup window
+            Stimulus code to use when labeling the popup window.
 
         """
         self.plot_data = plot_data
@@ -98,29 +105,28 @@ class PopupPlotter:
 
 
 class ExperimentPopupPlotter(PopupPlotter):
-    """ Subclass of PopupPlotter used for the experiment epoch. """
-
     __slots__ = ['plot_data', 'baseline', 'sweep_number', 'y_label', 'stimulus_code']
 
     def __init__(
             self, plot_data: PlotData, baseline: Optional[np.ndarray],
             sweep_number: int, y_label: str, stimulus_code: str
     ):
-        """ Displays an interactive plot of a sweep's experiment epoch, along
-        with a horizontal line at the baseline.
+        """Stores sweep data and displays an interactive plot when __call__()ed.
+
+        Also included for experiment popups is a horizontal line along baseline.
 
         Parameters
         ----------
         plot_data : PlotData
-            named tuple with raw data for plotting
-        baseline: float
-            baseline mean of the initial response in mV or pA
+            NamedTuple with raw data of experiment epoch used for plotting.
+        baseline : float
+            Baseline mean of the initial response in mV or pA.
         sweep_number : int
-            sweep number used in naming the plot
-        y_label: str
-            label for the y-axis (mV or pA)
+            Sweep number used in naming the plot.
+        y_label : str
+            Label for the y-axis (mV or pA)
         stimulus_code : str
-            stimulus code to use when labeling the popup window
+            Stimulus code to use when labeling the popup window.
 
         """
         super().__init__(
@@ -131,7 +137,7 @@ class ExperimentPopupPlotter(PopupPlotter):
         self.baseline = baseline
 
     def __call__(self) -> PlotWidget:
-        """ Generates an interactive plot widget from this plotter's data.
+        """Generates an interactive plot widget from this plotter's data.
 
         Returns
         -------
@@ -162,8 +168,6 @@ class ExperimentPopupPlotter(PopupPlotter):
 
 
 class PulsePopupPlotter(PopupPlotter):
-    """ Subclass of PopupPlotter used for the test pulse epoch. """
-
     __slots__ = ['plot_data', 'previous_plot_data', 'initial_plot_data',
                  'sweep_number', 'y_label', 'stimulus_code']
 
@@ -176,23 +180,25 @@ class PulsePopupPlotter(PopupPlotter):
             y_label: str,
             stimulus_code: str
     ):
-        """ Plots the test pulse reponse, along with responses to the previous
-        and first test pulse.
+        """Stores sweep data and displays an interactive plot when __call__()ed.
+
+        Also included for pulse popups are initial and previous test pulses.
 
         Parameters
         ----------
-        plot_data : : PlotData
-            named tuple with raw data for plotting
+        plot_data : PlotData
+            NamedTuple with raw data of current test pulse used for plotting.
         previous_plot_data : PlotData
-            named tuple with previous test pulse data
+            NamedTuple with raw data of previous test pulse used for plotting.
         initial_plot_data : PlotData
-            named tuple with initial test pulse data
+            NamedTuple with raw data of initial test pulse used for plotting.
         sweep_number : int
-            sweep number used in naming the plot
-        y_label: str
-            label for the y-axis (mV or pA)
+            Sweep number used in naming the plot.
+        y_label : str
+            Label for the y-axis (mV or pA)
         stimulus_code : str
-            stimulus code to use when labeling the popup window
+            Stimulus code to use when labeling the popup window.
+
         """
 
         super().__init__(
@@ -242,8 +248,14 @@ class PulsePopupPlotter(PopupPlotter):
 
 
 class FixedPlots(NamedTuple):
-    """ Each plot displayed in the sweep table comes in a thumbnail-full plot
-    pair.
+    """A NamedTuple containing a thumbnail and corresponding full popup plot.
+
+    Parameters
+    ----------
+    thumbnail : QByteArray
+        A thumbnail .svg stored in a QByte array
+    full : PopupPlotter
+        Generates a pyqtgraph interactive plot when the user clicks thumbnail.
 
     """
     thumbnail: QByteArray
@@ -258,14 +270,14 @@ class SweepPlotter(object):
     }
 
     def __init__(self, sweep_data_tuple: tuple, config: SweepPlotConfig,):
-        """ Generate plots for each sweep in an experiment
+        """Class used to generate plots for each sweep in an experiment
 
         Parameters
         ----------
-        data_set : EphysDataSet
-            plots will be generated from these experimental data
+        sweep_data_tuple : tuple
+            Tuple containing
         config : SweepPlotConfig
-            parameters tweaking the generated plots
+            Parameters used for tweaking the generated plots.
 
         """
         self.fig, self.ax = plt.subplots(figsize=DEFAULT_FIGSIZE)

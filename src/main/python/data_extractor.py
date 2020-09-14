@@ -286,7 +286,7 @@ class DataExtractor(object):
         stimulus : np.ndarray
 
         response : np.ndarray
-            foo
+            foo TODO finish writing this
         stimulus_code : np.ndarray
             foo
 

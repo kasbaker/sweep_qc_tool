@@ -29,8 +29,37 @@ class ManualSweepState(Schema):
     sweep_number = Integer(description="sweep number", required=True)
     sweep_state = Str(description="manual override state", required=True)
 
-# class FullSweepQCInfo(Schema):
-#
+
+class SweepQCOutput(Schema):
+    sweep_number = Integer(description="sweep number", required=True)
+    stimulus_code = Str(required=False, allow_none=True)
+    stimulus_name = Str(required=False, allow_none=True)
+    passed = Boolean(required=False, allow_none=True)
+    tags = List(Nested(Str), required=False, allow_none=True)
+    stimulus_start_time = Float(required=False, allow_none=True)
+    stimulus_amplitude = Float(required=False, allow_none=True)
+    stimulus_duration = Float(required=False, allow_none=True)
+    stimulus_interval = Float(required=False, allow_none=True)
+    pre_vm_mv = Float(required=False, allow_none=True)
+    pre_noise_rms_mv = Float(required=False, allow_none=True)
+    slow_vm_mv = Float(required=False, allow_none=True)
+    slow_noise_rms_mv = Float(required=False, allow_none=True)
+    post_vm_mv = Float(required=False, allow_none=True)
+    post_noise_rms_mv = Float(required=False, allow_none=True)
+    vm_delta_mv = Float(required=False, allow_none=True)
+    pre_baseline_fast = Float(required=False, allow_none=True)
+    pre_rms_fast = Float(required=False, allow_none=True)
+    post_baseline = Float(required=False, allow_none=True)
+    post_rms = Float(required=False, allow_none=True)
+    pre_baseline = Float(required=False, allow_none=True)
+    pre_rms = Float(required=False, allow_none=True)
+    baseline_delta = Float(required=False, allow_none=True)
+    seal_value = Float(required=False, allow_none=True)
+    manual_qc_state = Str(description="manual override state", required=True)
+    qc_tags = Str(required=False, allow_none=True)
+    stimulus_unit = Str(required=False)
+    amp_settings = Dict(keys=Str(), values=Str(), required=False)
+
 
 class SweepParameters(Schema):
     stimulus_code = Str(description="stimulus code", required=True)
@@ -56,9 +85,9 @@ class CellParameters(Schema):
 class PipelineParameters(Schema):
     input_nwb_file = Str(description="input nwb file", required=True)
     stimulus_ontology_file = Str(description="stimulus ontology JSON", required=False)
+    # manual_sweep_states = Nested(ManualSweepState, required=False, many=True)
+    SweepQCOutput = Nested(SweepQCOutput, required=False, many=True)
     qc_criteria = Nested(QcCriteria, required=False)
-    manual_sweep_states = Nested(ManualSweepState, required=False, many=True)
-    # full_qc_info = Nested
     ipfx_version = Str(description="version of ipfx package")
 
 

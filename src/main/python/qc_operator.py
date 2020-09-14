@@ -1,6 +1,30 @@
-"""TODO module level docstring goes here
+"""A module containing a class to perform QC operations and function to call it.
+
+This module is intended to be used with the multiprocessing module in order to
+quickly run auto QC in parallel with other operations. The function run_auto_qc
+should be the target of a multiprocessing Process object.
+
+Examples TODO get to work with doctest '>>>'
+--------
+>> from multiprocessing import Pipe, Process
+>> from qc_operator import run_auto_qc, QCResults
+
+
+>> qc_pipe = Pipe(duplex=False)
+>> qc_worker = Process(
+..     name='qc_worker', target=run_auto_qc, args=(
+..     sweep_data_tuple, stimulus_ontology, qc_criteria, recording_date, qc_pipe[1]
+..     )
+.. )
+>> qc_worker.start()
+# Do other stuff in parallel here
+>> qc_pipe[1].close()
+>> qc_results, sweep_types = qc_pipe[0].recv()
+>> qc_worker.join()
+>> qc_worker.terminate()
 
 """
+
 import logging
 from copy import deepcopy
 from multiprocessing.connection import Connection
@@ -19,6 +43,26 @@ from ipfx.stimulus import StimulusOntology
 
 
 class QCResults(NamedTuple):
+    """Namedtuple to store the output QC information.
+
+    Parameters
+    ----------
+    cell_features : dict
+        Dictionary of cell QC features calculated from auto QC
+    cell_tags : list
+        List of QC tags from cell QC
+    cell_state : dict
+        Dictionary of results form cell QC evaluation
+    sweep_features : List[dict]
+        List of dictionaries of sweep QC features calculated from auto QC
+    sweep_states : List[dict]
+        List of dictionaries with sweep numbers and sweep 'passed' bool states
+    nuc_vc_features : List[dict]
+        Sweep QC features for channel recording 'NucVC' sweeps
+    full_sweep_qc_info : List[dict]
+        All of the sweep features lists compiled into one big list
+
+    """
     cell_features: dict
     cell_tags: list
     cell_state: dict
@@ -29,95 +73,6 @@ class QCResults(NamedTuple):
 
 
 class QCOperator(object):
-    """ Docstrings copy/pasted from pre_fx_data:
-
-    def run_qc(stimulus_ontology, cell_features, sweep_features, qc_criteria):
-        Adds qc status to sweep features and outputs a qc summary to the log.
-
-        Parameters
-        ----------
-        stimulus_ontology : StimulusOntology
-            stimulus ontology used for this data set
-        cell_features : dict
-            dictionary of qc info for the cell (overall experiment level info)
-        sweep_features : list[dict]
-            a list of dictionaries containing qc info for each individual sweep
-        qc_criteria : dict
-            a dictionary containing the criteria used for auto QC
-
-        Returns
-        -------
-        cell_state : dict
-            a dictionary of qc states for various cell level qc criteria
-        cell_features : dict
-            dictionary of qc info for the cell (overall experiment level info)
-        sweep_states : List[dict]
-            a list of dictionaries containing auto QC states
-        post_qc_sweep_features : List[dict]
-            similar to sweep_features input, but with rows removed for most sweeps
-            that failed auto QC and new column containing the auto QC states
-
-    def extract_qc_features(data_set):
-        extracts QC information for the cell and the sweeps using ipfx.
-
-        Parameters
-        ----------
-        data_set : EphysDataSet
-            raw data used in qc feature extraction
-
-        Returns
-        -------
-        cell_features : dict
-            dictionary of qc info for the cell (overall experiment level info)
-        cell_tags : list
-            a list of qc tags for the cell (e.g. 'Blowout is not available')
-        sweep_features : list[dict]
-            a list of dictionaries containing qc info for each individual sweep
-
-    def populate_qc_info(
-        self,
-        sweep_table,
-        pre_qc_sweep_features: List[dict],
-        post_qc_sweep_features: List[dict],
-        auto_qc_states: List[dict]
-    ):
-        Uses pre and post sweep qc features to populate initial and current
-        sweep QC features and states. Sweep features and states use values of
-        True, False, or None to indicate their auto QC states.
-
-         For sweep_features['passed']:
-            True = Passed all auto qc
-            False = Failed in second round of auto qc when run_qc() was called.
-                These sweeps exist in post_qc_sweep_features
-            None = Dropped in first round of auto qc due to having a fail tag
-                or no auto QC was performed.
-                Sweeps with None in this column are dropped before feature
-                extraction so that extract_data_set_features() doesn't break.
-                These sweeps exist in pre_qc_sweep_features, but do not exist
-                in post_qc_sweep_features.
-
-        For sweep_states['passed']:
-            True = Passed all auto qc
-            False = Failed in first or second round of auto qc.
-            None = No auto QC. These sweeps exist in the sweep table, but do
-                not exist in pre_qc_sweep_features or post_qc_sweep_features
-
-        Parameters
-        ----------
-        pre_qc_sweep_features : List[dict]
-            Contains sweep features that went through qc feature extraction.
-            The ['passed'] column does not exist in this list.
-        post_qc_sweep_features : List[dict]
-            Contains sweep features that went through the second round of
-            auto QC. Sweeps that had a fail tag in pre_qc_sweep_features are
-            dropped and not present in this list.
-        sweep_states : List[dict]
-            Contains auto QC states obtained in the second round of auto QC
-            Again, sweeps that were dropped because they had a fail tag
-            are not present in this list.
-
-    """
-
     __slots__ = [
         '_sweep_data_tuple', '_ontology', '_qc_criteria', '_recording_date'
     ]
@@ -345,7 +300,6 @@ class QCOperator(object):
             if stim_unit == "Amps":
                 sweep_types['i_clamp'].add(sweep_num)
 
-            # TODO make sure the correct clamp mode is used for these sweeps
             # check ontology for a stim name match or check if stim code
             # contains a partial match with first ontology name
             if stim_name in ontology.extp_names or ontology.extp_names[0] in stim_code:
