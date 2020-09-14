@@ -6,6 +6,8 @@ from pyqtgraph import PlotWidget, mkPen
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from scipy.signal import savgol_filter
+# filter with (window_size=21, poly_order=2)
 
 from ipfx.epochs import get_first_stability_epoch
 
@@ -281,7 +283,7 @@ class SweepPlotter(object):
 
         """
         self.fig, self.ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
-        self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
+        # self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
         self._sweep_data_tuple = sweep_data_tuple
         self.config = config
@@ -498,18 +500,21 @@ class SweepPlotter(object):
         # step = ds1 * ds2 // 1
         if initial is not None:
             # ds_initial = decimate(decimate(initial.response, ds1), ds2)
-            self.ax.plot(initial.time[::step], initial.response[::step], linewidth=1,
+            filter_initial = savgol_filter(initial.response, window_length=21, polyorder=2)
+            self.ax.plot(initial.time[::step], filter_initial[::step], linewidth=1,
                          label=f"initial",
                          color=TEST_PULSE_INIT_COLOR)
 
         if previous is not None:
             # ds_previous = decimate(decimate(previous.response, ds1), ds2)
-            self.ax.plot(previous.time[::step], previous.response[::step], linewidth=1,
+            filter_previous = savgol_filter(previous.response, window_length=21, polyorder=2)
+            self.ax.plot(previous.time[::step], filter_previous[::step], linewidth=1,
                          label=f"previous",
                          color=TEST_PULSE_PREV_COLOR)
 
         # ds_response = decimate(decimate(plot_data.response, ds1), ds2)
-        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+        filter_response = savgol_filter(plot_data.response, window_length=21, polyorder=2)
+        self.ax.plot(plot_data.time[::step], filter_response[::step], linewidth=1,
                      label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
 
         time_lim = (plot_data.time[0], plot_data.time[-1])
@@ -567,11 +572,11 @@ class SweepPlotter(object):
         # ds2 = 4
         # step = ds1 * ds2 // 1
         # ds_response = decimate(decimate(plot_data.response, ds1), ds2)
-
+        filter_response = savgol_filter(plot_data.response, window_length=21, polyorder=2)
         time_lim = [plot_data.time[0], plot_data.time[-1]]
         # y_lim = [min(ds_response), max(ds_response)]
 
-        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+        self.ax.plot(plot_data.time[::step], filter_response[::step], linewidth=1,
                      color=EXP_PULSE_CURRENT_COLOR,
                      label=f"sweep {sweep_number}")
 
