@@ -1,5 +1,5 @@
 import pytest
-
+from pathlib import Path
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 
 from pre_fx_controller import PreFxController
@@ -7,7 +7,7 @@ from pre_fx_controller import PreFxController
 
 @pytest.fixture
 def controller():
-    return PreFxController()
+    return PreFxController(input_dir="", output_dir="", output_suffix="")
 
 
 class SingleArgTarget:
@@ -25,7 +25,7 @@ class SingleArgTarget:
         if self.expected is None:
             assert self.obtained is None
         else:
-            assert self.expected  == self.obtained
+            assert self.expected == self.obtained
 
 
 @pytest.fixture
@@ -64,8 +64,14 @@ def test_export_manual_states_to_json_dialog(
 ):
 
     controller._fx_outdated = True
-    controller.output_dir = "default"
+    controller.input_dir = Path(path)
+    controller.output_dir = Path("default")
 
+    # patches args:
+    #   [object=QMessageBox, caption="question",
+    #       args: [proceed=QMessageBox.No/Yes]]
+    #   [object=QFileDialog, caption="getSaveFileName", path="foo"/"",
+    #       args: [directory=path, filter="unused"]]
     dialog_method_tester(
         controller,
         SingleArgTarget(expected),

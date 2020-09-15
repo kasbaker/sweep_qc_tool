@@ -18,14 +18,14 @@ class MockPlotter:
     def full(self):
         return self._full
 
-
+# TODO fix stuff
 @pytest.mark.parametrize("row", [0, 1, 2])
 @pytest.mark.parametrize("col", list(range(8)))
 def test_plot_popup_click(qtbot, row, col):
 
     model = SweepTableModel(
         SweepPage.colnames,
-        SweepPlotConfig(0, 1, 2, 3, 4, 5, 6)
+        # SweepPlotConfig(0, 1, 2, 3, 4, 5, 6)
     )
     view = SweepTableView(
         SweepPage.colnames
@@ -82,7 +82,7 @@ def test_filter_sweeps(qtbot, filter_status):
         """
     model = SweepTableModel(
         SweepPage.colnames,
-        SweepPlotConfig(0, 1, 2, 3, 4, 5, 6)
+        # SweepPlotConfig(0, 1, 2, 3, 4, 5, 6)
     )
 
     view = SweepTableView(

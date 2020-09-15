@@ -293,17 +293,17 @@ class PreFxController(QWidget):
 
         if self._fx_outdated:
             if QMessageBox.question(
-                self, 
+                self,
                 "features out of date", 
                 "Your cell features are out of date. Proceed?\n\n"
                 "To update cell features, choose Edit -> run feature extraction"
             ) == QMessageBox.No:
                 return
         path, _ = QFileDialog.getSaveFileName(
-            parent=self,
-            caption="export to JSON file",
-            directory=str(self.output_dir.joinpath(self.default_output_filename)),
-            filter="All Files (*);;JSON files (*.json)"
+            self,    # TODO pytest doesn't like explicit **kwargs?
+            "export to JSON file",
+            str(self.output_dir.joinpath(self.default_output_filename)),
+            "All Files (*);;JSON files (*.json)"
         )
 
         if path != "":

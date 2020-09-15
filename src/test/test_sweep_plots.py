@@ -6,15 +6,15 @@ import numpy as np
 from pyqtgraph import InfiniteLine
 
 from sweep_plotter import (
-    test_response_plot_data, experiment_plot_data, SweepPlotConfig,
+    SweepPlotConfig, # test_response_plot_data, experiment_plot_data,
     PulsePopupPlotter, ExperimentPopupPlotter, PlotData, SweepPlotter
 )
 
 from .conftest import check_allclose
 
 mock_config = SweepPlotConfig(
-    test_pulse_plot_start=0.04,
-    test_pulse_plot_end=0.1,
+    # test_pulse_plot_start=0.04,   # why not start at 0?
+    # test_pulse_plot_end=0.1,
     test_pulse_baseline_samples=100,
     backup_experiment_start_index=5000,
     experiment_baseline_start_index=5000,
@@ -132,7 +132,7 @@ mock_plotter = SweepPlotter(data_set=mock_data_set, config=mock_config)
 def sweep():
     return MockSweep(clamp_mode="CurrentClamp")
 
-
+# TODO fix all of this
 @pytest.mark.parametrize("start,end,baseline,expected", [
     [2.0, 5.0, 3, PlotData(
         stimulus=[0.0, 0.0, 1.0, 1.0, 1.0, 0.0],
