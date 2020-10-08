@@ -1,6 +1,7 @@
-setuptools==44.0.0
+argschema<2.0.0
+git+https://github.com/kasbaker/ipfx@464/lru-cache
+PyInstaller
+PyQt5
+pyqtgraph
+setuptools
 git+https://github.com/nilegraddis/fbs@additional_hooks_dir
-PyQt5==5.9.2
-PyInstaller==3.4
-ipfx
-pyqtgraph==0.10.0
