@@ -189,7 +189,9 @@ class SweepTableView(QTableView):
         self.popup_plots.append(graph)
         # remove old popup plots if there are more than 5
         while len(self.popup_plots) > 5:
-            self.popup_plots.pop(0)
+            # This avoids runtime warning about deleting a visible window
+            plot_to_close = self.popup_plots.pop(0)
+            plot_to_close.close()
 
         # the great-great-grandparent of this widget should be the main window
         main_window = self.parent().parent().parent().parent()
