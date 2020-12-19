@@ -304,6 +304,7 @@ class PreFxData(QObject):
 
         data_set.sweep_table.sort_values(by='sweep_number', axis=0, inplace=True)
 
+        # TODO spawn child process here to generate plots
         self.status_message.emit("Performing auto QC...")
         # cell_features: dictionary of QC information about the cell
         # cell_tags: QC details about the cell (e.g. 'Blowout is not available'
@@ -343,6 +344,7 @@ class PreFxData(QObject):
                 sweep['sweep_number']: "default" for sweep in self.sweep_states
             }
 
+            # TODO join plotting process here before committing to sweep table
             self.status_message.emit("Initializing sweep page...")
             # emits signal that tells sweep_table_model to populate itself
             # with new data
