@@ -1,5 +1,5 @@
 import io
-
+from multiprocessing.connection import Connection
 from typing import NamedTuple, Tuple, Optional
 
 from PyQt5.QtCore import QByteArray
@@ -649,4 +649,7 @@ def make_experiment_plot(
 
     return fig
 
-
+def make_plots(sweep_plot_list: list, plot_output: Connection):
+    # dummy return for testing
+    plot_output.send(['foo' for _ in sweep_plot_list])
+    plot_output.close()

@@ -4,6 +4,7 @@ import copy
 from typing import Optional, List, Dict, Any
 import ipfx
 from PyQt5.QtCore import QObject, pyqtSignal
+from multiprocessing import Pipe, Process
 
 from ipfx.ephys_data_set import EphysDataSet
 from ipfx.qc_feature_extractor import cell_qc_features, sweep_qc_features
@@ -15,7 +16,7 @@ from ipfx.sweep_props import drop_tagged_sweeps
 from error_handling import exception_message
 from marshmallow import ValidationError
 from schemas import PipelineParameters
-
+from sweep_plotter import make_plots
 
 class PreFxData(QObject):
 
@@ -302,9 +303,14 @@ class PreFxData(QObject):
             ontology=stimulus_ontology
         )
 
+        # TODO spawn child process here to generate plots
+        # Spawns process and pipe for making sweep plots
+        plot_process, plot_pipe = self.spawn_plot_process(data_set)
+        # Run this in parallel to auto QC steps below
+        plot_process.start()
+
         data_set.sweep_table.sort_values(by='sweep_number', axis=0, inplace=True)
 
-        # TODO spawn child process here to generate plots
         self.status_message.emit("Performing auto QC...")
         # cell_features: dictionary of QC information about the cell
         # cell_tags: QC details about the cell (e.g. 'Blowout is not available'
@@ -317,6 +323,15 @@ class PreFxData(QObject):
         cell_state, cell_features, sweep_states, post_qc_sweep_features = run_qc(
             stimulus_ontology, cell_features, pre_qc_sweep_features, qc_criteria
         )
+
+        # Receive thumbnail / popup plot pairs here
+        plot_pipe[1].close()
+        sweep_plots = plot_pipe[0].recv()
+        plot_process.join()
+        plot_process.terminate()
+        # dummy return for testing
+        print(sweep_plots)
+        print(len(sweep_plots))
 
         if commit:
             self.status_message.emit("Gathering QC information...")
@@ -344,10 +359,11 @@ class PreFxData(QObject):
                 sweep['sweep_number']: "default" for sweep in self.sweep_states
             }
 
-            # TODO join plotting process here before committing to sweep table
             self.status_message.emit("Initializing sweep page...")
             # emits signal that tells sweep_table_model to populate itself
             # with new data
+
+            # TODO send list of sweep plots through this signal
             self.end_commit_calculated.emit(
                 self.sweep_features, self.sweep_states, self.manual_qc_states, self.data_set
             )
@@ -357,6 +373,30 @@ class PreFxData(QObject):
                                self.stimulus_ontology,
                                self.sweep_features,
                                self.cell_features)
+
+    def spawn_plot_process(self, data_set: EphysDataSet) -> Pipe:
+        """Generates a list of sweeps to plot then spawns a plotting process.
+
+        """
+        # generator for stimulus codes to determine ones to plot
+        stim_code_gen = (
+            data_set.get_stimulus_code(idx)
+            for idx in data_set._data.sweep_numbers  # this property is fastest
+        )
+        # skip over "Search" sweeps because we don't need to plot them
+        sweep_data_list = [
+            (idx, stim_code, data_set.get_sweep_data(idx)) for idx, stim_code
+            in enumerate(stim_code_gen) if "Search" not in stim_code
+        ]
+        # This pipe will send sweep data and receive thumbnails / popup plots
+        plot_pipe = Pipe(duplex=False)
+        plot_process = Process(
+            name="plot_process", target=make_plots,
+            args=(sweep_data_list, plot_pipe[1])
+        )
+        plot_process.daemon = True
+
+        return plot_process, plot_pipe
 
     def populate_qc_info(
         self,
