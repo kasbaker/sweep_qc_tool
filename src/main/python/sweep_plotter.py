@@ -245,7 +245,7 @@ class FixedPlots(NamedTuple):
 
 class SweepPlotter:
     # a set of stimulus codes to skip saving the test pulses from
-    default_tp_exclude = {
+    tp_exclude_codes = {
         "EXTPBLWOUT", "EXTPBREAKN", "EXTPCllATT", "EXTPEXPEND", "EXTPINBATH",
         "EXTPRSCHEK", "EXTPSAFETY", "EXTPSMOKET", "EXTPGGAEND", "Search"
     }
@@ -278,56 +278,86 @@ class SweepPlotter:
         self.initial_iclamp_data: Optional[PlotData] = None
         self.previous_iclamp_data: Optional[PlotData] = None
 
-    def get_plot_data(self, sweep_tuple: SweepTuple):
-        """ Split the sweep data into test pulse and experiment epochs, then
-        return a PlotData object for both of them as well as a baseline mean
-        for the experiment epoch.
-
-        Parameters
-        ----------
-        sweep_tuple : SweepTuple
-            NamedTuple object containing the neccessary data for plotting
-
-        Returns
-        -------
-        tp_plot_data : PlotData
-            data to plot for the test pulse epoch
-        exp_plot_data : PlotData
-            data to plot for the experiment epoch
-        exp_baseline_mean : np.ndarray
-            baseline mean for the experiment epoch
-
-        """
-        # use the number of points and the sampling rate to generate time vector
-        hz = sweep_tuple.sweep_data['sampling_rate']
-        stimulus = sweep_tuple.sweep_data['stimulus']
-        response = sweep_tuple.sweep_data['response']
-        num_pts = len(stimulus)
-        time = np.arange(num_pts) / hz
-
-        # define indexes for splitting up experiment and test pulse
-        test_epoch = get_test_epoch(sweep_tuple.sweep_data['stimulus'], hz)
-        if test_epoch:
-            tp_end_idx = test_epoch[1]
-            exp_start_idx = tp_end_idx
-        elif self.config.backup_experiment_start_index < num_pts-1:
-            tp_end_idx = self.config.backup_experiment_start_index
-            exp_start_idx = tp_end_idx
-        else:
-            tp_end_idx = num_pts-1
-            exp_start_idx = 0
-
-        # use baseline mean to set test pulse to start at zero
-        tp_baseline_mean = np.nanmean(
-            response[:self.config.test_pulse_baseline_samples]
-        )
-        tp_plot_data = PlotData(
-            stimulus=stimulus[:tp_end_idx],
-            response=response[:tp_end_idx] - tp_baseline_mean,
-            time=time[:tp_end_idx]
-        )
-
-        stim_epoch = get_stim_epoch()
+    # def get_plot_data(self, sweep_tuple: SweepTuple):
+    #     """ Split the sweep data into test pulse and experiment epochs, then
+    #     return a PlotData object for both of them as well as a baseline mean
+    #     for the experiment epoch.
+    #
+    #     Parameters
+    #     ----------
+    #     sweep_tuple : SweepTuple
+    #         NamedTuple object containing the neccessary data for plotting
+    #
+    #     Returns
+    #     -------
+    #     tp_plot_data : PlotData
+    #         data to plot for the test pulse epoch
+    #     exp_plot_data : PlotData
+    #         data to plot for the experiment epoch
+    #     exp_baseline_mean : np.ndarray
+    #         baseline mean for the experiment epoch
+    #
+    #     """
+    #     # use the number of points and the sampling rate to generate time vector
+    #     hz = sweep_tuple.sweep_data['sampling_rate']
+    #     stimulus = sweep_tuple.sweep_data['stimulus']
+    #     response = sweep_tuple.sweep_data['response']
+    #     num_pts = len(stimulus)
+    #     time = np.arange(num_pts) / hz
+    #
+    #     # TODO make sure this works as expected
+    #     # define indexes for splitting up experiment and test pulse
+    #     test_epoch = get_test_epoch(sweep_tuple.sweep_data['stimulus'], hz)
+    #     if test_epoch:
+    #         # stimulus is not flat and length is greater than TP max time
+    #         tp_end_idx = test_epoch[1]
+    #         exp_start_idx = tp_end_idx
+    #         test_pulse = True
+    #     # these last two conditions might not be necessary
+    #     elif self.config.backup_experiment_start_index < num_pts-1:
+    #         # stimulus terminated before end of test pulse
+    #         tp_end_idx = self.config.backup_experiment_start_index
+    #         exp_start_idx = tp_end_idx
+    #         test_pulse = False
+    #     else:
+    #         # no test pulse like a 'Search' sweep
+    #         tp_end_idx = num_pts-1
+    #         exp_start_idx = 0
+    #         test_pulse = False
+    #
+    #     # use baseline mean to set test pulse to start at zero
+    #     tp_baseline_mean = np.nanmean(
+    #         response[:self.config.test_pulse_baseline_samples]
+    #     )
+    #     tp_plot_data = PlotData(
+    #         stimulus=stimulus[:tp_end_idx],
+    #         response=response[:tp_end_idx] - tp_baseline_mean,
+    #         time=time[:tp_end_idx]
+    #     )
+    #
+    #     # this function is also called in get_experiment_epoch
+    #     stim_epoch = get_stim_epoch(stimulus, test_pulse)
+    #     if stim_epoch:
+    #         # use this to calculate baseline mean
+    #         stability_start_idx, stability_end_idx = get_first_stability_epoch(
+    #             stim_epoch[0], hz
+    #         )
+    #         # take end of tp as start of stability epoch as a backup
+    #         if stability_start_idx < tp_end_idx:
+    #             stability_start_idx = tp_end_idx
+    #         exp_baseline_mean = np.nanmean(
+    #             response[stability_start_idx:stability_end_idx]
+    #         )
+    #     else:
+    #         exp_baseline_mean = None
+    #
+    #     exp_plot_data = PlotData(
+    #         stimulus=stimulus[exp_start_idx:],
+    #         response=response[exp_start_idx:],
+    #         time=time[exp_start_idx:]
+    #     )
+    #
+    #     return tp_plot_data, exp_plot_data, exp_baseline_mean
 
     def make_test_pulse_plots(
         self, 
@@ -442,6 +472,34 @@ class SweepPlotter:
             )
         )
 
+    # def generate_plots(self):
+    #     """ Generate a pair of fixed plots of all sweeps in the list"""
+    #     sweep_plots = []
+    #     for sweep in self.data_list:
+    #         if any(substring in sweep.stimulus_code
+    #                for substring in self.tp_exclude_codes):
+    #             # don't store test pulse for defined sweeps
+    #             store_test_pulse = False
+    #         else:
+    #             store_test_pulse = True
+    #
+    #         if sweep.sweep_data['stimulus_unit'] == "Amps":
+    #             y_label = "membrane potential (mV)"
+    #         else:
+    #             y_label = "holding current (pA)"
+    #         sweep_plots.append([
+    #             self.make_test_pulse_plots(
+    #                 sweep_number=sweep.sweep_number,
+    #                 sweep=sweep.sweep_data, y_label=y_label,
+    #                 store_test_pulse=store_test_pulse
+    #             ),
+    #             self.make_experiment_plots(
+    #                 sweep_number=sweep.sweep_number,
+    #                 sweep=sweep.sweep_data, y_label=y_label
+    #             )
+    #         ])
+
+
     def advance(self, sweep_number: int):
         """ Determines what the y-label for the plots should be based on the
         clamp mode and then generates two fixed plots: one for the test pulse
@@ -535,16 +593,17 @@ def test_response_plot_data(
         A named tuple with the sweep's stimulus, response, and time
 
     """
+    time = np.arange(len(sweep['stimulus'])/sweep['sampling_rate'])
 
     start_index, end_index = (
-        np.searchsorted(sweep.t, [test_pulse_plot_start, test_pulse_plot_end])
+        np.searchsorted(time, [test_pulse_plot_start, test_pulse_plot_end])
         .astype(int)
     )
 
     return PlotData(
-        stimulus=sweep.stimulus[start_index:end_index],
-        response=sweep.response[start_index: end_index] - np.mean(sweep.response[0: num_baseline_samples]),
-        time=sweep.t[start_index:end_index]
+        stimulus=sweep['stimulus'][start_index:end_index],
+        response=sweep['response'][start_index: end_index] - np.mean(sweep.response[0: num_baseline_samples]),
+        time=time[start_index:end_index]
     )
 
 
