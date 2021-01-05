@@ -1,6 +1,6 @@
 import io
 from multiprocessing.connection import Connection
-from typing import NamedTuple, Tuple, Optional
+from typing import NamedTuple, List, Tuple, Optional
 
 from PyQt5.QtCore import QByteArray
 
@@ -10,9 +10,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from ipfx.ephys_data_set import EphysDataSet
+# from ipfx.ephys_data_set import EphysDataSet
 from ipfx.sweep import Sweep
-from ipfx.epochs import get_experiment_epoch
+from ipfx.epochs import (
+    get_experiment_epoch, get_test_epoch,
+    get_stim_epoch, get_first_stability_epoch
+)
 
 
 PLOT_FONTSIZE = 24
@@ -35,6 +38,13 @@ class SweepPlotConfig(NamedTuple):
     experiment_baseline_start_index: int
     experiment_baseline_end_index: int
     thumbnail_step: int
+
+
+class SweepTuple(NamedTuple):
+    """ NamedTuple with minimum info needed for plotting."""
+    sweep_number: int
+    stimulus_code: str
+    sweep_data: dict
 
 
 class PlotData(NamedTuple):
@@ -234,21 +244,31 @@ class FixedPlots(NamedTuple):
 
 
 class SweepPlotter:
+    # a set of stimulus codes to skip saving the test pulses from
+    default_tp_exclude = {
+        "EXTPBLWOUT", "EXTPBREAKN", "EXTPCllATT", "EXTPEXPEND", "EXTPINBATH",
+        "EXTPRSCHEK", "EXTPSAFETY", "EXTPSMOKET", "EXTPGGAEND", "Search"
+    }
 
-    def __init__(self, data_set: EphysDataSet, config: SweepPlotConfig):
+    def __init__(self, sweep_list: List[SweepTuple], config: SweepPlotConfig):
         """ Generate plots for each sweep in an experiment
 
         Parameters
         ----------
-        data_set : EphysDataSet
-            plots will be generated from these experimental data
+        sweep_list : List[Tuple[int, str, dict]
+            A list containing tuples with the index, stimulus code, and
+            sweep data dictionary for each sweep
         config : SweepPlotConfig
             parameters tweaking the generated plots
 
         """
-
-        self.data_set = data_set
+        # input parameters
+        self.data_list = sweep_list
         self.config = config
+
+        # initialize a single figure and axes to use for fast plotting
+        self.fig, self.ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+        self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
         # initial and previous test pulse data for current clamp
         self.initial_vclamp_data: Optional[PlotData] = None
@@ -257,6 +277,57 @@ class SweepPlotter:
         # initial and previous test pulse data for voltage clamp
         self.initial_iclamp_data: Optional[PlotData] = None
         self.previous_iclamp_data: Optional[PlotData] = None
+
+    def get_plot_data(self, sweep_tuple: SweepTuple):
+        """ Split the sweep data into test pulse and experiment epochs, then
+        return a PlotData object for both of them as well as a baseline mean
+        for the experiment epoch.
+
+        Parameters
+        ----------
+        sweep_tuple : SweepTuple
+            NamedTuple object containing the neccessary data for plotting
+
+        Returns
+        -------
+        tp_plot_data : PlotData
+            data to plot for the test pulse epoch
+        exp_plot_data : PlotData
+            data to plot for the experiment epoch
+        exp_baseline_mean : np.ndarray
+            baseline mean for the experiment epoch
+
+        """
+        # use the number of points and the sampling rate to generate time vector
+        hz = sweep_tuple.sweep_data['sampling_rate']
+        stimulus = sweep_tuple.sweep_data['stimulus']
+        response = sweep_tuple.sweep_data['response']
+        num_pts = len(stimulus)
+        time = np.arange(num_pts) / hz
+
+        # define indexes for splitting up experiment and test pulse
+        test_epoch = get_test_epoch(sweep_tuple.sweep_data['stimulus'], hz)
+        if test_epoch:
+            tp_end_idx = test_epoch[1]
+            exp_start_idx = tp_end_idx
+        elif self.config.backup_experiment_start_index < num_pts-1:
+            tp_end_idx = self.config.backup_experiment_start_index
+            exp_start_idx = tp_end_idx
+        else:
+            tp_end_idx = num_pts-1
+            exp_start_idx = 0
+
+        # use baseline mean to set test pulse to start at zero
+        tp_baseline_mean = np.nanmean(
+            response[:self.config.test_pulse_baseline_samples]
+        )
+        tp_plot_data = PlotData(
+            stimulus=stimulus[:tp_end_idx],
+            response=response[:tp_end_idx] - tp_baseline_mean,
+            time=time[:tp_end_idx]
+        )
+
+        stim_epoch = get_stim_epoch()
 
     def make_test_pulse_plots(
         self, 

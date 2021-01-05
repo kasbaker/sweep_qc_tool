@@ -2,10 +2,10 @@ import json
 import logging
 import copy
 from typing import Optional, List, Dict, Any
-import ipfx
-from PyQt5.QtCore import QObject, pyqtSignal
 from multiprocessing import Pipe, Process
 
+from PyQt5.QtCore import QObject, pyqtSignal
+from ipfx import __version__
 from ipfx.ephys_data_set import EphysDataSet
 from ipfx.qc_feature_extractor import cell_qc_features, sweep_qc_features
 from ipfx.qc_feature_evaluator import qc_experiment, DEFAULT_QC_CRITERIA_FILE
@@ -15,8 +15,11 @@ from ipfx.dataset.create import create_ephys_data_set
 from ipfx.sweep_props import drop_tagged_sweeps
 from error_handling import exception_message
 from marshmallow import ValidationError
+
 from schemas import PipelineParameters
 from sweep_plotter import make_plots
+from sweep_plotter import SweepTuple
+
 
 class PreFxData(QObject):
 
@@ -255,7 +258,7 @@ class PreFxData(QObject):
             "stimulus_ontology_file": self.ontology_file,
             "manual_sweep_states": self.extract_manual_sweep_states(),
             "qc_criteria": self._qc_criteria,
-            "ipfx_version": ipfx.__version__
+            "ipfx_version": __version__
         }
 
         try:
@@ -381,21 +384,26 @@ class PreFxData(QObject):
         """Generates a list of sweeps to plot then spawns a plotting process.
 
         """
+        # define a named
         # generator for stimulus codes to determine ones to plot
         stim_code_gen = (
             data_set.get_stimulus_code(idx)
             for idx in data_set._data.sweep_numbers  # this property is fastest
         )
         # skip over "Search" sweeps because we don't need to plot them
-        sweep_data_list = [
-            (idx, stim_code, data_set.get_sweep_data(idx)) for idx, stim_code
-            in enumerate(stim_code_gen) if "Search" not in stim_code
+        sweep_list = [
+            SweepTuple(
+                sweep_number=idx, stimulus_code=stim_code,
+                sweep_data=data_set.get_sweep_data(idx)
+            ) for idx, stim_code in enumerate(stim_code_gen)
+            if "Search" not in stim_code # these will never be plotted for speed
         ]
+
         # This pipe will send sweep data and receive thumbnails / popup plots
         plot_pipe = Pipe(duplex=False)
         plot_process = Process(
             name="plot_process", target=make_plots,
-            args=(sweep_data_list, plot_pipe[1])
+            args=(sweep_list, plot_pipe[1])
         )
         plot_process.daemon = True
 

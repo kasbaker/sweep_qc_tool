@@ -125,7 +125,7 @@ class MockDataSet:
 
 mock_data_set = MockDataSet()
 mock_data_set.get_expected_stored_data()
-mock_plotter = SweepPlotter(data_set=mock_data_set, config=mock_config)
+mock_plotter = SweepPlotter(data_list=mock_data_set, config=mock_config)
 
 
 @pytest.fixture
@@ -213,7 +213,7 @@ def test_experiment_popup_plotter_graph(plot_data, baseline, sweep_number, y_lab
     check.is_not_none(line)
     check.equal(line.y(), baseline)
 
-
+# TODO fix this to work with new plotter
 # stored_data values: [initial_vclamp, previous_vclamp, initial_iclamp, previous_iclamp]
 @pytest.mark.parametrize(
     "sweep_number", list(range(len(mock_data_set.sweep_table)))
