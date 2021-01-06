@@ -18,7 +18,6 @@ from marshmallow import ValidationError
 
 from schemas import PipelineParameters
 from sweep_plotter import make_plots
-from sweep_plotter import SweepTuple
 
 
 class PreFxData(QObject):
@@ -30,7 +29,7 @@ class PreFxData(QObject):
     qc_criteria_unset = pyqtSignal(name="qc_criteria_unset")
 
     begin_commit_calculated = pyqtSignal(name="begin_commit_calculated")
-    end_commit_calculated = pyqtSignal(list, list, dict, EphysDataSet, name="end_commit_calculated")
+    end_commit_calculated = pyqtSignal(list, list, dict, dict, name="end_commit_calculated")
 
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
 
@@ -370,7 +369,7 @@ class PreFxData(QObject):
 
             # TODO send list of sweep plots through this signal
             self.end_commit_calculated.emit(
-                self.sweep_features, self.sweep_states, self.manual_qc_states, self.data_set
+                self.sweep_features, self.sweep_states, self.manual_qc_states, sweep_plots
             )
 
         # notifies fx_data that data has changed
@@ -391,19 +390,26 @@ class PreFxData(QObject):
             for idx in data_set._data.sweep_numbers  # this property is fastest
         )
         # skip over "Search" sweeps because we don't need to plot them
-        sweep_list = [
-            SweepTuple(
-                sweep_number=idx, stimulus_code=stim_code,
-                sweep_data=data_set.get_sweep_data(idx)
-            ) for idx, stim_code in enumerate(stim_code_gen)
-            if "Search" not in stim_code # these will never be plotted for speed
-        ]
+        sweep_dictionary = {
+            idx: {'sweep': data_set.sweep(idx), 'stimulus_code': stim_code}
+            for idx, stim_code in enumerate(stim_code_gen)
+            if "Search" not in stim_code  # these will not be plotted for speed
+        }
+
+        # Using a NamedTuple is fast, but not a good long-term solution
+        # sweep_list = [
+        #     SweepTuple(
+        #         sweep_number=idx, stimulus_code=stim_code,
+        #         sweep_data=data_set.get_sweep_data(idx)
+        #     ) for idx, stim_code in enumerate(stim_code_gen)
+        #     if "Search" not in stim_code  # these will not be plotted for speed
+        # ]
 
         # This pipe will send sweep data and receive thumbnails / popup plots
         plot_pipe = Pipe(duplex=False)
         plot_process = Process(
             name="plot_process", target=make_plots,
-            args=(sweep_list, plot_pipe[1])
+            args=(sweep_dictionary, plot_pipe[1])
         )
         plot_process.daemon = True
 

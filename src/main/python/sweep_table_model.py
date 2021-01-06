@@ -78,7 +78,7 @@ class SweepTableModel(QAbstractTableModel):
         sweep_features: List[Dict], 
         sweep_states: List, 
         manual_qc_states: Dict[int, str], 
-        data_set: EphysDataSet
+        data_set: dict
     ):
         """ Called when the underlying data has been completely replaced.
         Clears any old data and populates the table model with new data.
@@ -127,6 +127,10 @@ class SweepTableModel(QAbstractTableModel):
 
         # populates the sweep table model
         for index, sweep in enumerate(sweep_features):
+            # skip over "Search" sweeps for speed
+            if "Search" in sweep['stimulus_code']:
+                continue
+
             # define vclamp and iclamp sweeps
             if sweep['clamp_mode'] == "VoltageClamp":
                 self.sweep_types['v_clamp'].add(index)
@@ -138,8 +142,8 @@ class SweepTableModel(QAbstractTableModel):
                 self.sweep_types['pipeline'].add(index)
 
             # define sweep types based on stimulus codes
-            if sweep['stimulus_code'][-6:] == "Search":
-                self.sweep_types['search'].add(index)
+            # if sweep['stimulus_code'][-6:] == "Search":
+            #     self.sweep_types['search'].add(index)
             elif sweep['stimulus_code'][0:4] == "EXTP":
                 self.sweep_types['ex_tp'].add(index)
             elif sweep['stimulus_code'][0:5] == "NucVC":
@@ -351,5 +355,3 @@ def format_fail_tags(tags: List[str]) -> str:
 
     """
     return "\n\n".join(tags)
-
-
