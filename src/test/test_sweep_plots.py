@@ -6,8 +6,8 @@ import numpy as np
 from pyqtgraph import InfiniteLine
 
 from sweep_plotter import (
-    test_response_plot_data, experiment_plot_data, SweepPlotConfig,
-    PulsePopupPlotter, ExperimentPopupPlotter, PlotData, SweepPlotter
+    SweepPlotConfig, PulsePopupPlotter, ExperimentPopupPlotter,
+    PlotData, SweepPlotter
 )
 
 from .conftest import check_allclose
@@ -125,7 +125,7 @@ class MockDataSet:
 
 mock_data_set = MockDataSet()
 mock_data_set.get_expected_stored_data()
-mock_plotter = SweepPlotter(data_list=mock_data_set, config=mock_config)
+mock_plotter = SweepPlotter(sweep_dictionary=mock_data_set, config=mock_config)
 
 
 @pytest.fixture
@@ -142,13 +142,13 @@ def sweep():
 ])
 def test_test_response_plot_data(sweep, start, end, baseline, expected):
 
-    obtained = test_response_plot_data(sweep, start, end, baseline)
+    obtained = mock_plotter.test_response_plot_data(sweep, start, end, baseline)
     check_allclose(expected[0], obtained[0])
     check_allclose(expected[1], obtained[1])
 
 
 def test_experiment_plot_data(sweep):
-    obt, obt_base = experiment_plot_data(
+    obt, obt_base = mock_plotter.experiment_plot_data(
         sweep, baseline_start_index=0, baseline_end_index=2
     )
     obt_t = obt.time
