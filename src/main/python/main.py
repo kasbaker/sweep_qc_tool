@@ -289,9 +289,9 @@ class Application(object):
         # initialize components
         self.main_window = MainWindow()
         self.pre_fx_controller: PreFxController = PreFxController()
-        self.pre_fx_data: PreFxData = PreFxData()
+        self.pre_fx_data: PreFxData = PreFxData(plot_config=sweep_plot_config)
         self.fx_data: FxData = FxData()
-        self.sweep_page = SweepPage(sweep_plot_config)
+        self.sweep_page = SweepPage(sweep_plot_config=sweep_plot_config)
         self.feature_page = CellFeaturePage()
         self.plot_page = PlotPage()
         self.status_bar = self.main_window.statusBar()

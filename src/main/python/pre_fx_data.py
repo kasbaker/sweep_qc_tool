@@ -17,7 +17,7 @@ from error_handling import exception_message
 from marshmallow import ValidationError
 
 from schemas import PipelineParameters
-from sweep_plotter import make_plots
+from sweep_plotter import make_plots, SweepPlotConfig
 
 
 class PreFxData(QObject):
@@ -35,7 +35,7 @@ class PreFxData(QObject):
 
     status_message = pyqtSignal(str, name="status_message")
 
-    def __init__(self):
+    def __init__(self, plot_config: SweepPlotConfig):
         """ Main data store for all data upstream of feature extraction. This
         includes:
             - the EphysDataSet
@@ -43,8 +43,14 @@ class PreFxData(QObject):
             - the qc criteria
             - the sweep extraction results
             - the qc results
+
+        Parameters
+        ----------
+        plot_config : SweepPlotConfig
+            named tuple with constants used for plotting sweeps
         """
         super(PreFxData, self).__init__()
+        self.plot_config = plot_config
 
         # Nwb related data
         self.data_set: Optional[EphysDataSet] = None
@@ -328,15 +334,6 @@ class PreFxData(QObject):
             stimulus_ontology, cell_features, pre_qc_sweep_features, qc_criteria
         )
 
-        # Receive thumbnail / popup plot pairs here
-        plot_pipe[1].close()
-        sweep_plots = plot_pipe[0].recv()
-        plot_process.join()
-        plot_process.terminate()
-        # dummy return for testing
-        print(sweep_plots)
-        print(len(sweep_plots))
-
         if commit:
             self.status_message.emit("Gathering QC information...")
             self.begin_commit_calculated.emit()
@@ -363,32 +360,40 @@ class PreFxData(QObject):
                 sweep['sweep_number']: "default" for sweep in self.sweep_states
             }
 
+            # Receive thumbnail / popup plot pairs here
+            self.status_message.emit("Plotting sweeps...")
+            plot_pipe[1].close()
+            sweep_plots = plot_pipe[0].recv()
+
             self.status_message.emit("Initializing sweep page...")
             # emits signal that tells sweep_table_model to populate itself
             # with new data
-
-            # TODO send list of sweep plots through this signal
             self.end_commit_calculated.emit(
-                self.sweep_features, self.sweep_states, self.manual_qc_states, sweep_plots
+                self.sweep_features, self.sweep_states, self.manual_qc_states,
+                sweep_plots
             )
 
+        # process could terminate early before joining if commit = False
+        # this should be ok as long as we don't try to use the pipe?
+        plot_process.join()
+        plot_process.terminate()
         # notifies fx_data that data has changed
         self.data_changed.emit(self.nwb_path,
                                self.stimulus_ontology,
                                self.sweep_features,
                                self.cell_features)
 
-    @staticmethod
-    def spawn_plot_process(data_set: EphysDataSet) -> Pipe:
+    def spawn_plot_process(self, data_set: EphysDataSet) -> Pipe:
         """Generates a list of sweeps to plot then spawns a plotting process.
 
         """
-        # define a named
+        self.status_message.emit("Extracting sweep data...")
         # generator for stimulus codes to determine ones to plot
         stim_code_gen = (
             data_set.get_stimulus_code(idx)
             for idx in data_set._data.sweep_numbers  # this property is fastest
         )
+
         # skip over "Search" sweeps because we don't need to plot them
         sweep_dictionary = {
             idx: {'sweep': data_set.sweep(idx), 'stimulus_code': stim_code}
@@ -396,20 +401,11 @@ class PreFxData(QObject):
             if "Search" not in stim_code  # these will not be plotted for speed
         }
 
-        # Using a NamedTuple is fast, but not a good long-term solution
-        # sweep_list = [
-        #     SweepTuple(
-        #         sweep_number=idx, stimulus_code=stim_code,
-        #         sweep_data=data_set.get_sweep_data(idx)
-        #     ) for idx, stim_code in enumerate(stim_code_gen)
-        #     if "Search" not in stim_code  # these will not be plotted for speed
-        # ]
-
         # This pipe will send sweep data and receive thumbnails / popup plots
         plot_pipe = Pipe(duplex=False)
         plot_process = Process(
             name="plot_process", target=make_plots,
-            args=(sweep_dictionary, plot_pipe[1])
+            args=(sweep_dictionary, self.plot_config, plot_pipe[1])
         )
         plot_process.daemon = True
 

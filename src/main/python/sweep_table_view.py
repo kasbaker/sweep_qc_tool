@@ -193,9 +193,6 @@ class SweepTableView(QTableView):
             self.model().sweep_types['nuc_vc'].issubset(visible_sweeps)
         )
 
-        # remove 'Search' sweeps from visible sweeps
-        visible_sweeps = visible_sweeps - self.model().sweep_types['search']
-
         # loop through rows of table model and show only visible sweeps
         for index in range(self.model().rowCount()):
             if index in visible_sweeps:
