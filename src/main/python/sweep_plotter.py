@@ -238,9 +238,9 @@ class SweepPlotter:
         self.sweep_dictionary = sweep_dictionary
         self.config = config
 
-        # # initialize only one figure and axis for efficient plotting
-        # self.fig, self.ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
-        # self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
+        # initialize only one figure and axis for efficient plotting
+        self.fig, self.ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+        self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
 
         # initial and previous test pulse data for current clamp
         self.initial_vclamp_data: Optional[PlotData] = None
@@ -282,7 +282,7 @@ class SweepPlotter:
         previous = None
 
         # grabbing data for test pulse
-        plot_data = test_response_plot_data(
+        plot_data = self.test_response_plot_data(
             sweep,
             self.config.test_pulse_plot_start,
             self.config.test_pulse_plot_end,
@@ -307,14 +307,14 @@ class SweepPlotter:
                 else:
                     self.previous_vclamp_data = plot_data
 
-        thumbnail = make_test_pulse_plot(
+        thumbnail = self.make_test_pulse_plot(
             sweep_number=sweep_number, plot_data=plot_data,
             previous=previous, initial=initial, y_label=y_label,
             step=self.config.thumbnail_step, labels=False
         )
 
         return FixedPlots(
-            thumbnail=svg_from_mpl_axes(thumbnail),
+            thumbnail=thumbnail,
             full=PulsePopupPlotter(
                 plot_data=plot_data,
                 previous_plot_data=previous,
@@ -338,21 +338,21 @@ class SweepPlotter:
         y_label: label for the y-axis (mV or pA)
         """
 
-        plot_data, exp_baseline = experiment_plot_data(
+        plot_data, exp_baseline = self.experiment_plot_data(
             sweep=sweep_data,
             backup_start_index=self.config.backup_experiment_start_index,
             baseline_start_index=self.config.experiment_baseline_start_index,
             baseline_end_index=self.config.experiment_baseline_end_index
         )
 
-        thumbnail = make_experiment_plot(
+        thumbnail = self.make_experiment_plot(
             sweep_number=sweep_number, plot_data=plot_data,
             exp_baseline=exp_baseline, y_label=y_label,
             step=self.config.thumbnail_step, labels=False
         )
 
         return FixedPlots(
-            thumbnail=svg_from_mpl_axes(thumbnail),
+            thumbnail=thumbnail,
             full=ExperimentPopupPlotter(
                 plot_data=plot_data,
                 baseline=exp_baseline,
@@ -398,224 +398,238 @@ class SweepPlotter:
             self.make_experiment_plots(sweep_number, sweep_data, y_label)
         )
 
+    def make_test_pulse_plot(
+            self,
+            sweep_number: int,
+            plot_data: PlotData,
+            previous: Optional[PlotData] = None,
+            initial: Optional[PlotData] = None,
+            y_label: str = "",
+            step: int = 1,
+            labels: bool = True
+    ) -> mpl.figure.Figure:
+        """ Make a (static) plot of the response to a single sweep's test pulse,
+        optionally comparing to other sweeps from this experiment.
+        Parameters
+        ----------
+        sweep_number : int
+            Identifier for this sweep. Used for labeling.
+        plot_data : PlotData
+            named tuple with raw data used for plotting
+        previous : Optional[PlotData]
+           named tuple with raw data used for the previous sweep of the same
+           clamp mode
+        initial : Optional[PlotData]
+            named tuple with raw data used to plot the first sweep for a given
+            clamp mode or stimulus code
+        y_label: str
+            label for the y-axis (mV or pA)
+        step : int
+            stepsize applied to each array. Can be used to generate decimated
+            thumbnails
+        labels : bool
+            If False, labels will not be generated (useful for thumbnails).
+        Returns
+        -------
+        fig : mpl.figure.Figure
+            a matplotlib figure containing the plot to be turned into a thumbnail
+        """
 
-def svg_from_mpl_axes(fig: mpl.figure.Figure) -> QByteArray:
-    """ Convert a matplotlib figure to SVG and store it in a Qt byte array.
-    Parameters
-    ----------
-    fig: mpl.figure.Figure
-        a matplotlib figure containing the plot to be turned into a thumbnail
-    Returns
-    -------
-    thumbnail : QByteArray
-        a QByteArray used as a thumbnail for the given plot
-    """
+        # fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
-    data = io.BytesIO()
-    fig.savefig(data, format="svg")
-    plt.close(fig)
+        if initial is not None:
+            self.ax.plot(
+                initial.time[::step], initial.response[::step],
+                linewidth=1, label=f"initial", color=TEST_PULSE_INIT_COLOR
+            )
 
-    return QByteArray(data.getvalue())
+        if previous is not None:
+            self.ax.plot(
+                previous.time[::step], previous.response[::step],
+                linewidth=1, label=f"previous", color=TEST_PULSE_PREV_COLOR
+            )
 
+        self.ax.plot(
+            plot_data.time[::step], plot_data.response[::step], linewidth=1,
+                label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR
+        )
 
-def test_response_plot_data(
-        sweep: Sweep,
-        test_pulse_plot_start: float = 0.0,
-        test_pulse_plot_end: float = 0.1,
-        num_baseline_samples: int = 100
-) -> PlotData:
-    """ Generate time and response arrays for the test pulse plots.
-    Parameters
-    ----------
-    sweep :
-        data source for one sweep
-    test_pulse_plot_start :
-        The start point of the plot (s)
-    test_pulse_plot_end :
-        The endpoint of the plot (s)
-    num_baseline_samples :
-        How many samples (from time 0) to use when calculating the baseline
-        mean.
-    Returns
-    -------
-    plot_data : PlotData
-        A named tuple with the sweep's stimulus, response, and time
-    """
+        time_lim = (plot_data.time[0], plot_data.time[-1])
+        self.ax.set_xlim(time_lim)
 
-    start_index, end_index = (
-        np.searchsorted(
-            sweep.t, [test_pulse_plot_start, test_pulse_plot_end]
-        ).astype(int)
-    )
+        self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
+        self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
 
-    return PlotData(
-        stimulus=sweep.stimulus[start_index:end_index],
-        response=sweep.response[start_index: end_index] - np.mean(sweep.response[0: num_baseline_samples]),
-        time=sweep.t[start_index:end_index]
-    )
+        if labels:
+            self.ax.legend()
+        else:
+            self.ax.xaxis.set_major_locator(plt.NullLocator())
+            self.ax.yaxis.set_major_locator(plt.NullLocator())
 
+        thumbnail = self.svg_from_mpl_axes(self.fig)
+        self.ax.clear()
 
-def make_test_pulse_plot(
-        sweep_number: int,
-        plot_data: PlotData,
-        previous: Optional[PlotData] = None,
-        initial: Optional[PlotData] = None,
-        y_label: str = "",
-        step: int = 1,
-        labels: bool = True
-) -> mpl.figure.Figure:
-    """ Make a (static) plot of the response to a single sweep's test pulse,
-    optionally comparing to other sweeps from this experiment.
-    Parameters
-    ----------
-    sweep_number : int
-        Identifier for this sweep. Used for labeling.
-    plot_data : PlotData
-        named tuple with raw data used for plotting
-    previous : Optional[PlotData]
-       named tuple with raw data used for the previous sweep of the same
-       clamp mode
-    initial : Optional[PlotData]
-        named tuple with raw data used to plot the first sweep for a given
-        clamp mode or stimulus code
-    y_label: str
-        label for the y-axis (mV or pA)
-    step : int
-        stepsize applied to each array. Can be used to generate decimated
-        thumbnails
-    labels : bool
-        If False, labels will not be generated (useful for thumbnails).
-    Returns
-    -------
-    fig : mpl.figure.Figure
-        a matplotlib figure containing the plot to be turned into a thumbnail
-    """
+        return thumbnail
 
-    fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    def make_experiment_plot(
+            self,
+            sweep_number: int,
+            plot_data: PlotData,
+            exp_baseline: float,
+            y_label: str,
+            step: int = 1,
+            labels: bool = True
+    ) -> mpl.figure.Figure:
+        """ Make a (static) plot of the response to a single sweep's stimulus
+        Parameters
+        ----------
+        sweep_number : int
+            Identifier for this sweep. Used for labeling.
+        plot_data : PlotData
+            named tuple with raw data for plotting
+        exp_baseline : float
+            the average response (mV or pA) during a period just before stimulation
+        y_label: str
+            label for the y-axis (mV or pA)
+        step : int
+            stepsize applied to each array. Can be used to generate decimated
+            thumbnails
+        labels : bool
+            If False, labels will not be generated (useful for thumbnails).
+        Returns
+        -------
+        fig : mpl.figure.Figure
+            a matplotlib figure containing the plot to be turned into a thumbnail
+        """
+        # fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
 
-    if initial is not None:
-        ax.plot(initial.time[::step], initial.response[::step], linewidth=1, label=f"initial",
-                color=TEST_PULSE_INIT_COLOR)
+        time_lim = [plot_data.time[0], plot_data.time[-1]]
+        self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
+                color=EXP_PULSE_CURRENT_COLOR,
+                label=f"sweep {sweep_number}")
+        self.ax.hlines(exp_baseline, *time_lim, linewidth=1,
+                  color=EXP_PULSE_BASELINE_COLOR,
+                  label="baseline")
 
-    if previous is not None:
-        ax.plot(previous.time[::step], previous.response[::step], linewidth=1, label=f"previous",
-                color=TEST_PULSE_PREV_COLOR)
+        self.ax.set_xlim(time_lim)
 
-    ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
-            label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR)
-
-    ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
-
-    ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
-
-    if labels:
-        ax.legend()
-    else:
-        ax.xaxis.set_major_locator(plt.NullLocator())
-        ax.yaxis.set_major_locator(plt.NullLocator())
-
-    return fig
-
-
-def experiment_plot_data(
-        sweep: Sweep,
-        backup_start_index: int = 5000,
-        baseline_start_index: int = 5000,
-        baseline_end_index: int = 9000
-) -> Tuple[PlotData, float]:
-    """ Extract the data required for plotting a single sweep's experiment
-    epoch.
-    Parameters
-    ----------
-    sweep : Sweep
-        contains raw data that the experiment epoch will be extracted from
-    backup_start_index : int
-        Fall back on this if the experiment epoch start index cannot be
-        programmatically assessed
-    baseline_start_index : int
-        Start accumulating baseline samples from this index
-    baseline_end_index : int
-        Stop accumulating baseline samples at this index
-    Returns
-    -------
-    plot_data : PlotData
-        A named tuple with the sweep's stimulus, response, and time
-    baseline_mean : float
-        The average response (mV) during the baseline epoch for this sweep
-    """
-
-    # might want to grab this from sweep.epochs instead
-    start_index, end_index = \
-        get_experiment_epoch(sweep.i, sweep.sampling_rate) \
-        or (backup_start_index, len(sweep.i))
-
-    if start_index <= 0:
-        start_index = backup_start_index
-
-    stimulus = sweep.stimulus[start_index:end_index]
-    response = sweep.response[start_index:end_index]
-    time = sweep.t[start_index:end_index]
-
-    if len(response) > baseline_end_index:
-        baseline_mean = float(np.nanmean(response[baseline_start_index: baseline_end_index]))
-    else:
-        baseline_mean = float(np.nanmean(response))
-
-    return PlotData(stimulus, response, time), baseline_mean
+        self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
+        self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
 
 
-def make_experiment_plot(
-        sweep_number: int,
-        plot_data: PlotData,
-        exp_baseline: float,
-        y_label: str,
-        step: int = 1,
-        labels: bool = True
-) -> mpl.figure.Figure:
-    """ Make a (static) plot of the response to a single sweep's stimulus
-    Parameters
-    ----------
-    sweep_number : int
-        Identifier for this sweep. Used for labeling.
-    plot_data : PlotData
-        named tuple with raw data for plotting
-    exp_baseline : float
-        the average response (mV or pA) during a period just before stimulation
-    y_label: str
-        label for the y-axis (mV or pA)
-    step : int
-        stepsize applied to each array. Can be used to generate decimated
-        thumbnails
-    labels : bool
-        If False, labels will not be generated (useful for thumbnails).
-    Returns
-    -------
-    fig : mpl.figure.Figure
-        a matplotlib figure containing the plot to be turned into a thumbnail
-    """
+        if labels:
+            self.ax.legend()
+        else:
+            self.ax.xaxis.set_major_locator(plt.NullLocator())
+            self.ax.yaxis.set_major_locator(plt.NullLocator())
 
-    time_lim = [plot_data.time[0], plot_data.time[-1]]
+        thumbnail = self.svg_from_mpl_axes(self.fig)
+        self.ax.clear()
 
-    fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+        return thumbnail
 
-    ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
-            color=EXP_PULSE_CURRENT_COLOR,
-            label=f"sweep {sweep_number}")
-    ax.hlines(exp_baseline, *time_lim, linewidth=1,
-              color=EXP_PULSE_BASELINE_COLOR,
-              label="baseline")
-    ax.set_xlim(time_lim)
+    @staticmethod
+    def test_response_plot_data(
+            sweep: Sweep,
+            test_pulse_plot_start: float = 0.0,
+            test_pulse_plot_end: float = 0.1,
+            num_baseline_samples: int = 100
+    ) -> PlotData:
+        """ Generate time and response arrays for the test pulse plots.
+        Parameters
+        ----------
+        sweep :
+            data source for one sweep
+        test_pulse_plot_start :
+            The start point of the plot (s)
+        test_pulse_plot_end :
+            The endpoint of the plot (s)
+        num_baseline_samples :
+            How many samples (from time 0) to use when calculating the baseline
+            mean.
+        Returns
+        -------
+        plot_data : PlotData
+            A named tuple with the sweep's stimulus, response, and time
+        """
 
-    ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
-    ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
+        start_index, end_index = (
+            np.searchsorted(
+                sweep.t, [test_pulse_plot_start, test_pulse_plot_end]
+            ).astype(int)
+        )
 
-    if labels:
-        ax.legend()
-    else:
-        ax.xaxis.set_major_locator(plt.NullLocator())
-        ax.yaxis.set_major_locator(plt.NullLocator())
+        return PlotData(
+            stimulus=sweep.stimulus[start_index:end_index],
+            response=sweep.response[start_index: end_index] - np.mean(sweep.response[0: num_baseline_samples]),
+            time=sweep.t[start_index:end_index]
+        )
 
-    return fig
+    @staticmethod
+    def experiment_plot_data(
+            sweep: Sweep,
+            backup_start_index: int = 5000,
+            baseline_start_index: int = 5000,
+            baseline_end_index: int = 9000
+    ) -> Tuple[PlotData, float]:
+        """ Extract the data required for plotting a single sweep's experiment
+        epoch.
+        Parameters
+        ----------
+        sweep : Sweep
+            contains raw data that the experiment epoch will be extracted from
+        backup_start_index : int
+            Fall back on this if the experiment epoch start index cannot be
+            programmatically assessed
+        baseline_start_index : int
+            Start accumulating baseline samples from this index
+        baseline_end_index : int
+            Stop accumulating baseline samples at this index
+        Returns
+        -------
+        plot_data : PlotData
+            A named tuple with the sweep's stimulus, response, and time
+        baseline_mean : float
+            The average response (mV) during the baseline epoch for this sweep
+        """
+
+        # might want to grab this from sweep.epochs instead
+        start_index, end_index = \
+            get_experiment_epoch(sweep.i, sweep.sampling_rate) \
+            or (backup_start_index, len(sweep.i))
+
+        if start_index <= 0:
+            start_index = backup_start_index
+
+        stimulus = sweep.stimulus[start_index:end_index]
+        response = sweep.response[start_index:end_index]
+        time = sweep.t[start_index:end_index]
+
+        if len(response) > baseline_end_index:
+            baseline_mean = float(np.nanmean(response[baseline_start_index: baseline_end_index]))
+        else:
+            baseline_mean = float(np.nanmean(response))
+
+        return PlotData(stimulus, response, time), baseline_mean
+
+    @staticmethod
+    def svg_from_mpl_axes(fig: mpl.figure.Figure) -> QByteArray:
+        """ Convert a matplotlib figure to SVG and store it in a Qt byte array.
+        Parameters
+        ----------
+        fig: mpl.figure.Figure
+            a matplotlib figure containing the plot to be turned into a thumbnail
+        Returns
+        -------
+        thumbnail : QByteArray
+            a QByteArray used as a thumbnail for the given plot
+        """
+
+        data = io.BytesIO()
+        fig.savefig(data, format="svg")
+        plt.close(fig)
+
+        return QByteArray(data.getvalue())
 
 
 def make_plots(
