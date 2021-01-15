@@ -3,6 +3,7 @@ import logging
 import copy
 from typing import Optional, List, Dict, Any
 from multiprocessing import Pipe, Process
+from pathlib import Path
 
 from PyQt5.QtCore import QObject, pyqtSignal
 from ipfx import __version__
@@ -32,6 +33,7 @@ class PreFxData(QObject):
     end_commit_calculated = pyqtSignal(list, list, dict, dict, name="end_commit_calculated")
 
     data_changed = pyqtSignal(str, StimulusOntology, list, dict, name="data_changed")
+    update_specimen_name = pyqtSignal(str, name="update_specimen_name")
 
     status_message = pyqtSignal(str, name="status_message")
 
@@ -329,9 +331,8 @@ class PreFxData(QObject):
         # sweep_states: list of dictionaries containing sweep pass/fail states
         # cell_state: dictionary of qc states for the cell related to cell_features
         cell_state, cell_features, sweep_states, post_qc_sweep_features = \
-            self.run_qc(
-            stimulus_ontology, cell_features, pre_qc_sweep_features, qc_criteria
-        )
+            self.run_qc(stimulus_ontology, cell_features,
+                        pre_qc_sweep_features, qc_criteria)
 
         if commit:
             self.status_message.emit("Gathering QC information...")
@@ -340,6 +341,8 @@ class PreFxData(QObject):
             self.stimulus_ontology = stimulus_ontology
             self.qc_criteria = qc_criteria
             self.nwb_path = nwb_path
+            # send specimen name to main window to update window title
+            self.update_specimen_name.emit(Path(nwb_path).stem)
 
             self.data_set = data_set
             self.cell_features = cell_features
@@ -372,8 +375,7 @@ class PreFxData(QObject):
                 sweep_plots
             )
 
-        # process could terminate early before joining if commit = False
-        # this should be ok as long as we don't try to use the pipe?
+        # join could possibly go in the 'if commit:' block so we can cancel load
         plot_process.join()
         plot_process.terminate()
         # notifies fx_data that data has changed

@@ -171,6 +171,15 @@ class MainWindow(QMainWindow):
         self.view_menu = self.main_menu_bar.addMenu("View")
         self.main_menu_bar.addMenu("Help")
 
+    def update_window_title(self, specimen_name: str):
+        """ Update window title to display current specimen (cell) name.
+        Parameters
+        ----------
+        specimen_name : str
+            string representing specimen to display in main window title
+        """
+        self.setWindowTitle(f"{specimen_name} - Ephys Sweep QC Tool")
+
     def insert_tabs(
         self, 
         sweep_page: SweepPage, 
@@ -251,6 +260,8 @@ class MainWindow(QMainWindow):
 
         pre_fx_data.status_message.connect(status_bar.showMessage)
         pre_fx_data.status_message.connect(status_bar.repaint)
+        # connect signal to update window title with new specimen name
+        pre_fx_data.update_specimen_name.connect(self.update_window_title)
 
         fx_data.status_message.connect(status_bar.showMessage)
         fx_data.status_message.connect(status_bar.repaint)
