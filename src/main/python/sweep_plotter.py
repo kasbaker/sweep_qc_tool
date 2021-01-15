@@ -54,9 +54,12 @@ class PopupPlotter:
     __call__()
     """
 
-    __slots__ = ['plot_data', 'sweep_number', 'y_label']
+    __slots__ = ['plot_data', 'sweep_number', 'y_label', 'stimulus_code']
 
-    def __init__(self, plot_data: PlotData, sweep_number: int, y_label: str):
+    def __init__(
+            self, plot_data: PlotData, sweep_number: int,
+            y_label: str, stimulus_code: str
+    ):
         """ Displays an interactive plot of a sweep
         Parameters
         ----------
@@ -66,10 +69,14 @@ class PopupPlotter:
             sweep number used in naming the plot
         y_label: str
             label for the y-axis (mV or pA)
+        stimulus_code : str
+            stimulus code to use when labeling the popup window
+
         """
         self.plot_data = plot_data
         self.sweep_number = sweep_number
         self.y_label = y_label
+        self.stimulus_code = stimulus_code
 
     def initialize_plot(self, graph: PlotWidget):
         """ Generates an interactive plot widget from this plotter's data. This
@@ -83,6 +90,7 @@ class PopupPlotter:
         plot.addLegend()
         plot.setLabel("left", self.y_label)
         plot.setLabel("bottom", "time (s)")
+        graph.setWindowTitle(f"Sweep: {self.sweep_number} - {self.stimulus_code}")
 
         return plot
 
@@ -90,11 +98,13 @@ class PopupPlotter:
 class ExperimentPopupPlotter(PopupPlotter):
     """ Subclass of PopupPlotter used for the experiment epoch. """
 
-    __slots__ = ['plot_data', 'baseline', 'sweep_number', 'y_label']
+    __slots__ = [
+        'plot_data', 'baseline', 'sweep_number', 'y_label', 'stimulus_code'
+    ]
 
     def __init__(
             self, plot_data: PlotData, baseline: float,
-            sweep_number: int, y_label: str
+            sweep_number: int, y_label: str, stimulus_code: str
     ):
         """ Displays an interactive plot of a sweep's experiment epoch, along
         with a horizontal line at the baseline.
@@ -108,8 +118,14 @@ class ExperimentPopupPlotter(PopupPlotter):
             sweep number used in naming the plot
         y_label: str
             label for the y-axis (mV or pA)
+        stimulus_code : str
+            stimulus code to use when labeling the popup window
+
         """
-        super().__init__(plot_data=plot_data, sweep_number=sweep_number, y_label=y_label)
+        super().__init__(
+            plot_data=plot_data, sweep_number=sweep_number,
+            y_label=y_label, stimulus_code=stimulus_code
+        )
 
         self.baseline = baseline
 
@@ -142,16 +158,15 @@ class ExperimentPopupPlotter(PopupPlotter):
 class PulsePopupPlotter(PopupPlotter):
     """ Subclass of PopupPlotter used for the test pulse epoch. """
 
-    __slots__ = ['plot_data', 'previous_plot_data', 'initial_plot_data',
-                 'sweep_number', 'y_label']
+    __slots__ = [
+        'plot_data', 'previous_plot_data', 'initial_plot_data',
+        'sweep_number', 'y_label', 'stimulus_code'
+    ]
 
     def __init__(
-            self,
-            plot_data: PlotData,
-            previous_plot_data: PlotData,
-            initial_plot_data: PlotData,
-            sweep_number: int,
-            y_label: str
+            self, plot_data: PlotData,
+            previous_plot_data: PlotData, initial_plot_data: PlotData,
+            sweep_number: int, y_label: str, stimulus_code: str
     ):
         """ Plots the test pulse reponse, along with responses to the previous
         and first test pulse.
@@ -167,9 +182,15 @@ class PulsePopupPlotter(PopupPlotter):
             sweep number used in naming the plot
         y_label: str
             label for the y-axis (mV or pA)
+        stimulus_code : str
+            stimulus code to use when labeling the popup window
+
         """
 
-        super().__init__(plot_data=plot_data, sweep_number=sweep_number, y_label=y_label)
+        super().__init__(
+            plot_data=plot_data, sweep_number=sweep_number,
+            y_label=y_label, stimulus_code=stimulus_code
+        )
 
         self.previous_plot_data = previous_plot_data
         self.initial_plot_data = initial_plot_data
@@ -258,9 +279,12 @@ class SweepPlotter:
             sweep_number: int,
             sweep: Sweep,
             y_label: str = "",
-            store_test_pulse: bool = True
+            store_test_pulse: bool = True,
+            stimulus_code: str = ""
+
     ) -> FixedPlots:
         """ Generate test pulse response plots for a single sweep
+
         Parameters
         ----------
         sweep_number : int
@@ -271,6 +295,9 @@ class SweepPlotter:
             label for the y-axis (mV or pA)
         store_test_pulse : bool
             if True, store this sweep's response for use in later plots
+        stimulus_code : str
+            stimulus code to use when labeling the popup window
+
         Returns
         -------
         fixed_plots : FixedPlots
@@ -320,7 +347,8 @@ class SweepPlotter:
                 previous_plot_data=previous,
                 initial_plot_data=initial,
                 sweep_number=sweep_number,
-                y_label=y_label
+                y_label=y_label,
+                stimulus_code=stimulus_code
             )
         )
 
@@ -328,14 +356,22 @@ class SweepPlotter:
             self,
             sweep_number: int,
             sweep_data: Sweep,
-            y_label: str = ""
+            y_label: str = "",
+            stimulus_code: str = ""
     ) -> FixedPlots:
         """ Generate experiment response plots for a single sweep
+
         Parameters
         ----------
-        sweep_number : used to generate meaningful labels
-        sweep_data : holds timestamps and voltage values for this sweep
-        y_label: label for the y-axis (mV or pA)
+        sweep_number : int
+            used to generate meaningful labels
+        sweep_data : PlotData
+            holds timestamps and voltage values for this sweep
+        y_label : str
+            label for the y-axis (mV or pA)
+        stimulus_code : str
+            stimulus code to use when labeling the popup window
+
         """
 
         plot_data, exp_baseline = self.experiment_plot_data(
@@ -357,7 +393,8 @@ class SweepPlotter:
                 plot_data=plot_data,
                 baseline=exp_baseline,
                 sweep_number=sweep_number,
-                y_label=y_label
+                y_label=y_label,
+                stimulus_code=stimulus_code
             )
         )
 
