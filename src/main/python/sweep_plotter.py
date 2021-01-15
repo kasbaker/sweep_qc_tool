@@ -454,8 +454,10 @@ class SweepPlotter:
                 label=f"sweep {sweep_number}", color=TEST_PULSE_CURRENT_COLOR
         )
 
-        time_lim = (plot_data.time[0], plot_data.time[-1])
-        self.ax.set_xlim(time_lim)
+        # this is needed to avoid an error in case of an empty sweep
+        if len(plot_data.time) > 0:
+            time_lim = (plot_data.time[0], plot_data.time[-1])
+            self.ax.set_xlim(time_lim)
 
         self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
         self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
@@ -501,9 +503,11 @@ class SweepPlotter:
         fig : mpl.figure.Figure
             a matplotlib figure containing the plot to be turned into a thumbnail
         """
-        # fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+        if len(plot_data.time) > 0:
+            time_lim = [plot_data.time[0], plot_data.time[-1]]
+        else:
+            time_lim = [0, 0]
 
-        time_lim = [plot_data.time[0], plot_data.time[-1]]
         self.ax.plot(plot_data.time[::step], plot_data.response[::step], linewidth=1,
                 color=EXP_PULSE_CURRENT_COLOR,
                 label=f"sweep {sweep_number}")
@@ -515,7 +519,6 @@ class SweepPlotter:
 
         self.ax.set_xlabel("time (s)", fontsize=PLOT_FONTSIZE)
         self.ax.set_ylabel(y_label, fontsize=PLOT_FONTSIZE)
-
 
         if labels:
             self.ax.legend()

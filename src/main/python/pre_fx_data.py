@@ -311,7 +311,6 @@ class PreFxData(QObject):
             ontology=stimulus_ontology
         )
 
-        # TODO spawn child process here to generate plots
         # Spawns process and pipe for making sweep plots
         plot_process, plot_pipe = self.spawn_plot_process(data_set)
         # Run this in parallel to auto QC steps below
