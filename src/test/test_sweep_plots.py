@@ -163,20 +163,24 @@ def test_experiment_plot_data(mock_plotter, sweep):
 
 
 @pytest.mark.parametrize(
-    "plot_data,previous_plot_data,initial_plot_data,sweep_number,y_label", [
+    "plot_data,previous_plot_data,initial_plot_data,sweep_number,y_label,stimulus_code", [
         [PlotData(time=np.arange(20), response=np.arange(20), stimulus=np.arange(20)),
-         None, None, 40, 'foo'],
+         None, None, 40, 'foo_label', 'foo_title'],
         [PlotData(time=np.arange(20), response=np.arange(20), stimulus=np.arange(20)),
          PlotData(time=np.arange(20), response=np.arange(20)*2, stimulus=np.arange(20)),
          PlotData(time=np.arange(20), response=np.arange(20)*3, stimulus=np.arange(20)),
-         40, 'foo']
+         40, 'foo_label', 'foo_title']
     ])
 def test_pulse_popup_plotter(
-        plot_data, previous_plot_data, initial_plot_data, sweep_number, y_label
+        plot_data, previous_plot_data, initial_plot_data,
+        sweep_number, y_label, stimulus_code
 ):
 
-    plotter = PulsePopupPlotter(plot_data, previous_plot_data,
-                                initial_plot_data, sweep_number, y_label)
+    plotter = PulsePopupPlotter(
+        plot_data, previous_plot_data, initial_plot_data,
+        sweep_number, y_label, stimulus_code
+    )
+
     graph = plotter()
 
     data_items = graph.getPlotItem().listDataItems()
@@ -193,13 +197,17 @@ def test_pulse_popup_plotter(
             check_allclose(item.yData, initial_plot_data.response)
 
 
-@pytest.mark.parametrize("plot_data,baseline,sweep_number,y_label", [
+@pytest.mark.parametrize("plot_data,baseline,sweep_number,y_label,stimulus_code", [
     [PlotData(time=np.linspace(0, np.pi, 20), response=np.arange(20), stimulus=np.arange(20)),
-     1.0, 40, 'foo']
+     1.0, 40, 'foo_label', 'foo_title']
 ])
-def test_experiment_popup_plotter_graph(plot_data, baseline, sweep_number, y_label):
+def test_experiment_popup_plotter_graph(
+        plot_data, baseline, sweep_number, y_label, stimulus_code
+):
 
-    plotter = ExperimentPopupPlotter(plot_data, baseline, sweep_number, y_label)
+    plotter = ExperimentPopupPlotter(
+        plot_data, baseline, sweep_number, y_label, stimulus_code
+    )
     graph = plotter()
 
     data_items = graph.getPlotItem().listDataItems()
