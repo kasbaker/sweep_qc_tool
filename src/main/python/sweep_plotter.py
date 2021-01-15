@@ -428,11 +428,12 @@ class SweepPlotter:
 
         return (
             self.make_test_pulse_plots(
-                sweep_number=sweep_number,
-                sweep=sweep_data, y_label=y_label,
-                store_test_pulse=store_tp
+                sweep_number=sweep_number, sweep=sweep_data, y_label=y_label,
+                store_test_pulse=store_tp, stimulus_code=stim_code
             ),
-            self.make_experiment_plots(sweep_number, sweep_data, y_label)
+            self.make_experiment_plots(
+                sweep_number=sweep_number, sweep_data=sweep_data,
+                y_label=y_label, stimulus_code=stim_code)
         )
 
     def make_test_pulse_plot(
