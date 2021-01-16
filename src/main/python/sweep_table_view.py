@@ -1,6 +1,6 @@
 from typing import Optional
 
-from PyQt5.QtWidgets import QTableView, QDialog, QGridLayout, QWidget, QAction
+from PyQt5.QtWidgets import QTableView, QWidget, QAction
 from PyQt5.QtCore import QModelIndex
 
 from delegates import SvgDelegate, ComboBoxDelegate

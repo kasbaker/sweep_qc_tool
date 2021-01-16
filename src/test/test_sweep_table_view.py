@@ -4,7 +4,6 @@ import pytest
 from PyQt5.QtCore import QModelIndex, Qt, QPoint
 
 from main import SweepPage
-from sweep_plotter import SweepPlotConfig
 from sweep_table_model import SweepTableModel
 from sweep_table_view import SweepTableView
 from .conftest import check_mock_called_with, check_mock_not_called
@@ -23,13 +22,8 @@ class MockPlotter:
 @pytest.mark.parametrize("col", list(range(8)))
 def test_plot_popup_click(qtbot, row, col):
 
-    model = SweepTableModel(
-        SweepPage.colnames,
-        SweepPlotConfig(0, 1, 2, 3, 4, 5, 6)
-    )
-    view = SweepTableView(
-        SweepPage.colnames
-    )
+    model = SweepTableModel(SweepPage.colnames)
+    view = SweepTableView(SweepPage.colnames)
 
     view.popup_plot = mock.MagicMock()
 
@@ -82,12 +76,9 @@ def test_filter_sweeps(qtbot, filter_status):
         """
     model = SweepTableModel(
         SweepPage.colnames,
-        SweepPlotConfig(0, 1, 2, 3, 4, 5, 6)
     )
 
-    view = SweepTableView(
-        SweepPage.colnames
-    )
+    view = SweepTableView(SweepPage.colnames)
 
     # mock dictionary of sets defining sweep types
     sweep_types = {

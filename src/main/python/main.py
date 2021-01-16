@@ -64,7 +64,7 @@ class SweepPage(QWidget):
         "experiment epoch"
     )
 
-    def __init__(self, sweep_plot_config: SweepPlotConfig):
+    def __init__(self):
         """ Holds and displays a table view (and associated model) containing 
         information about individual sweeps.
 
@@ -72,7 +72,7 @@ class SweepPage(QWidget):
 
         super().__init__()
         # abstract model of the sweep table that is represented by sweep_view
-        self.sweep_model = SweepTableModel(self.colnames, sweep_plot_config)
+        self.sweep_model = SweepTableModel(self.colnames)
 
         # view of the sweep table that the user sees
         self.sweep_view = SweepTableView(self.colnames)
@@ -302,7 +302,7 @@ class Application(object):
         self.pre_fx_controller: PreFxController = PreFxController()
         self.pre_fx_data: PreFxData = PreFxData(plot_config=sweep_plot_config)
         self.fx_data: FxData = FxData()
-        self.sweep_page = SweepPage(sweep_plot_config=sweep_plot_config)
+        self.sweep_page = SweepPage()
         self.feature_page = CellFeaturePage()
         self.plot_page = PlotPage()
         self.status_bar = self.main_window.statusBar()

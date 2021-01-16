@@ -33,7 +33,6 @@ class SweepTableModel(QAbstractTableModel):
     def __init__(
         self, 
         colnames: Sequence[str],
-        plot_config: SweepPlotConfig
     ):
         """ Initializes and configures abstract table model
 
@@ -41,8 +40,6 @@ class SweepTableModel(QAbstractTableModel):
         ----------
         colnames : Sequence[str]
             list of column names for the sweep table model
-        plot_config : SweepPlotConfig
-            named tuple with constants used for plotting sweeps
 
         """
         super().__init__()
